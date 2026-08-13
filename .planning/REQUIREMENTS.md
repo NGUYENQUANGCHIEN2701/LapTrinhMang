@@ -88,28 +88,28 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | TBD | Pending |
-| AUTH-02 | TBD | Pending |
-| AUTH-03 | TBD | Pending |
-| MATCH-01 | TBD | Pending |
-| MATCH-02 | TBD | Pending |
-| COMBAT-01 | TBD | Pending |
-| COMBAT-02 | TBD | Pending |
-| COMBAT-03 | TBD | Pending |
-| COMBAT-04 | TBD | Pending |
-| COMBAT-05 | TBD | Pending |
-| COMBAT-06 | TBD | Pending |
-| LIFE-01 | TBD | Pending |
-| LIFE-02 | TBD | Pending |
-| CHAT-01 | TBD | Pending |
-| LEADER-01 | TBD | Pending |
-| BOT-01 | TBD | Pending |
+| AUTH-01 | Phase 4 | Pending |
+| AUTH-02 | Phase 4 | Pending |
+| AUTH-03 | Phase 4 | Pending |
+| MATCH-01 | Phase 4 | Pending |
+| MATCH-02 | Phase 4 | Pending |
+| COMBAT-01 | Phase 1 | Pending |
+| COMBAT-02 | Phase 2 | Pending |
+| COMBAT-03 | Phase 3 | Pending |
+| COMBAT-04 | Phase 3 | Pending |
+| COMBAT-05 | Phase 2 | Pending |
+| COMBAT-06 | Phase 2 | Pending |
+| LIFE-01 | Phase 3 | Pending |
+| LIFE-02 | Phase 3 | Pending |
+| CHAT-01 | Phase 5 | Pending |
+| LEADER-01 | Phase 4 | Pending |
+| BOT-01 | Phase 5 | Pending |
 
 **Coverage:**
 - v1 requirements: 16 total
-- Mapped to phases: 0 (roadmap not yet created)
-- Unmapped: 16 ⚠️
+- Mapped to phases: 16
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-08-13*
-*Last updated: 2026-08-13 after initial definition*
+*Last updated: 2026-08-13 after roadmap creation (traceability mapped)*
