@@ -30,7 +30,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Pressing a movement key moves your tank on your screen and the other window shows that same movement live, without a refresh
   3. Positions come from the server: a client that sends no input stops moving, and a hand-crafted position message sent from browser devtools does not change what the opponent sees
   4. Both windows still show identical tank positions after both players mash movement keys simultaneously for a sustained stretch (no drift, no server crash)
-**Plans**: TBD
+**Plans:** 4 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Walking skeleton: Maven/Javalin server + Vite/React client scaffolds joined by one real WebSocket round trip, plus the dev-run contract
+- [ ] 01-02-PLAN.md — Server-authoritative movement: 30 Hz delta-time tick loop, arena-clamped continuous positions, identical broadcast to both sessions, input-only message dispatch
+- [ ] 01-03-PLAN.md — Client half: Canvas arena rendering both tanks from server state, edge-triggered keyboard intent, and all four connection states
+- [ ] 01-04-PLAN.md — Proof: two-real-client concurrency stress test, end-to-end forged-frame rejection test, and the reproducible two-browser acceptance recipe
+
 **UI hint**: yes
 
 *Notes: This phase locks the three decisions that are expensive to retrofit — message protocol envelope, server-authoritative model, and the concurrency strategy for shared match state (research recommends a single-threaded executor per match). It also locks the fixed-tick server loop (~20-30 Hz) and the client's Canvas render loop. Test with two independent browser processes plus artificial latency, not two tabs on localhost.*
@@ -99,7 +106,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Networked Movement Skeleton | 0/TBD | Not started | - |
+| 1. Networked Movement Skeleton | 0/4 | Not started | - |
 | 2. Shooting, Walls & Ricochet | 0/TBD | Not started | - |
 | 3. Damage, Win Condition & Match Lifecycle | 0/TBD | Not started | - |
 | 4. Accounts, Matchmaking & Leaderboard | 0/TBD | Not started | - |
