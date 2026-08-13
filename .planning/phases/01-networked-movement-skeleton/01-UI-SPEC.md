@@ -1,7 +1,7 @@
 ---
 phase: 1
 slug: 01-networked-movement-skeleton
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-08-13
@@ -178,24 +178,31 @@ token above — add as needed), connected = accent `#22c55e`, error = destructiv
 > Empty-state and error-state COPY live in `## Copywriting Contract` above — this section covers
 > state coverage and REFERENCES those rows rather than restating the copy (de-dup).
 
-Applicable state considerations resolved: 7 covered, 0 backstop, 0 unresolved (2 dismissed as not applicable).
+Applicable state considerations resolved (via `ui-consideration-probe.cjs`, run post-checker-approval per ui-phase Step 9.5): 12 covered, 0 backstop, 0 unresolved (4 dismissed as not applicable).
 
 **Elements classified:**
-- `arena-canvas` — 800x600 Canvas rendering the game arena and both tanks — kinds: `media`, `list-collection`
-- `tank-entities` — the 1-2 tank sprites drawn on the canvas (local + opponent, opponent appears once connected) — kind: `list-collection`
-- `connection-status` — one-line status text above the canvas — kind: `static-content`
+- `arena-canvas` — 800x600 Canvas rendering the game arena and both tanks — kinds: `media`, `list-collection` (authored override, confirmed against the researcher's own classification — probe's auto-classifier initially returned `unclassified` on this element's prose)
+- `tank-entities` — the 1-2 tank sprites drawn on the canvas (local + opponent, opponent appears once connected) — kind: `list-collection` (auto-detected)
+- `connection-status` — one-line status text above the canvas — kind: `static-content` (auto-detected)
 
 | Category | Element(s) | Status | Resolution / Reason |
 |----------|------------|--------|---------------------|
-| empty | arena-canvas (media) | ✅ covered | Only the local player's tank renders until the opponent's `joined` message arrives; the opponent's spawn corner stays visually empty (no placeholder tank drawn) — ties to the "Waiting for opponent…" empty-state copy row above. |
-| loading | arena-canvas (media) | ✅ covered | Canvas renders the empty arena background (no tanks) while the status line reads "Connecting…", before the first server `joined`/`state` message is received. |
-| error | arena-canvas (media) | ✅ covered | On WS `onclose`/`onerror`, status line switches to destructive-red "Connection lost" copy; canvas freezes on the last-received state rather than clearing, keeping the frozen moment visible for context. |
-| populated | arena-canvas (media) | ✅ covered | Happy path fully specified in Game Rendering Contract: both tanks render at last-known server position every ~30Hz tick, rotating in place to match `facing`. |
+| empty | arena-canvas (media, list-collection) | ✅ covered | Only the local player's tank renders until the opponent's `joined` message arrives; the opponent's spawn corner stays visually empty (no placeholder tank drawn) — ties to the "Waiting for opponent…" empty-state copy row above. |
+| loading | arena-canvas (media, list-collection) | ✅ covered | Canvas renders the empty arena background (no tanks) while the status line reads "Connecting…", before the first server `joined`/`state` message is received. |
+| error | arena-canvas (media, list-collection) | ✅ covered | On WS `onclose`/`onerror`, status line switches to destructive-red "Connection lost" copy; canvas freezes on the last-received state rather than clearing, keeping the frozen moment visible for context. |
+| populated | arena-canvas (media, list-collection) | ✅ covered | Happy path fully specified in Game Rendering Contract: both tanks render at last-known server position every ~30Hz tick, rotating in place to match `facing`. |
+| partial | arena-canvas (list-collection) | dismissed | Each tick's tank record (`x, y, facing`) is atomic — the server never broadcasts a partially-filled tank state, so the canvas never has to render a half-updated frame. |
+| overflow | arena-canvas (list-collection) | dismissed | Canvas is a fixed 800x600px block (D-05) — there is no scrollable/overflowing content inside it to clip, wrap, or truncate. |
+| zero-one-many | arena-canvas (list-collection) | ✅ covered | 0 tanks drawn while connecting, 1 tank (local only) while waiting for opponent, 2 tanks once matched. |
+| empty | tank-entities (list-collection) | ✅ covered | No tank sprite exists for a connection slot until its owning player has joined — matches arena-canvas's empty-state handling. |
+| loading | tank-entities (list-collection) | ✅ covered | No tank sprites are drawn during the initial WebSocket handshake, before the first `joined` message. |
+| error | tank-entities (list-collection) | ✅ covered | On disconnect, the affected tank sprite freezes at its last-known position rather than disappearing — matches arena-canvas's error handling. |
+| populated | tank-entities (list-collection) | ✅ covered | Both P1 and P2 sprites render simultaneously once matched, each independently rotating per its own `facing`. |
+| partial | tank-entities (list-collection) | dismissed | Each tick's tank record (`x, y, facing`) is atomic — the server never broadcasts a partially-filled tank state; partial-data rendering is not a real scenario this phase. |
+| overflow | tank-entities (list-collection) | dismissed | Match is hardcoded to exactly 2 players server-side this phase (RESEARCH.md Open Question 2); no unbounded list, no scroll/overflow surface exists. |
 | zero-one-many | tank-entities (list-collection) | ✅ covered | 0 tanks drawn while connecting, 1 tank (local only) while waiting for opponent, 2 tanks once matched — directly tied to the empty/loading/populated rows above; tanks are drawn, not counted in text, so no pluralized copy is needed. |
 | overflow | connection-status (static-content) | ✅ covered | All status copy is fixed and developer-authored (see Copywriting Contract), kept under ~50 characters — well within the 800px canvas width at Body size, so no wrap/truncation handling is needed this phase. |
 | long-text | connection-status (static-content) | ✅ covered | No user-generated or dynamic text exists this phase (no usernames/chat until Phase 4/5); every status string is a fixed, pre-authored copy row above. |
-| overflow | tank-entities (list-collection) | dismissed | Match is hardcoded to exactly 2 players server-side this phase (RESEARCH.md Open Question 2); no unbounded list, no scroll/overflow surface exists. |
-| partial | tank-entities (list-collection) | dismissed | Each tick's tank record (`x, y, facing`) is atomic — the server never broadcasts a partially-filled tank state; partial-data rendering is not a real scenario this phase. |
 
 <!-- Status vocabulary (locked by probe-core projectTruths):
      ✅ covered   → a plain truth string lifted into must_haves.truths
@@ -218,14 +225,14 @@ No third-party registries declared. No vetting gate required this phase.
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: PASS
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** approved 2026-08-13
 
 ---
 *Phase: 01-networked-movement-skeleton*
