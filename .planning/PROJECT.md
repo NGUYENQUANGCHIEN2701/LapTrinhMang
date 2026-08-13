@@ -44,6 +44,7 @@ Two players can play a real-time tank battle against each other over the network
 - **Tech stack**: Java backend, React frontend — user's explicit choice for a client-server architecture with a polished-looking UI
 - **Timeline**: Several weeks, solo developer — no fixed external deadline currently known
 - **Academic scope**: Deliverable is a gradeable course project, not a production system — favor a working, demonstrable end-to-end flow over polish or scale
+- **Architecture**: Java backend design must follow SOLID principles — explicit course/assignment requirement (surfaced via the course's Trello task board, card [G02]); applies to server-side class design (e.g. Match/GameState/connection-handling separation), not the React client
 
 ## Key Decisions
 
@@ -71,4 +72,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-13 after initialization*
+*Last updated: 2026-08-13 after adding SOLID architecture constraint*
