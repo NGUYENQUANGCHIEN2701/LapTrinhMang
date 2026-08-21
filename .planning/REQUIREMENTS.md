@@ -1,115 +1,92 @@
-# Requirements: Tank Battle Online
+# Yêu cầu: Tankzors Pro
 
-**Defined:** 2026-08-13
-**Core Value:** Two players can play a real-time tank battle against each other over the network, end-to-end — client and server actually communicating live game state, not a local single-player mockup.
+**Ngày tạo:** 21/08/2026
+**Giá trị cốt lõi:** Game xe tăng PvE hoàn chỉnh với 2 chế độ chơi, thể hiện kiến thức Lập trình mạng (WebSocket client-server) và nguyên tắc SOLID trong Java backend.
 
-## v1 Requirements
+## Yêu cầu phiên bản 1
 
-Requirements for initial release. Each maps to roadmap phases.
+Yêu cầu cho phiên bản chấm điểm. Mỗi yêu cầu tương ứng với một giai đoạn trong lộ trình.
 
-### Authentication
+### Chiến đấu cơ bản
 
-- [ ] **AUTH-01**: User can register a new account with a username and password
-- [ ] **AUTH-02**: User can log in with their account
-- [ ] **AUTH-03**: User's login session persists across a page refresh
+- [ ] **COMBAT-01**: Người chơi điều khiển xe tăng di chuyển (lên/xuống/trái/phải) mượt mà
+- [ ] **COMBAT-02**: Người chơi có thể bắn đạn; đạn di chuyển theo hướng xe tăng
+- [ ] **COMBAT-03**: AI đối thủ di chuyển, xoay, và bắn lại người chơi
+- [ ] **COMBAT-04**: Xe tăng có máu (HP); trúng đạn giảm máu; HP = 0 thì xe tăng bị phá hủy
+- [ ] **COMBAT-05**: Bản đồ có tường/chướng ngại vật chặn di chuyển và chặn đạn
 
-### Matchmaking
+### Chế độ Campaign (Chiến dịch)
 
-- [ ] **MATCH-01**: Two logged-in users can be paired into a 1v1 match (simple queue or room join — no skill-based ranking)
-- [ ] **MATCH-02**: User sees a waiting/matched status while queued for an opponent
+- [ ] **CAMP-01**: 3 màn chơi tuần tự (phải thắng màn N mới mở được màn N+1)
+- [ ] **CAMP-02**: Mỗi màn có bản đồ riêng với bố trí chướng ngại vật và AI đối thủ khác nhau
+- [ ] **CAMP-03**: Thắng màn = nhận 3 sao + tiền thưởng
+- [ ] **CAMP-04**: Vật phẩm thu được cộng dồn qua các màn (có giới hạn tối đa mỗi loại)
 
-### Combat
+### Chế độ Online (Trực tuyến)
 
-- [ ] **COMBAT-01**: Player can move their tank in real time; movement is visible live to the opponent
-- [ ] **COMBAT-02**: Player can fire; bullets travel and hit detection is resolved by the server
-- [ ] **COMBAT-03**: Tank has HP; taking a hit reduces HP
-- [ ] **COMBAT-04**: Match ends with a clear winner when a tank's HP reaches 0
-- [ ] **COMBAT-05**: Map has walls/obstacles that block tank movement and stop bullets
-- [ ] **COMBAT-06**: Bullets ricochet off walls (limited bounce count) instead of simply stopping
+- [ ] **ONLINE-01**: 3 bản đồ chơi độc lập (không cần mở khóa, chọn map bất kỳ)
+- [ ] **ONLINE-02**: Mỗi bản đồ có độ khó cố định (không tăng dần như Campaign)
+- [ ] **ONLINE-03**: Kết quả (điểm/sao) được gửi lên server sau mỗi trận
 
-### Match Lifecycle
+### Lập trình mạng
 
-- [ ] **LIFE-01**: If a player disconnects mid-match, the match ends and the remaining player is declared the winner
-- [ ] **LIFE-02**: Player sees a clear win/lose result screen when a match ends
+- [ ] **NET-01**: Client kết nối server qua WebSocket; server xử lý logic game (server quản lý trạng thái)
+- [ ] **NET-02**: Client gửi lệnh (di chuyển/bắn), server xử lý và gửi trạng thái game về client
+- [ ] **NET-03**: Bảng xếp hạng lưu trên server, nhiều client có thể xem đồng thời
 
-### Chat
+### Kiến trúc phần mềm
 
-- [ ] **CHAT-01**: Players can send text chat messages to each other during a match
+- [ ] **ARCH-01**: Java backend thiết kế theo nguyên tắc SOLID (SRP, OCP, LSP, ISP, DIP)
+- [ ] **ARCH-02**: Tách biệt rõ ràng: Game Engine / Tầng Mạng / Logic AI / Dữ liệu Bản đồ
 
-### Leaderboard
+## Yêu cầu phiên bản 2 (Phát triển sau - ghi vào README)
 
-- [ ] **LEADER-01**: Player can view a leaderboard showing win/loss records across matches
+- Thêm nhiều màn chơi hơn (5-10 mỗi chế độ)
+- Thêm loại xe tăng khác nhau (xe nhanh, xe hạng nặng, xe trinh sát)
+- Thêm vũ khí đặc biệt (tên lửa, mìn, khiên)
+- Chế độ PvP nhiều người chơi
+- Hệ thống tài khoản đầy đủ
+- Âm thanh và hiệu ứng hình ảnh
+- Vật phẩm tăng sức mạnh trên bản đồ
 
-### Practice
+## Ngoài phạm vi
 
-- [ ] **BOT-01**: Player can practice against an AI-controlled tank when a second human player isn't available
+| Tính năng | Lý do |
+|-----------|-------|
+| PvP nhiều người chơi thời gian thực | Quá phức tạp; đồng bộ trạng thái cho 2+ người vượt quá thời gian cho phép |
+| Hệ thống tài khoản (JWT, OAuth) | Không cần thiết cho demo 3 màn; tập trung vào gameplay + mạng |
+| Thoại/Video chat | Hoàn toàn ngoài phạm vi môn học |
+| Ứng dụng di động | Ưu tiên web, React Canvas là đủ |
+| Hơn 3 màn chơi | Đủ demo; ghi vào kế hoạch phiên bản 2 |
+| Ghép trận theo trình độ | Không có PvP nên không cần |
+| Trình chỉnh sửa bản đồ | Phạm vi riêng biệt, dùng bản đồ cố định |
 
-## v2 Requirements
+## Bảng theo dõi yêu cầu
 
-Deferred to future release. Tracked but not in current roadmap.
+| Yêu cầu | Giai đoạn | Trạng thái |
+|----------|-----------|------------|
+| COMBAT-01 | Giai đoạn 1 | Chưa làm |
+| COMBAT-02 | Giai đoạn 1 | Chưa làm |
+| COMBAT-03 | Giai đoạn 2 | Chưa làm |
+| COMBAT-04 | Giai đoạn 1 | Chưa làm |
+| COMBAT-05 | Giai đoạn 1 | Chưa làm |
+| CAMP-01 | Giai đoạn 2 | Chưa làm |
+| CAMP-02 | Giai đoạn 2 | Chưa làm |
+| CAMP-03 | Giai đoạn 2 | Chưa làm |
+| CAMP-04 | Giai đoạn 2 | Chưa làm |
+| ONLINE-01 | Giai đoạn 3 | Chưa làm |
+| ONLINE-02 | Giai đoạn 3 | Chưa làm |
+| ONLINE-03 | Giai đoạn 3 | Chưa làm |
+| NET-01 | Giai đoạn 1 | Chưa làm |
+| NET-02 | Giai đoạn 1 | Chưa làm |
+| NET-03 | Giai đoạn 3 | Chưa làm |
+| ARCH-01 | Giai đoạn 1 | Chưa làm |
+| ARCH-02 | Giai đoạn 1 | Chưa làm |
 
-### Polish
-
-- **POLISH-01**: Power-ups on the map (speed boost, shield, extra damage, heal)
-- **POLISH-02**: Multiple selectable tank types with different stats
-- **POLISH-03**: Multiple selectable maps
-- **POLISH-04**: Sound effects and visual polish (explosions, muzzle flash, screen shake)
-
-### Stats
-
-- **STATS-01**: Match history / per-match stats (shots fired, accuracy, damage dealt)
-
-### Reliability
-
-- **REL-01**: Reconnect into an in-progress match after accidental disconnect
-
-## Out of Scope
-
-Explicitly excluded. Documented to prevent scope creep.
-
-| Feature | Reason |
-|---------|--------|
-| More than 2 players per match (3v3, battle royale) | State-sync complexity scales non-linearly with player count — beyond a solo, several-week course project |
-| Skill-based matchmaking / ELO rating | No meaningful player pool for a course demo; win/loss counts on the leaderboard are sufficient |
-| Spectator mode / match replay | Requires a second delivery pipeline (broadcast or state-log recording) on top of the live game |
-| Native mobile app | Different rendering/input stack and packaging; doesn't validate the networking coursework — web-first only |
-| Tank progression / upgrade trees, persistent currency, in-game shop | Turns the project into an economy-design problem unrelated to the networking learning objective |
-| Voice chat | Requires a separate WebRTC/audio subsystem for marginal value over text chat |
-| Full client-side prediction + server reconciliation + lag compensation (rollback netcode) | Overkill complexity-to-payoff ratio for a low-latency 1v1 course demo; a simple server-authoritative loop is sufficient |
-| Anti-cheat systems | No economy or real stakes to protect; server-authoritative state is itself the baseline defense |
-| Custom map editor | A full editor UI is a second application; 1-3 hardcoded map layouts satisfy "map with walls" |
-| Global lobby chat, friends list, DMs | Expands chat into a persistent social system with no bearing on the core 1v1 loop |
-| Achievements / badges | Pure scope addition with no relationship to the networking objective |
-| Raw hand-rolled TCP/UDP byte-level protocol | Not required by the course; a Java WebSocket-based server satisfies the client-server networking requirement |
-
-## Traceability
-
-Which phases cover which requirements. Updated during roadmap creation.
-
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| AUTH-01 | Phase 4 | Pending |
-| AUTH-02 | Phase 4 | Pending |
-| AUTH-03 | Phase 4 | Pending |
-| MATCH-01 | Phase 4 | Pending |
-| MATCH-02 | Phase 4 | Pending |
-| COMBAT-01 | Phase 1 | Pending |
-| COMBAT-02 | Phase 2 | Pending |
-| COMBAT-03 | Phase 3 | Pending |
-| COMBAT-04 | Phase 3 | Pending |
-| COMBAT-05 | Phase 2 | Pending |
-| COMBAT-06 | Phase 2 | Pending |
-| LIFE-01 | Phase 3 | Pending |
-| LIFE-02 | Phase 3 | Pending |
-| CHAT-01 | Phase 5 | Pending |
-| LEADER-01 | Phase 4 | Pending |
-| BOT-01 | Phase 5 | Pending |
-
-**Coverage:**
-- v1 requirements: 16 total
-- Mapped to phases: 16
-- Unmapped: 0 ✓
+**Tổng kết:**
+- Tổng yêu cầu v1: 17
+- Đã phân bổ vào giai đoạn: 17
+- Chưa phân bổ: 0
 
 ---
-*Requirements defined: 2026-08-13*
-*Last updated: 2026-08-13 after roadmap creation (traceability mapped)*
+*Ngày tạo yêu cầu: 21/08/2026*

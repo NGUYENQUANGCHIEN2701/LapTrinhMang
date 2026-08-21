@@ -1,98 +1,65 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-milestone_name: milestone
+milestone_name: phien_ban_1
 current_phase: 1
-current_phase_name: Networked Movement Skeleton
-status: executing
-stopped_at: Phase 1 UI-SPEC approved
-last_updated: "2026-08-13T15:08:42.674Z"
-last_activity: 2026-08-13
-last_activity_desc: Roadmap created (5 phases, 16/16 requirements mapped)
+current_phase_name: Lõi Game + Khung cơ bản
+status: planning
+stopped_at: Đã chuyển sang thiết kế PvE 2 chế độ
+last_updated: "2026-08-21"
+last_activity: 2026-08-21
+last_activity_desc: Cấu trúc lại dự án - PvE 2 chế độ, 3 màn, 3 giai đoạn
 progress:
-  total_phases: 1
+  total_phases: 3
   completed_phases: 0
-  total_plans: 4
+  total_plans: 0
   completed_plans: 0
 ---
 
-# Project State
+# Trạng thái dự án
 
-## Project Reference
+## Tham chiếu
 
-See: .planning/PROJECT.md (updated 2026-08-13)
+Xem: .planning/PROJECT.md (cập nhật 21/08/2026)
 
-**Core value:** Two players can play a real-time tank battle against each other over the network, end-to-end — client and server actually communicating live game state, not a local single-player mockup.
-**Current focus:** Phase 1 — Networked Movement Skeleton
+**Giá trị cốt lõi:** Game xe tăng PvE hoàn chỉnh với 2 chế độ chơi, thể hiện kiến thức Lập trình mạng (WebSocket client-server) và nguyên tắc SOLID trong Java backend.
+**Đang tập trung:** Giai đoạn 1 — Lõi Game + Khung cơ bản
 
-## Current Position
+## Vị trí hiện tại
 
-Phase: 1 of 5 (Networked Movement Skeleton)
-Plan: 0 of TBD in current phase
-Status: Ready to execute
-Last activity: 2026-08-13 — Roadmap created (5 phases, 16/16 requirements mapped)
+Giai đoạn: 1 / 3 (Lõi Game + Khung cơ bản)
+Kế hoạch: 0 / Chưa xác định
+Trạng thái: Sẵn sàng lập kế hoạch
+Hoạt động cuối: 21/08/2026 — Cấu trúc lại dự án (3 giai đoạn, 17/17 yêu cầu đã phân bổ)
 
-Progress: [░░░░░░░░░░] 0%
+Tiến độ: [░░░░░░░░░░] 0%
 
-## Performance Metrics
+## Chỉ số hiệu suất
 
-**Velocity:**
+**Tốc độ:**
 
-- Total plans completed: 0
-- Average duration: —
-- Total execution time: 0.0 hours
+- Tổng kế hoạch đã hoàn thành: 0
+- Thời gian trung bình: —
+- Tổng thời gian thực hiện: 0.0 giờ
 
-**By Phase:**
+## Bối cảnh tích lũy
 
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| - | - | - | - |
+### Các quyết định
 
-**Recent Trend:**
+- [Tái cấu trúc]: PvE (đánh máy) thay vì PvP nhiều người — giảm độ phức tạp
+- [Tái cấu trúc]: 3 màn mỗi chế độ — đủ demo, không làm quá
+- [Tái cấu trúc]: Campaign tuần tự + Online độc lập — 2 chế độ từ cùng bản đồ
+- [Khởi tạo]: Java WebSocket server quản lý logic + React Canvas frontend
+- [Khởi tạo]: Nguyên tắc SOLID bắt buộc cho Java backend (card [G02])
 
-- Last 5 plans: —
-- Trend: —
+### Vấn đề cần lưu ý
 
-*Updated after each plan completion*
+- Cần kế hoạch chi tiết Giai đoạn 1 trước khi viết code
+- Kiến trúc SOLID phải được thiết kế kỹ từ đầu (khó sửa sau)
+- Hành vi AI cần nghiên cứu trước Giai đoạn 2
 
-## Accumulated Context
+## Phiên làm việc
 
-### Decisions
-
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- [Init]: React web frontend instead of a Java desktop GUI (Swing/JavaFX)
-- [Init]: Java WebSocket backend instead of raw TCP/UDP sockets (not mandatory for the course)
-- [Init]: 1v1 real-time battles only — keeps network state-sync scope manageable
-- [Roadmap]: Vertical MVP mode — each phase thickens one working end-to-end slice, networking risk front-loaded before auth/persistence plumbing
-- [Roadmap]: Bullet ricochet (COMBAT-06) grouped with wall collision in Phase 2 so bullet↔wall resolution is written once
-
-### Pending Todos
-
-[From .planning/todos/pending/ — ideas captured during sessions]
-
-None yet.
-
-### Blockers/Concerns
-
-[Issues that affect future work]
-
-- Concurrency model (single-threaded executor per match vs. locks) must be decided and stress-tested in Phase 1 — expensive to retrofit
-- Grading rubric alignment unconfirmed — worth checking whether the course expects raw socket code before deep implementation
-- Real-network testing needed from Phase 1 onward (two independent browser processes + artificial latency, not two localhost tabs)
-- Undecided: whether the server must support multiple simultaneous matches (affects whether one global game loop is acceptable) — resolve by Phase 4
-
-## Deferred Items
-
-Items acknowledged and carried forward from previous milestone close:
-
-| Category | Item | Status | Deferred At |
-|----------|------|--------|-------------|
-| *(none)* | | | |
-
-## Session Continuity
-
-Last session: 2026-08-13T13:50:58.169Z
-Stopped at: Phase 1 UI-SPEC approved
-Resume file: .planning/phases/01-networked-movement-skeleton/01-UI-SPEC.md
+Phiên cuối: 21/08/2026
+Dừng tại: Đã cấu trúc lại dự án, sẵn sàng lập kế hoạch Giai đoạn 1
+Tiếp tục: Bắt đầu lập kế hoạch Giai đoạn 1 (Lõi Game)

@@ -1,75 +1,68 @@
-# Tank Battle Online
+# Tankzors Pro
 
-## What This Is
+## Mô tả dự án
 
-A real-time 1v1 tank battle game for a "Lập trình mạng" (Network Programming) university course. Two players connect to a Java server, control tanks in real time (move, shoot, take damage) on a map with obstacles, and the client is a React web app talking to the Java backend over the network.
+Game hành động xe tăng PvE (Người chơi vs Máy) cho môn "Lập trình mạng". Người chơi điều khiển xe tăng, chiến đấu với AI trên các bản đồ có chướng ngại vật. Java WebSocket server quản lý toàn bộ logic game, React client hiển thị và gửi input. Lấy cảm hứng từ game Tankzors (GitHub - Tankzors/Builds).
 
-## Core Value
+## Giá trị cốt lõi
 
-Two players can play a real-time tank battle against each other over the network, end-to-end — client and server actually communicating live game state, not a local single-player mockup.
+Người chơi có thể chơi game xe tăng qua 2 chế độ (Campaign tuần tự + Online độc lập) với server Java xử lý toàn bộ logic, thể hiện kiến thức Lập trình mạng qua kiến trúc client-server WebSocket và nguyên tắc SOLID.
 
-## Requirements
+## Yêu cầu
 
-### Validated
+### Đã hoàn thành
 
-(None yet — ship to validate)
+(Chưa có — hoàn thành rồi mới đánh dấu)
 
-### Active
+### Đang thực hiện
 
-- [ ] User can register and log in with an account
-- [ ] Two players can be matched into a 1v1 match
-- [ ] Player can move their tank and fire in real time; the other player sees it live
-- [ ] Tanks have HP; taking hits reduces HP; 0 HP ends the match with a clear winner
-- [ ] Map has walls/obstacles that block tank movement and stop bullets
-- [ ] Players can send chat messages to each other during a match
-- [ ] Player can view a leaderboard of win/loss records across matches
+- [ ] Người chơi điều khiển xe tăng di chuyển và bắn trong thời gian thực
+- [ ] AI đối thủ di chuyển, bắn lại người chơi
+- [ ] Bản đồ có tường/chướng ngại vật chặn di chuyển và đạn
+- [ ] Xe tăng có máu (HP), bị bắn giảm máu, hết máu = thua
+- [ ] Chế độ Campaign: 3 màn chơi tuần tự (phải thắng màn trước mới mở màn sau)
+- [ ] Thắng màn = nhận 3 sao + tiền thưởng + vật phẩm (cộng dồn, có giới hạn tối đa)
+- [ ] Chế độ Online: 3 bản đồ chơi độc lập (không cần mở khóa, mỗi map có độ khó cố định)
+- [ ] Bảng xếp hạng lưu trên server, nhiều client xem được cùng lúc
 
-### Out of Scope
+### Ngoài phạm vi
 
-- More than 2 players per match — deferred, adds significant state-sync complexity beyond course scope
-- Mobile app — web-first, React frontend only
-- Skill-based matchmaking/ranking — a simple queue or room join is enough for v1
-- Spectator mode / match replay — not needed for grading or core gameplay
-- Raw hand-rolled TCP/UDP byte-level protocol — not required by the course; a Java WebSocket-based server is acceptable (see Constraints)
+- Chơi nhiều người PvP (quá phức tạp cho phạm vi hiện tại)
+- Nhiều hơn 3 màn chơi (phát triển sau)
+- Ứng dụng di động
+- Thoại/video chat
+- Hệ thống tài khoản phức tạp (JWT, OAuth)
+- Ghép trận theo trình độ
 
-## Context
+## Bối cảnh
 
-- This is a solo course project for a Network Programming class. Timeline is several weeks, no hard external deadline yet.
-- Original inspiration was a GitHub link (`Tankzors/Builds`) which turned out to be an unrelated Haxe/Kha game (not Java, not reusable code) — it only supplied the "tank battle" gameplay idea, nothing was reused from it.
-- Architecture direction: Java backend acts as the server (owns game state, match logic, persistence for accounts/leaderboard); React web app is the client, rendering the game and sending player input over the network.
-- The course does not require raw socket-level TCP/UDP programming to be graded — a Java WebSocket server is an acceptable way to satisfy the client-server networking requirement, though hand-rolled sockets could still be used if it adds learning value later.
+- Đồ án môn Lập trình mạng, làm một mình
+- Lấy cảm hứng gameplay từ Tankzors (GitHub - Tankzors/Builds)
+- Mục tiêu: trình bày kiến thức Lập trình mạng + SOLID qua game hoàn chỉnh
+- Phạm vi nhỏ gọn: 3 màn chơi, 2 chế độ, đủ để chấm điểm
+- Phát triển thêm màn/tính năng sẽ ghi vào README cho kế hoạch tương lai
 
-## Constraints
+## Ràng buộc
 
-- **Tech stack**: Java backend, React frontend — user's explicit choice for a client-server architecture with a polished-looking UI
-- **Timeline**: Several weeks, solo developer — no fixed external deadline currently known
-- **Academic scope**: Deliverable is a gradeable course project, not a production system — favor a working, demonstrable end-to-end flow over polish or scale
-- **Architecture**: Java backend design must follow SOLID principles — explicit course/assignment requirement (surfaced via the course's Trello task board, card [G02]); applies to server-side class design (e.g. Match/GameState/connection-handling separation), not the React client
+- **Công nghệ**: Java backend (WebSocket server) + React frontend (Canvas rendering)
+- **SOLID**: Backend Java phải tuân thủ nguyên tắc SOLID (yêu cầu môn học, card [G02])
+- **Phạm vi**: 3 màn cho mỗi chế độ, đủ demo — không làm quá
+- **Thời gian**: Vài tuần, làm một mình
+- **Mạng**: Phải thể hiện giao tiếp client-server qua WebSocket
 
-## Key Decisions
+## Quyết định chính
 
-| Decision | Rationale | Outcome |
-|----------|-----------|---------|
-| React web frontend instead of Java desktop GUI (Swing/JavaFX) | User wants a more polished, modern-looking UI | — Pending |
-| Java WebSocket backend instead of mandatory raw TCP/UDP sockets | Course doesn't require raw sockets; user confirmed "not mandatory, just needs to run" | — Pending |
-| 1v1 real-time battles only (not turn-based, not >2 players) | Keeps network state-sync scope manageable for a solo, several-week course project | — Pending |
+| Quyết định | Lý do | Kết quả |
+|------------|-------|---------|
+| PvE (đánh máy) thay vì PvP nhiều người | Giảm độ phức tạp đồng bộ trạng thái, tập trung vào SOLID + kiến trúc mạng | Đã xác nhận |
+| 3 màn mỗi chế độ | Đủ demo hệ thống tiến trình mà không quá nhiều nội dung | Đã xác nhận |
+| Java WebSocket server quản lý logic | Server xử lý logic, client chỉ hiển thị — thể hiện Lập trình mạng | Đã xác nhận |
+| React Canvas frontend | Giao diện đẹp hơn Swing/JavaFX, dễ triển khai web | Đã xác nhận |
+| Campaign tuần tự + Online độc lập | 2 chế độ khác nhau từ cùng 3 bản đồ, tăng giá trị demo | Đã xác nhận |
 
-## Evolution
+## Lịch sử thay đổi
 
-This document evolves at phase transitions and milestone boundaries.
-
-**After each phase transition** (via `/gsd-transition`):
-1. Requirements invalidated? → Move to Out of Scope with reason
-2. Requirements validated? → Move to Validated with phase reference
-3. New requirements emerged? → Add to Active
-4. Decisions to log? → Add to Key Decisions
-5. "What This Is" still accurate? → Update if drifted
-
-**After each milestone** (via `/gsd-complete-milestone`):
-1. Full review of all sections
-2. Core Value check — still the right priority?
-3. Audit Out of Scope — reasons still valid?
-4. Update Context with current state
+Tài liệu này được cập nhật khi chuyển giai đoạn hoặc hoàn thành mốc quan trọng.
 
 ---
-*Last updated: 2026-08-13 after adding SOLID architecture constraint*
+*Cập nhật lần cuối: 21/08/2026 — chuyển sang thiết kế PvE 2 chế độ theo yêu cầu giáo viên*

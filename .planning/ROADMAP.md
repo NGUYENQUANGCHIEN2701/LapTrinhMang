@@ -1,163 +1,105 @@
-# Roadmap: Tank Battle Online
+# Lộ trình: Tankzors Pro
 
-## Overview
+## Tổng quan
 
-The journey starts with the riskiest, most novel part of the project — getting a Java server and a React client to agree on live game state over a real network connection — and grows outward from there. Phase 1 delivers a thin but genuinely networked vertical slice (two browsers, two tanks, live movement, server-authoritative). Each later phase thickens that same slice rather than adding a disconnected layer: bullets and walls, then damage and a decisive match end, then real accounts/matchmaking/leaderboard so anonymous test tanks become named players with records, and finally a practice bot and in-match chat that make the game demo-complete solo. Every phase ends with something a grader could watch two browsers do.
+Dự án được chia thành 3 giai đoạn gọn gàng. Giai đoạn 1 xây dựng lõi game (di chuyển xe tăng, bắn, va chạm, hạ tầng WebSocket) — đây là nền tảng mà mọi thứ khác xây trên. Giai đoạn 2 thêm AI đối thủ và chế độ Campaign 3 màn. Giai đoạn 3 thêm chế độ Online + Bảng xếp hạng để hoàn thiện phần lập trình mạng. Mỗi giai đoạn kết thúc với một sản phẩm chạy được, có thể demo cho giáo viên.
 
-## Phases
+## Các giai đoạn
 
-**Phase Numbering:**
+- [ ] **Giai đoạn 1: Lõi Game + Khung cơ bản** - Xe tăng di chuyển, bắn, va chạm với tường, WebSocket client-server hoạt động
+- [ ] **Giai đoạn 2: Chế độ Campaign + AI** - 3 màn tuần tự, AI đối thủ, hệ thống phần thưởng (sao + tiền + vật phẩm)
+- [ ] **Giai đoạn 3: Chế độ Online + Bảng xếp hạng** - 3 bản đồ độc lập, bảng xếp hạng đồng bộ trên server
 
-- Integer phases (1, 2, 3): Planned milestone work
-- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
+## Chi tiết từng giai đoạn
 
-Decimal phases appear between their surrounding integers in numeric order.
+### Giai đoạn 1: Lõi Game + Khung cơ bản
 
-- [ ] **Phase 1: Networked Movement Skeleton** - Two browsers connect to the Java server and see each other's tanks move live
-- [ ] **Phase 2: Shooting, Walls & Ricochet** - Bullets fire, bounce off walls, and both players see the same shots
-- [ ] **Phase 3: Damage, Win Condition & Match Lifecycle** - Hits cost HP, zero HP ends the match, disconnects resolve cleanly
-- [ ] **Phase 4: Accounts, Matchmaking & Leaderboard** - Named players log in, get paired automatically, and build a win/loss record
-- [ ] **Phase 5: Practice Bot & In-Match Chat** - Playable solo against an AI tank, and players can talk mid-match
+**Mục tiêu**: Một xe tăng di chuyển được trên bản đồ có tường, bắn đạn, va chạm hoạt động — toàn bộ qua kiến trúc WebSocket client-server, Java backend theo SOLID.
 
-## Phase Details
+**Phụ thuộc**: Không (giai đoạn đầu tiên)
+**Yêu cầu liên quan**: COMBAT-01, COMBAT-02, COMBAT-04, COMBAT-05, NET-01, NET-02, ARCH-01, ARCH-02
+**Tiêu chí thành công**:
 
-### Phase 1: Networked Movement Skeleton
+  1. React client kết nối Java WebSocket server; nhấn phím di chuyển xe tăng trên màn hình
+  2. Xe tăng không đi xuyên tường — phát hiện va chạm hoạt động
+  3. Nhấn bắn, đạn bay ra theo hướng xe tăng, dừng khi chạm tường
+  4. Xe tăng có máu (HP) hiển thị; đạn trúng xe tăng giảm HP
+  5. Code Java backend tuân thủ SOLID — có thể chỉ ra từng nguyên tắc được áp dụng ở đâu
 
-**Goal**: Two players in separate browsers see each other's tanks move live over a real client-server connection, with the Java server owning the truth
-**Mode:** mvp
-**Depends on**: Nothing (first phase)
-**Requirements**: COMBAT-01
-**Success Criteria** (what must be TRUE):
+**Kiến trúc SOLID (phải thể hiện trong giai đoạn này):**
+- **S** (Nguyên tắc đơn trách nhiệm): Tách GameEngine / NetworkHandler / MapLoader / BulletManager / TankEntity
+- **O** (Nguyên tắc đóng-mở): Có thể thêm loại đạn/vũ khí mới mà không sửa code cũ (dùng interface Weapon)
+- **L** (Nguyên tắc thay thế Liskov): Lớp con của Tank (PlayerTank, AITank) thay thế được lớp cha Tank
+- **I** (Nguyên tắc phân tách interface): Client không cần biết logic AI; AI không cần biết render
+- **D** (Nguyên tắc đảo ngược phụ thuộc): GameEngine phụ thuộc vào abstraction (IMap, ITank, IBullet), không phụ thuộc vào lớp cụ thể
 
-  1. Two separate browser windows each connect to the running Java server and both render the same arena with both tanks
-  2. Pressing a movement key moves your tank on your screen and the other window shows that same movement live, without a refresh
-  3. Positions come from the server: a client that sends no input stops moving, and a hand-crafted position message sent from browser devtools does not change what the opponent sees
-  4. Both windows still show identical tank positions after both players mash movement keys simultaneously for a sustained stretch (no drift, no server crash)
+**Kế hoạch chi tiết**: Chưa tạo
 
-**Plans:** 4 plans
+### Giai đoạn 2: Chế độ Campaign + AI
 
-Plans:
-**Wave 1**
+**Mục tiêu**: Người chơi có thể chơi 3 màn Campaign tuần tự, mỗi màn có AI đối thủ với hành vi riêng, thắng nhận phần thưởng.
 
-- [ ] 01-01-PLAN.md — Walking skeleton: Maven/Javalin server + Vite/React client scaffolds joined by one real WebSocket round trip, plus the dev-run contract
+**Phụ thuộc**: Giai đoạn 1
+**Yêu cầu liên quan**: COMBAT-03, CAMP-01, CAMP-02, CAMP-03, CAMP-04
+**Tiêu chí thành công**:
 
-**Wave 2** *(blocked on Wave 1 completion)*
+  1. AI xe tăng di chuyển, tìm người chơi, và bắn lại (không chỉ đứng yên)
+  2. Màn 1 dễ (1 AI chậm), Màn 2 trung bình (2 AI), Màn 3 khó (2-3 AI nhanh hơn)
+  3. Phải thắng Màn 1 mới mở Màn 2, thắng Màn 2 mới mở Màn 3
+  4. Thắng màn hiển thị màn hình kết quả: 3 sao + tiền thưởng + vật phẩm nhặt được
+  5. Vật phẩm từ màn trước cộng vào kho đồ, có giới hạn tối đa mỗi loại
 
-- [ ] 01-02-PLAN.md — Server-authoritative movement: 30 Hz delta-time tick loop, arena-clamped continuous positions, identical broadcast to both sessions, input-only message dispatch
-- [ ] 01-03-PLAN.md — Client half: Canvas arena rendering both tanks from server state, edge-triggered keyboard intent, and all four connection states
+**Kế hoạch chi tiết**: Chưa tạo
 
-**Wave 3** *(blocked on Wave 2 completion)*
+### Giai đoạn 3: Chế độ Online + Bảng xếp hạng
 
-- [ ] 01-04-PLAN.md — Proof: two-real-client concurrency stress test, end-to-end forged-frame rejection test, and the reproducible two-browser acceptance recipe
+**Mục tiêu**: Chế độ Online cho phép chọn bất kỳ bản đồ nào chơi ngay, kết quả lưu server, bảng xếp hạng hiển thị cho tất cả clients.
 
-**UI hint**: yes
+**Phụ thuộc**: Giai đoạn 2
+**Yêu cầu liên quan**: ONLINE-01, ONLINE-02, ONLINE-03, NET-03
+**Tiêu chí thành công**:
 
-*Notes: This phase locks the three decisions that are expensive to retrofit — message protocol envelope, server-authoritative model, and the concurrency strategy for shared match state (research recommends a single-threaded executor per match). It also locks the fixed-tick server loop (~20-30 Hz) and the client's Canvas render loop. Test with two independent browser processes plus artificial latency, not two tabs on localhost.*
+  1. Từ menu Online, chọn 1 trong 3 bản đồ và bắt đầu chơi ngay (không cần mở khóa)
+  2. Mỗi bản đồ có độ khó cố định (không dễ dần như Campaign)
+  3. Sau khi hoàn thành bản đồ, điểm/kết quả gửi lên server và lưu lại
+  4. Mở trang Bảng xếp hạng thấy thứ hạng điểm cao — refresh thấy dữ liệu mới nhất từ server
+  5. 2 trình duyệt mở cùng lúc đều thấy cùng dữ liệu bảng xếp hạng
 
-### Phase 2: Shooting, Walls & Ricochet
+**Kế hoạch chi tiết**: Chưa tạo
 
-**Goal**: Players can fire bullets that respect the map — blocked by walls, bouncing a limited number of times — with both players seeing identical shots
-**Mode:** mvp
-**Depends on**: Phase 1
-**Requirements**: COMBAT-02, COMBAT-05, COMBAT-06
-**Success Criteria** (what must be TRUE):
+## Tiến độ
 
-  1. Pressing fire spawns a bullet that both players see travel along the same path at the same time
-  2. Tanks cannot drive through walls or obstacles — movement stops at the wall on both screens
-  3. Bullets bounce off walls and keep traveling, then disappear once the bounce limit is reached
-  4. When a bullet reaches a tank, the server decides the hit — both players see the same hit-or-miss outcome, and a client cannot claim a hit it didn't earn
+**Thứ tự thực hiện:** 1 → 2 → 3
 
-**Plans**: TBD
+| Giai đoạn | Kế hoạch hoàn thành | Trạng thái | Ngày xong |
+|-----------|---------------------|------------|-----------|
+| 1. Lõi Game + Khung cơ bản | 0/Chưa xác định | Chưa bắt đầu | - |
+| 2. Chế độ Campaign + AI | 0/Chưa xác định | Chưa bắt đầu | - |
+| 3. Chế độ Online + Bảng xếp hạng | 0/Chưa xác định | Chưa bắt đầu | - |
 
-*Notes: Ricochet is grouped with wall collision deliberately — bullet↔wall resolution is written once with a bounce counter instead of being built as "stop" and rewritten as "bounce" later. Plan should enumerate collision edge cases (fast bullet skipping past a thin wall or tank, wall corners) rather than assuming naive AABB is enough.*
+## Phân bổ yêu cầu
 
-### Phase 3: Damage, Win Condition & Match Lifecycle
+| Yêu cầu | Giai đoạn |
+|----------|-----------|
+| COMBAT-01 | Giai đoạn 1 |
+| COMBAT-02 | Giai đoạn 1 |
+| COMBAT-03 | Giai đoạn 2 |
+| COMBAT-04 | Giai đoạn 1 |
+| COMBAT-05 | Giai đoạn 1 |
+| CAMP-01 | Giai đoạn 2 |
+| CAMP-02 | Giai đoạn 2 |
+| CAMP-03 | Giai đoạn 2 |
+| CAMP-04 | Giai đoạn 2 |
+| ONLINE-01 | Giai đoạn 3 |
+| ONLINE-02 | Giai đoạn 3 |
+| ONLINE-03 | Giai đoạn 3 |
+| NET-01 | Giai đoạn 1 |
+| NET-02 | Giai đoạn 1 |
+| NET-03 | Giai đoạn 3 |
+| ARCH-01 | Giai đoạn 1 |
+| ARCH-02 | Giai đoạn 1 |
 
-**Goal**: A match plays through to a definite, agreed finish — hits cost HP, zero HP declares a winner, and a disconnect never leaves a player stuck
-**Mode:** mvp
-**Depends on**: Phase 2
-**Requirements**: COMBAT-03, COMBAT-04, LIFE-01, LIFE-02
-**Success Criteria** (what must be TRUE):
-
-  1. Getting hit visibly reduces the hit tank's HP, and both players see the same HP values for both tanks
-  2. When a tank's HP reaches 0 the match stops immediately and both players are shown the same winner
-  3. If one player closes their browser mid-match, the remaining player sees the match end within a few seconds with themselves declared the winner
-  4. Every match ending — win, loss, or forfeit — lands on a clear result screen rather than a frozen game view
-
-**Plans**: TBD
-**UI hint**: yes
-
-### Phase 4: Accounts, Matchmaking & Leaderboard
-
-**Goal**: Real named players register, log in, get paired with an opponent automatically, and watch their win/loss record accumulate across matches
-**Mode:** mvp
-**Depends on**: Phase 3
-**Requirements**: AUTH-01, AUTH-02, AUTH-03, MATCH-01, MATCH-02, LEADER-01
-**Success Criteria** (what must be TRUE):
-
-  1. A new user can register with a username and password, log in, and refresh the page without being logged out
-  2. Two logged-in users who ask for a match are paired into the same match, each seeing a waiting status until an opponent is found
-  3. Each player's UI shows the opponent's real username instead of a placeholder
-  4. When a match finishes, both players' win/loss records update on a leaderboard that stays correct after the server restarts
-
-**Plans**: TBD
-**UI hint**: yes
-
-*Notes: Standard, well-documented plumbing (jBCrypt + JWT, FIFO queue, H2 + JDBI) placed after the real-time core works. Planning should settle exactly how the token is validated at the WebSocket handshake (query param vs. subprotocol vs. first-message auth) and whether the server must support multiple simultaneous matches.*
-
-### Phase 5: Practice Bot & In-Match Chat
-
-**Goal**: The game is demo-complete without a second human — playable against an AI tank — and players can talk to each other during a live match
-**Mode:** mvp
-**Depends on**: Phase 4
-**Requirements**: BOT-01, CHAT-01
-**Success Criteria** (what must be TRUE):
-
-  1. A player alone can start a practice match against an AI tank that moves, aims, and shoots well enough to be a real opponent
-  2. The practice match runs the same rules as a real match — HP, walls, ricochet, and a result screen
-  3. During a live match, a message typed by one player appears in the opponent's chat labeled with the sender's username
-  4. Typing in chat never moves or fires the tank — game input and chat input do not collide
-
-**Plans**: TBD
-**UI hint**: yes
-
-*Notes: Chat is routed through the connection layer, not the tick loop, so it cannot interfere with game-critical timing. Bot AI heuristics (aiming, ricochet-aware shots, movement) likely need research during planning.*
-
-## Progress
-
-**Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
-
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 1. Networked Movement Skeleton | 0/4 | Not started | - |
-| 2. Shooting, Walls & Ricochet | 0/TBD | Not started | - |
-| 3. Damage, Win Condition & Match Lifecycle | 0/TBD | Not started | - |
-| 4. Accounts, Matchmaking & Leaderboard | 0/TBD | Not started | - |
-| 5. Practice Bot & In-Match Chat | 0/TBD | Not started | - |
-
-## Requirement Coverage
-
-| Requirement | Phase |
-|-------------|-------|
-| COMBAT-01 | Phase 1 |
-| COMBAT-02 | Phase 2 |
-| COMBAT-05 | Phase 2 |
-| COMBAT-06 | Phase 2 |
-| COMBAT-03 | Phase 3 |
-| COMBAT-04 | Phase 3 |
-| LIFE-01 | Phase 3 |
-| LIFE-02 | Phase 3 |
-| AUTH-01 | Phase 4 |
-| AUTH-02 | Phase 4 |
-| AUTH-03 | Phase 4 |
-| MATCH-01 | Phase 4 |
-| MATCH-02 | Phase 4 |
-| LEADER-01 | Phase 4 |
-| BOT-01 | Phase 5 |
-| CHAT-01 | Phase 5 |
-
-**Coverage:** 16/16 v1 requirements mapped, no orphans, no duplicates.
+**Tổng kết:** 17/17 yêu cầu đã phân bổ, không trùng lặp, không thiếu sót.
 
 ---
-*Roadmap created: 2026-08-13*
+*Lộ trình tạo ngày: 21/08/2026 — chuyển từ 5 giai đoạn PvP sang 3 giai đoạn PvE*
