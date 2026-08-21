@@ -1,0 +1,13 @@
+# Maven wrapper tools
+.mvn/install/
+
+# Node modules
+node_modules/
+client/node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
