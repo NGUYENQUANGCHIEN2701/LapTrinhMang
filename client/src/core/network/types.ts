@@ -1,5 +1,12 @@
 import { BulletState, Direction, GameMode, TankState } from '../../shared/types/game';
 
+export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
+
+export type OnOpenListener = () => void;
+export type OnMessageListener = (data: any) => void;
+export type OnCloseListener = (event: CloseEvent) => void;
+export type OnErrorListener = (error: Event) => void;
+
 export enum PacketType {
   CONNECT = 'CONNECT',
   JOIN_GAME = 'JOIN_GAME',
@@ -12,21 +19,26 @@ export enum PacketType {
 }
 
 export interface BasePacket {
-  type: PacketType;
+  type: PacketType | string;
+  payload?: any;
   timestamp?: number;
 }
 
 export interface JoinGamePacket extends BasePacket {
   type: PacketType.JOIN_GAME;
-  mode: GameMode;
-  levelId?: string;
-  playerName: string;
+  payload: {
+    mode: GameMode;
+    levelId?: string;
+    playerName: string;
+  };
 }
 
 export interface MoveInputPacket extends BasePacket {
   type: PacketType.MOVE_INPUT;
-  direction: Direction;
-  moving: boolean;
+  payload: {
+    direction: Direction;
+    moving: boolean;
+  };
 }
 
 export interface ShootInputPacket extends BasePacket {
@@ -45,5 +57,5 @@ export interface GameStateUpdatePacket extends BasePacket {
   payload: GameStatePayload;
 }
 
-export type OutgoingPacket = JoinGamePacket | MoveInputPacket | ShootInputPacket;
+export type OutgoingPacket = JoinGamePacket | MoveInputPacket | ShootInputPacket | BasePacket;
 export type IncomingPacket = GameStateUpdatePacket | BasePacket;

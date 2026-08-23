@@ -1,22 +1,18 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
-import { MainMenuScreen } from './features/menu';
-import { GameCanvas } from './features/game';
-import { CampaignScreen } from './features/campaign';
-import { OnlineScreen } from './features/online';
-import { LeaderboardScreen } from './features/leaderboard';
+import { ConnectionStatusUI } from './core/network';
 import './App.css';
 
 export const App: React.FC = () => {
   return (
-    <Routes>
-      <Route path="/" element={<MainMenuScreen />} />
-      <Route path="/campaign" element={<CampaignScreen />} />
-      <Route path="/online" element={<OnlineScreen />} />
-      <Route path="/game/campaign" element={<GameCanvas mode="campaign" />} />
-      <Route path="/game/online" element={<GameCanvas mode="online" />} />
-      <Route path="/leaderboard" element={<LeaderboardScreen />} />
-    </Routes>
+    <div style={{
+      width: '100%',
+      height: '100%',
+      minHeight: '100vh',
+      backgroundColor: '#121216',
+      position: 'relative'
+    }}>
+      <ConnectionStatusUI />
+    </div>
   );
 };
 
