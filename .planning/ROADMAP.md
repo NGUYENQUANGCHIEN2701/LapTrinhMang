@@ -8,7 +8,7 @@ Dự án được chia thành 3 giai đoạn gọn gàng. Giai đoạn 1 xây d�
 
 - [ ] **Giai đoạn 1: Lõi Game + Khung cơ bản** - Xe tăng di chuyển, bắn, va chạm với tường, WebSocket client-server hoạt động
 - [ ] **Giai đoạn 2: Chế độ Campaign + AI** - 3 màn tuần tự, AI đối thủ, hệ thống phần thưởng (sao + tiền + vật phẩm)
-- [ ] **Giai đoạn 3: Chế độ Online + Bảng xếp hạng** - 3 bản đồ độc lập, bảng xếp hạng đồng bộ trên server
+- [ ] **Giai đoạn 3: Chế độ Online + Bảng xếp hạng** - 3 bản đồ độc lập, bảng xếp hạng lưu MySQL đồng bộ trên server
 
 ## Chi tiết từng giai đoạn
 
@@ -53,7 +53,7 @@ Dự án được chia thành 3 giai đoạn gọn gàng. Giai đoạn 1 xây d�
 
 ### Giai đoạn 3: Chế độ Online + Bảng xếp hạng
 
-**Mục tiêu**: Chế độ Online cho phép chọn bất kỳ bản đồ nào chơi ngay, kết quả lưu server, bảng xếp hạng hiển thị cho tất cả clients.
+**Mục tiêu**: Chế độ Online cho phép chọn bất kỳ bản đồ nào chơi ngay, kết quả lưu MySQL, bảng xếp hạng hiển thị cho tất cả clients.
 
 **Phụ thuộc**: Giai đoạn 2
 **Yêu cầu liên quan**: ONLINE-01, ONLINE-02, ONLINE-03, NET-03
@@ -61,7 +61,7 @@ Dự án được chia thành 3 giai đoạn gọn gàng. Giai đoạn 1 xây d�
 
   1. Từ menu Online, chọn 1 trong 3 bản đồ và bắt đầu chơi ngay (không cần mở khóa)
   2. Mỗi bản đồ có độ khó cố định (không dễ dần như Campaign)
-  3. Sau khi hoàn thành bản đồ, điểm/kết quả gửi lên server và lưu lại
+  3. Sau khi hoàn thành bản đồ, điểm/kết quả gửi lên server và lưu vào MySQL
   4. Mở trang Bảng xếp hạng thấy thứ hạng điểm cao — refresh thấy dữ liệu mới nhất từ server
   5. 2 trình duyệt mở cùng lúc đều thấy cùng dữ liệu bảng xếp hạng
 

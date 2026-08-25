@@ -78,10 +78,14 @@ TankzorsPro/
 │       │   │   │   ├── OnlineMode.java              # Logic Online (độc lập)
 │       │   │   │   └── ProgressManager.java         # Quản lý tiến trình (sao, tiền, vật phẩm)
 │       │   │   │
-│       │   │   └── leaderboard/                     # Bảng xếp hạng
-│       │   │       ├── LeaderboardManager.java      # Quản lý bảng xếp hạng
-│       │   │       ├── ScoreEntry.java              # Một dòng điểm trong bảng
-│       │   │       └── LeaderboardStorage.java      # Lưu trữ bảng xếp hạng (file/DB)
+│       │   │   ├── leaderboard/                     # Bảng xếp hạng
+│       │   │   │   ├── LeaderboardManager.java      # Quản lý bảng xếp hạng
+│       │   │   │   ├── ScoreEntry.java              # Một dòng điểm trong bảng
+│       │   │   │   └── LeaderboardStorage.java      # Lưu trữ bảng xếp hạng (MySQL)
+│       │   │   │
+│       │   │   └── database/                        # Kết nối Database
+│       │   │       ├── DatabaseConfig.java          # Cấu hình MySQL (host, port, user...)
+│       │   │       └── DatabaseManager.java         # Quản lý connection pool (HikariCP)
 │       │   │
 │       │   └── resources/
 │       │       ├── maps/                            # File JSON bản đồ
@@ -179,10 +183,11 @@ Tạo project Java sử dụng Maven làm build tool. Cấu trúc thư mục ph�
 
 **Việc cần làm:**
 - Tạo thư mục `server/` với `pom.xml`
-- Thêm dependency: Javalin (WebSocket), Gson (JSON), SLF4J (log)
-- Tạo các package: `network/`, `engine/`, `entity/`, `interfaces/`, `map/`, `ai/`, `mode/`, `leaderboard/`
+- Thêm dependency: Javalin (WebSocket), Gson (JSON), SLF4J (log), MySQL Connector/J (JDBC), HikariCP (connection pool)
+- Tạo các package: `network/`, `engine/`, `entity/`, `interfaces/`, `map/`, `ai/`, `mode/`, `leaderboard/`, `database/`
 - Tạo `Main.java` khởi động server trên port 8080
 - Tạo `ServerConfig.java` chứa các hằng số (PORT, TICK_RATE, MAP_SIZE)
+- Tạo `config.properties` với cấu hình MySQL (host, port, db name, user, password)
 - Viết `.gitignore` cho Java/Maven
 
 **Tiêu chí hoàn thành:**
@@ -854,16 +859,14 @@ Quản lý tiến trình Campaign: người chơi bắt đầu chỉ mở Màn 1
   - Lưu tiến trình: màn đã hoàn thành, số sao, số tiền, vật phẩm
   - `addReward(stars, coins, items)`: cộng phần thưởng vào tổng
   - `getProgress()`: trả về toàn bộ tiến trình hiện tại
-  - Lưu vào file JSON trên server (để không mất khi restart):
-    ```json
-    {"unlockedLevel": 2, "totalStars": 6, "totalCoins": 200, "items": {"shield": 1, "speedBoost": 2}}
-    ```
+  - Lưu vào bảng `player_progress` trong MySQL (dùng DatabaseManager từ task [3.3])
+  - Cột `items_json` lưu vật phẩm dạng JSON: `{"shield": 1, "speedBoost": 2}`
 
 **Tiêu chí hoàn thành:**
 - [ ] Ban đầu chỉ Màn 1 chơi được
 - [ ] Thắng Màn 1 → Màn 2 mở khoá
 - [ ] Thử chọn Màn 3 khi chưa thắng Màn 2 → bị từ chối
-- [ ] Restart server → tiến trình vẫn còn (đọc từ file)
+- [ ] Restart server → tiến trình vẫn còn (đọc từ MySQL)
 
 ---
 
@@ -1067,49 +1070,89 @@ Sau mỗi trận đấu (Online mode), client gửi kết quả lên server đ�
   điểm = (HP còn lại * 10) + (Số AI hạ * 200) + (Bonus thời gian: 1000 - time * 10)
   ```
   - VD: còn 75HP, hạ 2 AI, hết 45 giây → 75*10 + 2*200 + (1000 - 450) = 750 + 400 + 550 = 1700 điểm
-- Server lưu điểm vào file `leaderboard.json`
+- Server lưu điểm vào MySQL (bảng `leaderboard`)
 
 **Tiêu chí hoàn thành:**
-- [ ] Thắng trận Online → điểm được gửi lên và lưu trên server
+- [ ] Thắng trận Online → điểm được gửi lên và lưu vào MySQL
 - [ ] Thua → không gửi điểm (chỉ người thắng mới có điểm)
-- [ ] Restart server → điểm vẫn còn (đọc từ file)
+- [ ] Restart server → điểm vẫn còn (đọc từ MySQL)
 - [ ] Nếu điểm mới cao hơn điểm cũ của cùng người chơi trên cùng map → ghi đè
 
 ---
 
-### [3.3] Database/file lưu điểm số trên server
+### [3.3] Database MySQL lưu điểm số trên server
 
 **Người phụ trách:** A (Trưởng nhóm)
-**Label:** Backend, Data
+**Label:** Backend, Data, Database
 **Độ khó:** Trung bình
 
 **Mô tả:**
-Lưu trữ điểm số và bảng xếp hạng trên server. Dùng file JSON (đơn giản, không cần database thật). Phải xử lý đọc/ghi an toàn khi nhiều request cùng lúc.
+Lưu trữ điểm số và bảng xếp hạng trên server bằng MySQL. Dùng JDBC kết nối MySQL, HikariCP làm connection pool. Phải xử lý đọc/ghi an toàn khi nhiều request cùng lúc (MySQL tự xử lý concurrent access).
+
+**Thiết kế Database:**
+
+```sql
+CREATE DATABASE tankzors;
+USE tankzors;
+
+-- Bảng lưu điểm bảng xếp hạng
+CREATE TABLE leaderboard (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    player_name VARCHAR(50) NOT NULL,
+    map_id VARCHAR(20) NOT NULL,
+    score INT NOT NULL,
+    time_seconds INT NOT NULL,
+    hp_remain INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_map_score (map_id, score DESC),
+    INDEX idx_player_map (player_name, map_id)
+);
+
+-- Bảng lưu tiến trình người chơi
+CREATE TABLE player_progress (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    player_name VARCHAR(50) NOT NULL UNIQUE,
+    unlocked_level INT DEFAULT 1,
+    total_stars INT DEFAULT 0,
+    total_coins INT DEFAULT 0,
+    items_json JSON DEFAULT '{}',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
 
 **Việc cần làm:**
+- Thêm dependency vào `pom.xml`:
+  - `mysql-connector-j` (MySQL JDBC driver)
+  - `com.zaxxer:HikariCP` (connection pool)
+- Tạo `DatabaseConfig.java`:
+  - Cấu hình kết nối MySQL (host, port, database, user, password)
+  - Khởi tạo HikariCP DataSource
+  - Đọc cấu hình từ `config.properties` hoặc environment variables
+- Tạo `DatabaseManager.java`:
+  - Singleton quản lý DataSource
+  - `getConnection()`: lấy connection từ pool
+  - `initSchema()`: tạo bảng nếu chưa tồn tại (chạy khi khởi động server)
 - Tạo `LeaderboardStorage.java`:
-  - Đọc/ghi file `data/leaderboard.json`
-  - Cấu trúc:
-    ```json
-    {
-      "online_1": [
-        {"playerName": "Player1", "score": 1700, "time": 45, "date": "2026-08-21"},
-        {"playerName": "Player2", "score": 1200, "time": 60, "date": "2026-08-20"}
-      ],
-      "online_2": [...],
-      "online_3": [...]
-    }
-    ```
-  - `saveScore(mapId, playerName, score, time)`: thêm điểm mới, sắp xếp lại
-  - `getTopScores(mapId, limit)`: lấy top N điểm cao nhất
-  - `getPlayerBest(mapId, playerName)`: lấy điểm cao nhất của 1 người chơi
-- Dùng `synchronized` hoặc `ReentrantLock` để tránh conflict khi nhiều client gửi cùng lúc
-- Giữ tối đa 50 dòng điểm mỗi map (xoá điểm thấp nhất khi đầy)
+  - `saveScore(mapId, playerName, score, time, hpRemain)`: INSERT vào bảng leaderboard
+  - `getTopScores(mapId, limit)`: SELECT top N điểm cao nhất, ORDER BY score DESC
+  - `getPlayerBest(mapId, playerName)`: SELECT điểm cao nhất của 1 người chơi trên 1 map
+  - Giữ tối đa 50 dòng điểm mỗi map (DELETE điểm thấp nhất khi vượt quá)
+
+**Cấu hình kết nối (`config.properties`):**
+```properties
+db.host=localhost
+db.port=3306
+db.name=tankzors
+db.user=root
+db.password=
+db.pool.size=5
+```
 
 **Tiêu chí hoàn thành:**
-- [ ] Lưu điểm thành công vào file
-- [ ] Restart server → đọc lại file, điểm vẫn còn
-- [ ] 2 client gửi điểm cùng lúc → không bị lỗi, cả 2 đều lưu được
+- [ ] Server khởi động → kết nối MySQL thành công, tạo bảng nếu chưa có
+- [ ] Lưu điểm thành công vào database
+- [ ] Restart server → điểm vẫn còn trong MySQL
+- [ ] 2 client gửi điểm cùng lúc → không bị lỗi, cả 2 đều lưu được (MySQL xử lý concurrent)
 - [ ] `getTopScores("online_1", 10)` trả về đúng 10 điểm cao nhất, đã sắp xếp giảm dần
 
 ---
@@ -1206,20 +1249,20 @@ TẤT CẢ | MAP 1 | MAP 2 | MAP 3
 **Độ khó:** Trung bình
 
 **Mô tả:**
-Đảm bảo nhiều client cùng xem bảng xếp hạng thấy cùng dữ liệu. Khi 1 người chơi đạt điểm mới, người khác refresh sẽ thấy được điểm đó. Không cần real-time push (không cần WebSocket push khi có điểm mới), chỉ cần đảm bảo GET_LEADERBOARD luôn trả về dữ liệu mới nhất.
+Đảm bảo nhiều client cùng xem bảng xếp hạng thấy cùng dữ liệu. Khi 1 người chơi đạt điểm mới, người khác refresh sẽ thấy được điểm đó. MySQL đảm bảo tính nhất quán dữ liệu (ACID) — không cần tự xử lý file locking như trước.
 
 **Việc cần làm:**
-- Đảm bảo LeaderboardStorage đọc file mới nhất mỗi lần có request (không cache quá lâu)
-- Hoặc: cache trong 5 giây, sau 5 giây đọc lại từ file
+- LeaderboardStorage query trực tiếp từ MySQL mỗi lần có request (luôn trả về dữ liệu mới nhất)
+- Tuỳ chọn: cache kết quả trong 3-5 giây để giảm tải DB (dùng ConcurrentHashMap + TTL)
 - Test với 2 trình duyệt:
   1. Trình duyệt A chơi và đạt điểm
   2. Trình duyệt B mở bảng xếp hạng → phải thấy điểm của A
-- Xử lý trường hợp 2 client gửi điểm cùng lúc (locking)
+- MySQL tự xử lý concurrent INSERT (không cần synchronized/ReentrantLock)
 
 **Tiêu chí hoàn thành:**
 - [ ] Trình duyệt A đạt điểm → Trình duyệt B bấm "Làm mới" → thấy điểm của A
 - [ ] 2 client gửi điểm cùng thời điểm → cả 2 đều lưu thành công, không mất
-- [ ] Không bị lỗi đọc/ghi file khi truy cập đồng thời
+- [ ] Không bị lỗi khi nhiều client truy cập đồng thời (HikariCP quản lý connection pool)
 
 ---
 
@@ -1278,11 +1321,12 @@ Viết file README.md cho project. Gồm: giới thiệu game, công nghệ sử
 **Nội dung README:**
 ```
 1. Giới thiệu game (Tankzors Pro là gì, 2 chế độ chơi)
-2. Công nghệ sử dụng (Java, React, WebSocket, SOLID)
+2. Công nghệ sử dụng (Java, React, WebSocket, MySQL, SOLID)
 3. Cấu trúc thư mục (sơ đồ ngắn gọn)
 4. Hướng dẫn cài đặt:
-   - Yêu cầu: Java 17+, Node 18+, Maven
+   - Yêu cầu: Java 17+, Node 18+, Maven, MySQL 8.0+
    - Clone repo
+   - Tạo database: mysql -u root -e "CREATE DATABASE tankzors"
    - Chạy server: cd server && mvn exec:java
    - Chạy client: cd client && npm install && npm run dev
    - Mở trình duyệt: http://localhost:5173
@@ -1355,8 +1399,8 @@ Viết phần báo cáo giải thích cách game sử dụng lập trình mạng
    - Xử lý mất kết nối: retry, timeout
 
 5. Đồng bộ dữ liệu
-   - Bảng xếp hạng lưu server, nhiều client đọc cùng lúc
-   - Locking khi ghi đồng thời
+   - Bảng xếp hạng lưu MySQL, nhiều client đọc cùng lúc
+   - Connection pool (HikariCP) quản lý kết nối hiệu quả
 ```
 
 **Tiêu chí hoàn thành:**
