@@ -1,5 +1,7 @@
 # Maven wrapper tools
 .mvn/install/
+mvnw
+mvnw.cmd
 
 # Node modules
 node_modules/
