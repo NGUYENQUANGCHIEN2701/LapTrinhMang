@@ -2,6 +2,7 @@ package com.tankzors.engine;
 
 import com.tankzors.ServerConfig;
 import com.tankzors.entity.Direction;
+import com.tankzors.entity.Position;
 import com.tankzors.interfaces.IBullet;
 import com.tankzors.interfaces.ICollidable;
 import com.tankzors.interfaces.ITank;
@@ -232,7 +233,7 @@ public class GameLoop {
     }
 
     /**
-     * Xử lý input di chuyển: cập nhật hướng và trạng thái moving của tank.
+     * Xử lý input di chuyển: cập nhật hướng và trạng thái moving của tank với kiểm tra va chạm tường.
      */
     private void handleMoveInput(String sessionId, InputMessage msg) {
         ITank tank = gameState.getTank(sessionId);
@@ -242,8 +243,31 @@ public class GameLoop {
         Boolean moving = msg.getMoving();
 
         if (direction != null && Boolean.TRUE.equals(moving)) {
-            // Di chuyển tank theo hướng với deltaTime
-            tank.move(direction, deltaTime);
+            // Xoay góc theo hướng di chuyển
+            switch (direction) {
+                case UP: tank.rotate(0); break;
+                case RIGHT: tank.rotate(90); break;
+                case DOWN: tank.rotate(180); break;
+                case LEFT: tank.rotate(270); break;
+            }
+
+            double speed = (tank instanceof com.tankzors.entity.Tank)
+                    ? ((com.tankzors.entity.Tank) tank).getSpeed()
+                    : 150.0;
+            double distance = speed * deltaTime;
+            Position currentPos = tank.getPosition();
+            Position targetPos = new Position(currentPos.getX(), currentPos.getY());
+
+            switch (direction) {
+                case UP: targetPos.setY(currentPos.getY() - distance); break;
+                case DOWN: targetPos.setY(currentPos.getY() + distance); break;
+                case LEFT: targetPos.setX(currentPos.getX() - distance); break;
+                case RIGHT: targetPos.setX(currentPos.getX() + distance); break;
+            }
+
+            Position validPos = CollisionManager.resolveCollision(tank, targetPos, gameState.getCurrentMap());
+            currentPos.setX(validPos.getX());
+            currentPos.setY(validPos.getY());
         }
     }
 
@@ -262,14 +286,19 @@ public class GameLoop {
 
     /**
      * Xử lý khi người chơi join game.
-     * (Sẽ được mở rộng khi Tank entity được implement đầy đủ)
      */
     private void handleJoinGame(String sessionId, InputMessage msg) {
         logger.info("[GameLoop] Player join: sessionId={}, name={}, level={}",
                 sessionId, msg.getPlayerName(), msg.getLevelId());
 
-        // TODO: Tạo Tank cho player và thêm vào game state
-        // Sẽ implement khi Tank entity hoàn thiện (task 1.5)
+        if (gameState.getTank(sessionId) == null) {
+            Position spawn = (gameState.getCurrentMap() != null && !gameState.getCurrentMap().getSpawnPoints().isEmpty())
+                    ? gameState.getCurrentMap().getSpawnPoints().get(0)
+                    : new Position(100, 100);
+            com.tankzors.entity.PlayerTank playerTank = new com.tankzors.entity.PlayerTank(sessionId, spawn.getX(), spawn.getY());
+            gameState.addTank(playerTank);
+            logger.info("[GameLoop] Tạo PlayerTank cho {} tại vị trí ({}, {})", sessionId, spawn.getX(), spawn.getY());
+        }
 
         // Chuyển sang trạng thái PLAYING nếu đang WAITING
         if (gameState.getStatus() == GameState.Status.WAITING) {

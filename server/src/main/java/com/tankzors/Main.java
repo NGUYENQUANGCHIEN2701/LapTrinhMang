@@ -29,8 +29,13 @@ public class Main {
 
         // ========== GAME ENGINE ==========
 
-        // Khởi tạo GameState và GameLoop
+        // Khởi tạo GameState, nạp map mặc định và GameLoop
         GameState gameState = new GameState();
+        com.tankzors.map.GameMap defaultMap = com.tankzors.map.MapLoader.load("campaign_1");
+        if (defaultMap != null) {
+            gameState.setCurrentMap(defaultMap);
+            logger.info("🗺️ Đã nạp bản đồ mặc định: {}", defaultMap.getName());
+        }
         MessageSender messageSender = webSocketServer.getMessageSender();
         GameLoop gameLoop = new GameLoop(gameState, messageSender);
 
