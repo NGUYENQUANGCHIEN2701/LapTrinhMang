@@ -14,15 +14,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Quản lý vòng đời tất cả các viên đạn trong game (Bullet Manager).
- *
- * <p>Nhiệm vụ:
- * <ul>
- *   <li>Tạo đạn mới khi tank bắn (kiểm tra cooldown 0.5s và giới hạn tối đa 5 đạn/tank).</li>
- *   <li>Cập nhật vị trí tất cả đạn active mỗi tick.</li>
- *   <li>Kiểm tra va chạm với tường bản đồ và các xe tăng khác.</li>
- *   <li>Xoá bỏ các đạn đã bị deactive.</li>
- * </ul>
- * </p>
  */
 public class BulletManager {
 

@@ -1,17 +1,37 @@
 import React from 'react';
 import { ConnectionStatusUI } from './core/network';
+import { GameCanvas } from './features/game/GameCanvas';
 import './App.css';
 
 export const App: React.FC = () => {
   return (
-    <div style={{
-      width: '100%',
-      height: '100%',
-      minHeight: '100vh',
-      backgroundColor: '#121216',
-      position: 'relative'
-    }}>
+    <div
+      style={{
+        width: '100%',
+        minHeight: '100vh',
+        backgroundColor: '#121216',
+        color: '#ffffff',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px',
+        boxSizing: 'border-box',
+        position: 'relative',
+        fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+      }}
+    >
       <ConnectionStatusUI />
+
+      <header style={{ marginBottom: '16px', textAlign: 'center' }}>
+        <h1 style={{ margin: 0, fontSize: '28px', color: '#f1c40f', letterSpacing: '2px', textTransform: 'uppercase' }}>
+          🛡️ Tankzors Game
+        </h1>
+      </header>
+
+      <main>
+        <GameCanvas />
+      </main>
     </div>
   );
 };
