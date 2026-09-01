@@ -62,10 +62,7 @@ public class PlayerTank extends Tank {
             return null; // Chưa hết cooldown
         }
         timeSinceLastShot = 0;
-
-        // TODO: Tạo Bullet khi Bullet entity được implement (task tiếp theo)
-        // Hiện tại return null để không break compilation
-        return null;
+        return new Bullet(id, new Position(position.getX(), position.getY()), rotation);
     }
 
     /**
