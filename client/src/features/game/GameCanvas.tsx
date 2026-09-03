@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { SpriteManager } from '../../core/SpriteManager';
 import { GameLoop } from '../../core/GameLoop';
 import { GameStateData, GameMapData } from '../../core/Renderer';
+import { useInput } from '../../core/input';
 
 interface GameCanvasProps {
   gameState?: GameStateData;
@@ -35,6 +36,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ gameState }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const gameLoopRef = useRef<GameLoop | null>(null);
   const [isAssetsLoaded, setIsAssetsLoaded] = useState(false);
+
+  // Task 1.12: Bắt phím điều khiển + gửi input qua WebSocket
+  useInput();
 
   // Demo State trong khi chờ WebSocket Server đẩy state thật
   const mockStateRef = useRef<GameStateData>({
