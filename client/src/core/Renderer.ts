@@ -15,6 +15,7 @@ export interface TankData {
   hp: number;
   maxHp: number;
   isPlayer?: boolean;
+  alive?: boolean; // false khi tank bị phá hủy (HP <= 0)
 }
 
 export interface BulletData {
@@ -43,6 +44,10 @@ export class Renderer {
   private mapCtx: CanvasRenderingContext2D | null = null;
   private cachedMapHash: string = '';
   private wasMapSpriteReady: boolean = false;
+
+  // Hiệu ứng nổ khi tank bị phá hủy: tankId -> { x, y, startTime }
+  private destructionEffects: Map<string, { x: number; y: number; startTime: number }> = new Map();
+  private static readonly EXPLOSION_DURATION_MS = 600;
 
   constructor() {
     this.spriteManager = SpriteManager.getInstance();
@@ -203,9 +208,21 @@ export class Renderer {
   public drawTanks(ctx: CanvasRenderingContext2D, tanks: TankData[]): void {
     if (!tanks) return;
 
+    const now = performance.now();
+
     for (const tank of tanks) {
+      // Tank bị phá hủy (alive=false hoặc hp<=0) -> vẽ hiệu ứng nổ thay vì tank
+      if (tank.alive === false || tank.hp <= 0) {
+        if (!this.destructionEffects.has(tank.id)) {
+          this.destructionEffects.set(tank.id, { x: tank.x, y: tank.y, startTime: now });
+        }
+        continue;
+      }
       this.drawTank(ctx, tank);
     }
+
+    // Vẽ hiệu ứng nổ cho các tank vừa bị phá hủy
+    this.drawDestructionEffects(ctx, now);
   }
 
   public drawTank(ctx: CanvasRenderingContext2D, tank: TankData): void {
@@ -260,12 +277,73 @@ export class Renderer {
     const bx = x - barWidth / 2;
     const by = y - 28;
 
+    // Nền đen
     ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
     ctx.fillRect(bx - 1, by - 1, barWidth + 2, barHeight + 2);
 
+    // Thanh máu: xanh > 60%, vàng 30-60%, đỏ < 30%
     const pct = Math.max(0, Math.min(1, hp / maxHp));
-    ctx.fillStyle = pct > 0.5 ? '#2ecc71' : pct > 0.25 ? '#f1c40f' : '#e74c3c';
+    ctx.fillStyle = pct > 0.6 ? '#2ecc71' : pct > 0.3 ? '#f1c40f' : '#e74c3c';
     ctx.fillRect(bx, by, barWidth * pct, barHeight);
+
+    // Hiển thị số HP phía trên thanh máu (vd: "75/100")
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '8px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${hp}/${maxHp}`, x, by - 2);
+    ctx.restore();
+  }
+
+  /**
+   * Vẽ hiệu ứng nổ tại vị trí các tank vừa bị phá hủy.
+   * Hiệu ứng kéo dài EXPLOSION_DURATION_MS rồi tự xóa.
+   */
+  private drawDestructionEffects(ctx: CanvasRenderingContext2D, now: number): void {
+    const expiredIds: string[] = [];
+
+    this.destructionEffects.forEach((effect, id) => {
+      const elapsed = now - effect.startTime;
+
+      if (elapsed > Renderer.EXPLOSION_DURATION_MS) {
+        expiredIds.push(id);
+        return;
+      }
+
+      // Tỷ lệ animation: 0 -> 1 theo thời gian
+      const progress = elapsed / Renderer.EXPLOSION_DURATION_MS;
+      // Fade out dần
+      const alpha = 1 - progress;
+      // Scale từ 1x lên 1.5x
+      const scale = 1 + progress * 0.5;
+      const size = 48 * scale;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(effect.x, effect.y);
+
+      const explosionSprite = this.spriteManager.getSprite('explosion_big');
+      if (this.spriteManager.isReady('explosion_big') && explosionSprite) {
+        ctx.drawImage(explosionSprite, -size / 2, -size / 2, size, size);
+      } else {
+        // Fallback: vẽ vòng tròn nổ màu cam/đỏ
+        const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, size / 2);
+        gradient.addColorStop(0, '#ff6600');
+        gradient.addColorStop(0.5, '#ff3300');
+        gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(0, 0, size / 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    });
+
+    // Dọn dẹp hiệu ứng hết hạn
+    for (const id of expiredIds) {
+      this.destructionEffects.delete(id);
+    }
   }
 
   public drawBullets(ctx: CanvasRenderingContext2D, bullets: BulletData[]): void {
@@ -324,7 +402,7 @@ export class Renderer {
     ctx.fillRect(barX, barY, barW, barH);
 
     const pct = Math.max(0, Math.min(1, playerHP / maxHP));
-    ctx.fillStyle = pct > 0.5 ? '#2ecc71' : pct > 0.25 ? '#f1c40f' : '#e74c3c';
+    ctx.fillStyle = pct > 0.6 ? '#2ecc71' : pct > 0.3 ? '#f1c40f' : '#e74c3c';
     ctx.fillRect(barX, barY, barW * pct, barH);
 
     ctx.strokeStyle = '#ecf0f1';

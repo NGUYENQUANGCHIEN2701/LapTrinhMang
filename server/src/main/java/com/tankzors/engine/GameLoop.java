@@ -12,7 +12,9 @@ import com.tankzors.network.protocol.StateMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -174,6 +176,7 @@ public class GameLoop {
             updateEntities(deltaTime);
             checkCollisions();
             broadcastState();
+            cleanupDeadTanks();
 
             // 6. Cập nhật metrics
             gameState.incrementTick();
@@ -317,6 +320,13 @@ public class GameLoop {
      * @param dt deltaTime (giây)
      */
     private void updateEntities(double dt) {
+        // Cập nhật cooldown bắn cho PlayerTank
+        for (ITank tank : gameState.getAllTanks()) {
+            if (tank.isAlive() && tank instanceof com.tankzors.entity.PlayerTank) {
+                ((com.tankzors.entity.PlayerTank) tank).updateCooldown(dt);
+            }
+        }
+
         // Cập nhật tất cả viên đạn
         for (IBullet bullet : gameState.getAllBullets()) {
             if (bullet.isActive()) {
@@ -407,6 +417,26 @@ public class GameLoop {
 
         StateMessage stateMsg = gameState.toStateMessage();
         messageSender.broadcast(stateMsg);
+    }
+
+    // ========== STEP 5: CLEANUP DEAD TANKS ==========
+
+    /**
+     * Xóa xe tăng đã chết (HP <= 0) khỏi game state.
+     * Được gọi SAU broadcastState() để client nhận được trạng thái alive=false
+     * một lần trước khi tank biến mất hoàn toàn.
+     */
+    private void cleanupDeadTanks() {
+        List<String> deadIds = new ArrayList<>();
+        for (ITank tank : gameState.getAllTanks()) {
+            if (!tank.isAlive()) {
+                deadIds.add(tank.getId());
+            }
+        }
+        for (String id : deadIds) {
+            gameState.removeTank(id);
+            logger.info("[GameLoop] Tank {} bị phá hủy và xóa khỏi game.", id);
+        }
     }
 
     // ========== INPUT QUEUE (PUBLIC API) ==========
