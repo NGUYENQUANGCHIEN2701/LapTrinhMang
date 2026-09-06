@@ -22,7 +22,7 @@ export class MessageParser {
       }
 
       const parsed = JSON.parse(rawMessage) as T;
-      console.log('[WebSocket] Received:', parsed);
+
 
       return {
         success: true,

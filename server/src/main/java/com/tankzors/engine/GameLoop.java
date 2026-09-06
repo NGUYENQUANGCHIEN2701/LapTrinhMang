@@ -1,6 +1,9 @@
 package com.tankzors.engine;
 
 import com.tankzors.ServerConfig;
+import com.tankzors.ai.DifficultyLevel;
+import com.tankzors.entity.AITank;
+import com.tankzors.map.TileType;
 import com.tankzors.entity.Direction;
 import com.tankzors.entity.Position;
 import com.tankzors.interfaces.IBullet;
@@ -172,14 +175,9 @@ public class GameLoop {
             lastTickTime = now;
 
             // 2-5: Pipeline xử lý game
-            processInputs();
-            updateEntities(deltaTime);
-            checkCollisions();
-            broadcastState();
-            cleanupDeadTanks();
+            step(deltaTime);
 
             // 6. Cập nhật metrics
-            gameState.incrementTick();
             updateMetrics();
 
         } catch (Exception e) {
@@ -187,6 +185,20 @@ public class GameLoop {
             logger.error("[GameLoop] Lỗi trong tick #{}: {}",
                     gameState.getTickCount(), e.getMessage(), e);
         }
+    }
+
+    /** One deterministic simulation step, also used by engine integration tests. */
+    void step(double dt) {
+        if (!Double.isFinite(dt) || dt <= 0) return;
+        deltaTime = dt;
+        processInputs();
+        if (gameState.isPlaying()) {
+            updateEntities(dt);
+            checkCollisions();
+            broadcastState();
+            cleanupDeadTanks();
+        }
+        gameState.incrementTick();
     }
 
     // ========== STEP 1: PROCESS INPUTS ==========
@@ -200,16 +212,14 @@ public class GameLoop {
     private void processInputs() {
         PlayerInput input;
         while ((input = inputQueue.poll()) != null) {
-            applyInput(input);
+            applyInput(input.sessionId, input.message);
         }
     }
 
     /**
      * Áp dụng một input từ người chơi lên game state.
      */
-    private void applyInput(PlayerInput input) {
-        String sessionId = input.sessionId;
-        InputMessage msg = input.message;
+    void applyInput(String sessionId, InputMessage msg) {
         String action = msg.getAction();
 
         if (action == null) return;
@@ -218,6 +228,20 @@ public class GameLoop {
             case "MOVE":
             case "MOVE_INPUT":
                 handleMoveInput(sessionId, msg);
+                break;
+
+            case "STOP":
+                if (gameState.getTank(sessionId) instanceof com.tankzors.entity.PlayerTank player) {
+                    if (msg.getDirection() == null) player.stopMoving();
+                    else player.setMoving(msg.getDirection(), false);
+                }
+                break;
+
+            case "LEAVE_GAME":
+                gameState.removeTank(sessionId);
+                if (gameState.getAllTanks().stream().noneMatch(t -> t instanceof com.tankzors.entity.PlayerTank)) {
+                    gameState.setStatus(GameState.Status.WAITING);
+                }
                 break;
 
             case "SHOOT":
@@ -239,38 +263,9 @@ public class GameLoop {
      * Xử lý input di chuyển: cập nhật hướng và trạng thái moving của tank với kiểm tra va chạm tường.
      */
     private void handleMoveInput(String sessionId, InputMessage msg) {
-        ITank tank = gameState.getTank(sessionId);
-        if (tank == null || !tank.isAlive()) return;
-
-        Direction direction = msg.getDirection();
-        Boolean moving = msg.getMoving();
-
-        if (direction != null && Boolean.TRUE.equals(moving)) {
-            // Xoay góc theo hướng di chuyển
-            switch (direction) {
-                case UP: tank.rotate(0); break;
-                case RIGHT: tank.rotate(90); break;
-                case DOWN: tank.rotate(180); break;
-                case LEFT: tank.rotate(270); break;
-            }
-
-            double speed = (tank instanceof com.tankzors.entity.Tank)
-                    ? ((com.tankzors.entity.Tank) tank).getSpeed()
-                    : 150.0;
-            double distance = speed * deltaTime;
-            Position currentPos = tank.getPosition();
-            Position targetPos = new Position(currentPos.getX(), currentPos.getY());
-
-            switch (direction) {
-                case UP: targetPos.setY(currentPos.getY() - distance); break;
-                case DOWN: targetPos.setY(currentPos.getY() + distance); break;
-                case LEFT: targetPos.setX(currentPos.getX() - distance); break;
-                case RIGHT: targetPos.setX(currentPos.getX() + distance); break;
-            }
-
-            Position validPos = CollisionManager.resolveCollision(tank, targetPos, gameState.getCurrentMap());
-            currentPos.setX(validPos.getX());
-            currentPos.setY(validPos.getY());
+        if (!gameState.isPlaying()) return;
+        if (gameState.getTank(sessionId) instanceof com.tankzors.entity.PlayerTank player && player.isAlive()) {
+            player.setMoving(msg.getDirection(), !Boolean.FALSE.equals(msg.getMoving()));
         }
     }
 
@@ -278,6 +273,7 @@ public class GameLoop {
      * Xử lý input bắn: tạo viên đạn mới từ tank.
      */
     private void handleShootInput(String sessionId) {
+        if (!gameState.isPlaying()) return;
         ITank tank = gameState.getTank(sessionId);
         if (tank == null || !tank.isAlive()) return;
 
@@ -295,9 +291,7 @@ public class GameLoop {
                 sessionId, msg.getPlayerName(), msg.getLevelId());
 
         if (gameState.getTank(sessionId) == null) {
-            Position spawn = (gameState.getCurrentMap() != null && !gameState.getCurrentMap().getSpawnPoints().isEmpty())
-                    ? gameState.getCurrentMap().getSpawnPoints().get(0)
-                    : new Position(100, 100);
+            Position spawn = findPlayerSpawn();
             com.tankzors.entity.PlayerTank playerTank = new com.tankzors.entity.PlayerTank(sessionId, spawn.getX(), spawn.getY());
             gameState.addTank(playerTank);
             logger.info("[GameLoop] Tạo PlayerTank cho {} tại vị trí ({}, {})", sessionId, spawn.getX(), spawn.getY());
@@ -305,8 +299,41 @@ public class GameLoop {
 
         // Chuyển sang trạng thái PLAYING nếu đang WAITING
         if (gameState.getStatus() == GameState.Status.WAITING) {
+            spawnMapEnemies();
             gameState.setStatus(GameState.Status.PLAYING);
             logger.info("[GameLoop] Game status -> PLAYING");
+        }
+    }
+
+    private Position findPlayerSpawn() {
+        var map = gameState.getCurrentMap();
+        if (map != null) {
+            for (int row = 0; row < map.getHeight(); row++) {
+                for (int col = 0; col < map.getWidth(); col++) {
+                    if (map.getTileAt(col, row) == TileType.SPAWN_PLAYER) {
+                        return new Position((col + 0.5) * map.getTileSize(), (row + 0.5) * map.getTileSize());
+                    }
+                }
+            }
+        }
+        return new Position(100, 100);
+    }
+
+    private void spawnMapEnemies() {
+        var map = gameState.getCurrentMap();
+        if (map == null || gameState.getAllTanks().stream().anyMatch(t -> t instanceof AITank)) return;
+        for (int row = 0; row < map.getHeight(); row++) {
+            for (int col = 0; col < map.getWidth(); col++) {
+                if (map.getTileAt(col, row) != TileType.SPAWN_ENEMY) continue;
+                // The current campaign_1 has no enemy metadata yet (task 2.3).
+                AITank enemy = new AITank("ai-" + col + "-" + row,
+                        (col + 0.5) * map.getTileSize(), (row + 0.5) * map.getTileSize(), DifficultyLevel.EASY);
+                if (!CollisionManager.checkTankWallCollision(enemy, map, enemy.getPosition())) {
+                    gameState.addTank(enemy);
+                } else {
+                    logger.warn("[AI] Bỏ qua spawn AI không hợp lệ tại ({}, {})", col, row);
+                }
+            }
         }
     }
 
@@ -323,8 +350,15 @@ public class GameLoop {
         // Cập nhật cooldown bắn cho PlayerTank
         for (ITank tank : gameState.getAllTanks()) {
             if (tank.isAlive() && tank instanceof com.tankzors.entity.PlayerTank) {
-                ((com.tankzors.entity.PlayerTank) tank).updateCooldown(dt);
+                var player = (com.tankzors.entity.PlayerTank) tank;
+                player.updateCooldown(dt);
+                player.updateMovement(dt, gameState.getCurrentMap());
             }
+        }
+
+        // AI runs once per simulation tick, before bullets and state broadcast.
+        for (ITank tank : gameState.getAllTanks()) {
+            if (tank instanceof AITank ai) ai.update(gameState, dt);
         }
 
         // Cập nhật tất cả viên đạn
@@ -347,59 +381,19 @@ public class GameLoop {
      * - Tank vs Tường: chặn di chuyển (handled in move logic)
      */
     private void checkCollisions() {
-        // Đạn vs Tank
         for (IBullet bullet : gameState.getAllBullets()) {
             if (!bullet.isActive()) continue;
-
-            for (ITank tank : gameState.getAllTanks()) {
-                if (!tank.isAlive()) continue;
-                // Không tự bắn chính mình
-                if (bullet.getOwnerId().equals(tank.getId())) continue;
-
-                // Kiểm tra va chạm AABB nếu cả 2 implement ICollidable
-                if (bullet instanceof ICollidable && tank instanceof ICollidable) {
-                    ICollidable bulletBox = (ICollidable) bullet;
-                    ICollidable tankBox = (ICollidable) tank;
-
-                    if (bulletBox.collidesWith(tankBox)) {
-                        // Trúng đạn: giảm HP và hủy viên đạn
-                        tank.takeDamage(bullet.getDamage());
-                        bullet.deactivate();
-
-                        logger.debug("[Collision] Bullet({}) hit Tank({}), HP còn: {}",
-                                bullet.getOwnerId(), tank.getId(), tank.getHP());
-
-                        // Nếu tank chết -> cộng điểm
-                        if (!tank.isAlive()) {
-                            gameState.addScore(100);
-                            logger.info("[GameLoop] Tank {} bị tiêu diệt! Score: {}",
-                                    tank.getId(), gameState.getScore());
-                        }
-                        break; // Mỗi viên đạn chỉ trúng 1 target
-                    }
-                }
+            // Use the actual map size and bullet footprint; walls absorb the shot first.
+            if (CollisionManager.checkBulletWallCollision(bullet, gameState.getCurrentMap())) {
+                bullet.deactivate();
+                continue;
             }
-        }
-
-        // Đạn vs Tường (kiểm tra khi IMap đã được load)
-        if (gameState.getCurrentMap() != null) {
-            for (IBullet bullet : gameState.getAllBullets()) {
-                if (!bullet.isActive()) continue;
-
-                // Chuyển pixel position sang tile coordinate
-                int tileX = (int) (bullet.getPosition().getX() / ServerConfig.TILE_SIZE);
-                int tileY = (int) (bullet.getPosition().getY() / ServerConfig.TILE_SIZE);
-
-                // Kiểm tra out of bounds
-                if (tileX < 0 || tileX >= gameState.getCurrentMap().getWidth()
-                        || tileY < 0 || tileY >= gameState.getCurrentMap().getHeight()) {
+            for (ITank tank : gameState.getAllTanks()) {
+                if (CollisionManager.checkBulletTankCollision(bullet, tank)) {
+                    tank.takeDamage(bullet.getDamage());
                     bullet.deactivate();
-                    continue;
-                }
-
-                // Kiểm tra đạn chạm tường
-                if (!gameState.getCurrentMap().isWalkable(tileX, tileY)) {
-                    bullet.deactivate();
+                    if (!tank.isAlive()) gameState.addScore(100);
+                    break;
                 }
             }
         }

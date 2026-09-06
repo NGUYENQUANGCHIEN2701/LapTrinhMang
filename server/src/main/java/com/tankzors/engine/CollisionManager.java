@@ -8,7 +8,6 @@ import com.tankzors.interfaces.IBullet;
 import com.tankzors.interfaces.ICollidable;
 import com.tankzors.interfaces.IMap;
 import com.tankzors.interfaces.ITank;
-import com.tankzors.map.GameMap;
 
 /**
  * Quản lý và xử lý va chạm trong game (Collision Detection & Resolution).
@@ -51,7 +50,7 @@ public class CollisionManager {
         if (targetBox == null) return false;
 
         // 1. Kiểm tra tràn ra ngoài biên bản đồ (Canvas boundaries)
-        int tileSize = (map instanceof GameMap) ? ((GameMap) map).getTileSize() : GameMap.DEFAULT_TILE_SIZE;
+        int tileSize = map.getTileSize();
         double mapWidthPx = map.getWidth() * tileSize;
         double mapHeightPx = map.getHeight() * tileSize;
 
@@ -59,6 +58,17 @@ public class CollisionManager {
                 || (targetBox.getX() + targetBox.getWidth()) > mapWidthPx
                 || (targetBox.getY() + targetBox.getHeight()) > mapHeightPx) {
             return true;
+        }
+
+        // Include water and the whole tank footprint, not only its center cell.
+        int firstCol = (int) Math.floor(targetBox.getX() / tileSize);
+        int lastCol = (int) Math.ceil((targetBox.getX() + targetBox.getWidth()) / tileSize) - 1;
+        int firstRow = (int) Math.floor(targetBox.getY() / tileSize);
+        int lastRow = (int) Math.ceil((targetBox.getY() + targetBox.getHeight()) / tileSize) - 1;
+        for (int row = firstRow; row <= lastRow; row++) {
+            for (int col = firstCol; col <= lastCol; col++) {
+                if (!map.isWalkable(col, row)) return true;
+            }
         }
 
         // 2. Kiểm tra giao cắt với tất cả các bức tường trên bản đồ
@@ -131,7 +141,7 @@ public class CollisionManager {
         Position bulletPos = bullet.getPosition();
         if (bulletPos == null) return false;
 
-        int tileSize = (map instanceof GameMap) ? ((GameMap) map).getTileSize() : GameMap.DEFAULT_TILE_SIZE;
+        int tileSize = map.getTileSize();
         double mapWidthPx = map.getWidth() * tileSize;
         double mapHeightPx = map.getHeight() * tileSize;
 

@@ -1,8 +1,29 @@
 package com.tankzors.entity;
 
-/**
- * Xe tăng điều khiển bởi AI.
- * Sẽ được hoàn thiện trong task 2.1 (AIController + behaviors).
- */
-public class AITank {
+import com.tankzors.ai.AIController;
+import com.tankzors.ai.DifficultyLevel;
+import com.tankzors.engine.GameState;
+import com.tankzors.interfaces.IBullet;
+import java.util.Objects;
+
+/** One tank owns one controller: reaction timers and paths are never shared. */
+public class AITank extends Tank {
+    private final DifficultyLevel difficulty;
+    private final AIController controller = new AIController();
+
+    public AITank(String id, double x, double y, DifficultyLevel difficulty) {
+        super(id, x, y, Objects.requireNonNull(difficulty).getSpeed(), 100, 100, 40, 40);
+        this.difficulty = difficulty;
+    }
+
+    public DifficultyLevel getDifficulty() { return difficulty; }
+    public AIController getController() { return controller; }
+
+    public void update(GameState state, double deltaTime) {
+        controller.update(this, state, deltaTime);
+    }
+
+    /** Task 2.2 adds firing and its cooldown; movement never creates bullets. */
+    @Override
+    public IBullet shoot() { return null; }
 }

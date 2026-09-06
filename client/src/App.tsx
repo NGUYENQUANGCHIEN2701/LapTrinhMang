@@ -2,8 +2,10 @@ import React from 'react';
 import { ConnectionStatusUI } from './core/network';
 import { GameCanvas } from './features/game/GameCanvas';
 import './App.css';
+import { useGameSession } from './core/network/hooks/useGameSession';
 
 export const App: React.FC = () => {
+  const { gameState, connected, alive } = useGameSession();
   return (
     <div
       style={{
@@ -30,7 +32,7 @@ export const App: React.FC = () => {
       </header>
 
       <main>
-        <GameCanvas />
+        <GameCanvas gameState={gameState} controlsEnabled={connected && alive} />
       </main>
     </div>
   );

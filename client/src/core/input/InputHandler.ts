@@ -50,6 +50,8 @@ export class InputHandler {
 
   private readonly boundKeyDown: (e: KeyboardEvent) => void;
   private readonly boundKeyUp: (e: KeyboardEvent) => void;
+  private readonly boundBlur = () => this.releaseAll();
+  private readonly boundVisibility = () => { if (document.hidden) this.releaseAll(); };
 
   constructor(callbacks: InputCallbacks) {
     this.callbacks = callbacks;
@@ -63,6 +65,8 @@ export class InputHandler {
   public attach(): void {
     window.addEventListener('keydown', this.boundKeyDown);
     window.addEventListener('keyup', this.boundKeyUp);
+    window.addEventListener('blur', this.boundBlur);
+    document.addEventListener('visibilitychange', this.boundVisibility);
   }
 
   /**
@@ -71,11 +75,22 @@ export class InputHandler {
   public detach(): void {
     window.removeEventListener('keydown', this.boundKeyDown);
     window.removeEventListener('keyup', this.boundKeyUp);
+    window.removeEventListener('blur', this.boundBlur);
+    document.removeEventListener('visibilitychange', this.boundVisibility);
+    this.releaseAll();
+    this.pressedKeys.clear();
+    this.activeDirections.clear();
+  }
+
+  public releaseAll(): void {
+    for (const direction of this.activeDirections) this.callbacks.onMove(direction, false);
     this.pressedKeys.clear();
     this.activeDirections.clear();
   }
 
   private handleKeyDown(e: KeyboardEvent): void {
+    const element = e.target;
+    if (element instanceof HTMLElement && (element.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(element.tagName))) return;
     const direction = KEY_TO_DIRECTION[e.key];
     const isShoot = e.key === SHOOT_KEY;
 
@@ -85,11 +100,11 @@ export class InputHandler {
     }
 
     // Bỏ qua sự kiện repeat (giữ phím liên tục) → không spam
-    if (e.repeat) return;
+    if (e.repeat || this.pressedKeys.has((e.key.length === 1 ? e.key.toLowerCase() : e.key))) return;
 
     // Xử lý phím di chuyển
     if (direction) {
-      this.pressedKeys.add(e.key);
+      this.pressedKeys.add((e.key.length === 1 ? e.key.toLowerCase() : e.key));
 
       // Chỉ gửi nếu direction này chưa active
       // (vd: đã bấm W rồi, giờ bấm thêm ArrowUp → không gửi lại UP)
@@ -102,7 +117,7 @@ export class InputHandler {
 
     // Xử lý phím bắn
     if (isShoot) {
-      this.pressedKeys.add(e.key);
+      this.pressedKeys.add((e.key.length === 1 ? e.key.toLowerCase() : e.key));
       this.callbacks.onShoot();
     }
   }
@@ -112,7 +127,7 @@ export class InputHandler {
 
     // Xử lý nhả phím di chuyển
     if (direction) {
-      this.pressedKeys.delete(e.key);
+      this.pressedKeys.delete((e.key.length === 1 ? e.key.toLowerCase() : e.key));
 
       // Kiểm tra xem còn phím nào khác đang map tới cùng direction không
       // (vd: nhả W nhưng ArrowUp vẫn đang giữ → UP vẫn active)
@@ -129,7 +144,7 @@ export class InputHandler {
 
     // Xử lý nhả phím bắn
     if (e.key === SHOOT_KEY) {
-      this.pressedKeys.delete(e.key);
+      this.pressedKeys.delete((e.key.length === 1 ? e.key.toLowerCase() : e.key));
     }
   }
 

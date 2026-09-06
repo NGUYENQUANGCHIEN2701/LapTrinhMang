@@ -79,7 +79,7 @@ public class MessageHandler {
      * Xử lý gói tin Input (MOVE, SHOOT, JOIN...).
      */
     private void handleInputMessage(WsMessageContext ctx, JsonObject jsonObject, String rawMessage) {
-        InputMessage inputMessage = gson.fromJson(rawMessage, InputMessage.class);
+        InputMessage inputMessage = parseInput(jsonObject);
 
         // Nếu type là MOVE_INPUT / SHOOT_INPUT / JOIN_GAME từ client TypeScript
         if (inputMessage.getAction() == null) {
@@ -100,6 +100,24 @@ public class MessageHandler {
         ack.put("action", inputMessage.getAction());
         ack.put("timestamp", System.currentTimeMillis());
         messageSender.send(ctx, ack);
+    }
+
+    /** Accept both the documented flat INPUT format and the existing nested client packets. */
+    public InputMessage parseInput(JsonObject packet) {
+        JsonObject normalized = packet.deepCopy();
+        if (packet.has("payload") && packet.get("payload").isJsonObject()) {
+            JsonObject payload = packet.getAsJsonObject("payload");
+            for (String key : new String[]{"action", "direction", "moving", "playerName", "levelId"}) {
+                if (!normalized.has(key) && payload.has(key)) normalized.add(key, payload.get(key));
+            }
+        }
+        InputMessage input = gson.fromJson(normalized, InputMessage.class);
+        if (input.getAction() == null) input.setAction(input.getType());
+        return input;
+    }
+
+    public void handleDisconnect(String sessionId) {
+        if (inputListener != null) inputListener.accept(sessionId, new InputMessage("LEAVE_GAME"));
     }
 
     /**

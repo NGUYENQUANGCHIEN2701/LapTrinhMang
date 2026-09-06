@@ -1,6 +1,9 @@
 package com.tankzors.entity;
 
 import com.tankzors.interfaces.IBullet;
+import com.tankzors.interfaces.IMap;
+import com.tankzors.engine.CollisionManager;
+import java.util.EnumSet;
 
 /**
  * Xe tăng do người chơi điều khiển.
@@ -46,6 +49,43 @@ public class PlayerTank extends Tank {
         super(id, x, y, speed, DEFAULT_HP, DEFAULT_MAX_HP, DEFAULT_WIDTH, DEFAULT_HEIGHT);
     }
 
+    private final EnumSet<Direction> heldDirections = EnumSet.noneOf(Direction.class);
+
+    public void setMoving(Direction direction, boolean moving) {
+        if (direction == null) return;
+        if (moving) heldDirections.add(direction); else heldDirections.remove(direction);
+        double dx = horizontalInput(), dy = verticalInput();
+        if (dx != 0 || dy != 0) rotate((Math.toDegrees(Math.atan2(dy, dx)) + 450) % 360);
+    }
+
+    public void stopMoving() { heldDirections.clear(); }
+
+    private int horizontalInput() {
+        return (heldDirections.contains(Direction.RIGHT) ? 1 : 0) - (heldDirections.contains(Direction.LEFT) ? 1 : 0);
+    }
+
+    private int verticalInput() {
+        return (heldDirections.contains(Direction.DOWN) ? 1 : 0) - (heldDirections.contains(Direction.UP) ? 1 : 0);
+    }
+
+    /** Held input is simulated here, independent of keyboard repeat/network frequency. */
+    public void updateMovement(double dt, IMap map) {
+        if (!isAlive() || !Double.isFinite(dt) || dt <= 0 || map == null) return;
+        double dx = horizontalInput(), dy = verticalInput();
+        double length = Math.hypot(dx, dy);
+        if (length == 0) return;
+        dx /= length; dy /= length; // Diagonal speed equals cardinal speed.
+        double remaining = speed * dt;
+        while (remaining > 1e-9) {
+            double step = Math.min(5, remaining);
+            Position target = new Position(position.getX() + dx * step, position.getY() + dy * step);
+            Position valid = CollisionManager.resolveCollision(this, target, map);
+            if (valid.getX() == position.getX() && valid.getY() == position.getY()) break;
+            position.setX(valid.getX()); position.setY(valid.getY());
+            remaining -= step;
+        }
+    }
+
     // ========== SHOOT ==========
 
     /**
@@ -58,7 +98,7 @@ public class PlayerTank extends Tank {
      */
     @Override
     public IBullet shoot() {
-        if (timeSinceLastShot < shootCooldown) {
+        if (!isAlive() || timeSinceLastShot < shootCooldown) {
             return null; // Chưa hết cooldown
         }
         timeSinceLastShot = 0;

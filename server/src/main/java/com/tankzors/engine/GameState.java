@@ -1,6 +1,8 @@
 package com.tankzors.engine;
 
 import com.tankzors.interfaces.IBullet;
+import com.tankzors.entity.AITank;
+import com.tankzors.entity.PlayerTank;
 import com.tankzors.interfaces.ITank;
 import com.tankzors.interfaces.IMap;
 import com.tankzors.network.protocol.StateMessage;
@@ -60,7 +62,9 @@ public class GameState {
      * Xóa xe tăng khỏi trận đấu.
      */
     public void removeTank(String tankId) {
-        tanks.remove(tankId);
+        ITank removed = tanks.remove(tankId);
+        if (removed instanceof AITank ai) ai.getController().reset();
+        if (removed instanceof PlayerTank player) player.stopMoving();
     }
 
     /**
@@ -182,6 +186,7 @@ public class GameState {
             tankData.put("hp", tank.getHP());
             tankData.put("maxHp", tank.getMaxHP());
             tankData.put("alive", tank.isAlive());
+            tankData.put("isPlayer", tank instanceof PlayerTank);
             tankList.add(tankData);
         }
         msg.setTanks(tankList);
@@ -191,6 +196,8 @@ public class GameState {
         for (IBullet bullet : bullets) {
             if (!bullet.isActive()) continue;
             Map<String, Object> bulletData = new HashMap<>();
+            if (bullet instanceof com.tankzors.entity.Bullet entity) bulletData.put("id", entity.getId());
+            bulletData.put("active", bullet.isActive());
             bulletData.put("x", bullet.getPosition().getX());
             bulletData.put("y", bullet.getPosition().getY());
             bulletData.put("direction", bullet.getDirection());
@@ -198,6 +205,14 @@ public class GameState {
             bulletList.add(bulletData);
         }
         msg.setBullets(bulletList);
+        if (currentMap != null) {
+            int[][] grid = new int[currentMap.getHeight()][currentMap.getWidth()];
+            for (int row = 0; row < grid.length; row++) {
+                for (int col = 0; col < grid[row].length; col++) grid[row][col] = currentMap.getTileAt(col, row).getValue();
+            }
+            msg.setMap(Map.of("width", currentMap.getWidth(), "height", currentMap.getHeight(),
+                    "tileSize", currentMap.getTileSize(), "grid", grid));
+        }
 
         // Score & Status
         msg.setScore(score);
@@ -210,6 +225,10 @@ public class GameState {
      * Reset trạng thái game (dùng khi bắt đầu ván mới).
      */
     public void reset() {
+        for (ITank tank : tanks.values()) {
+            if (tank instanceof AITank ai) ai.getController().reset();
+            if (tank instanceof PlayerTank player) player.stopMoving();
+        }
         tanks.clear();
         bullets.clear();
         score = 0;

@@ -61,6 +61,7 @@ public class WebSocketServer {
             // Khi client ngắt kết nối
             ws.onClose(ctx -> {
                 connectionManager.removeConnection(ctx);
+                messageHandler.handleDisconnect(ctx.sessionId());
             });
 
             // Khi có lỗi kết nối

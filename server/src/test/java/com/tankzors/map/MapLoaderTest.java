@@ -60,15 +60,15 @@ class MapLoaderTest {
 
         Position playerSpawn = map.getPlayerSpawn();
         assertNotNull(playerSpawn, "Phải có player spawn point");
-        // Ô (2, 2) -> pixel (2*40, 2*40) = (80, 80)
-        assertEquals(80.0, playerSpawn.getX(), 0.001);
-        assertEquals(80.0, playerSpawn.getY(), 0.001);
+        // Tâm ô (2, 2) -> pixel (100, 100)
+        assertEquals(100.0, playerSpawn.getX(), 0.001);
+        assertEquals(100.0, playerSpawn.getY(), 0.001);
 
         Position enemySpawn = map.getEnemySpawn();
         assertNotNull(enemySpawn, "Phải có enemy spawn point");
-        // Ô (16, 11) -> pixel (16*40, 11*40) = (640, 440)
-        assertEquals(640.0, enemySpawn.getX(), 0.001);
-        assertEquals(440.0, enemySpawn.getY(), 0.001);
+        // Tâm ô (16, 11) -> pixel (660, 460)
+        assertEquals(660.0, enemySpawn.getX(), 0.001);
+        assertEquals(460.0, enemySpawn.getY(), 0.001);
     }
 
     @Test

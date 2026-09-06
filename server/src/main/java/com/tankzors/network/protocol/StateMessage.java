@@ -16,6 +16,7 @@ public class StateMessage extends GameMessage {
 
     private List<Object> tanks;
     private List<Object> bullets;
+    private java.util.Map<String, Object> map;
     private int score;
     private String gameStatus; // "PLAYING", "VICTORY", "DEFEAT", "WAITING"
 
@@ -41,6 +42,9 @@ public class StateMessage extends GameMessage {
     public void setBullets(List<Object> bullets) {
         this.bullets = bullets;
     }
+
+    public java.util.Map<String, Object> getMap() { return map; }
+    public void setMap(java.util.Map<String, Object> map) { this.map = map; }
 
     public int getScore() {
         return score;

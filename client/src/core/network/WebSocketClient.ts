@@ -66,6 +66,7 @@ export class WebSocketClient {
 
       this.socket.onclose = (event: CloseEvent) => {
         console.warn('⚠️ [WebSocketClient] Connection closed code:', event.code, 'reason:', event.reason);
+        this.setStatus('disconnected');
         this.closeListeners.forEach((listener) => listener(event));
 
         if (!this.isIntentionallyClosed) {

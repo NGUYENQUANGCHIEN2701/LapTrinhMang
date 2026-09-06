@@ -65,10 +65,10 @@ public class GameMap implements IMap {
                 if (type == TileType.WALL) {
                     walls.add(new Wall(pixelX, pixelY, tileSize, tileSize));
                 } else if (type == TileType.SPAWN_PLAYER) {
-                    playerSpawn = new Position(pixelX, pixelY);
+                    playerSpawn = new Position(pixelX + tileSize / 2.0, pixelY + tileSize / 2.0);
                     spawnPoints.add(playerSpawn);
                 } else if (type == TileType.SPAWN_ENEMY) {
-                    enemySpawn = new Position(pixelX, pixelY);
+                    enemySpawn = new Position(pixelX + tileSize / 2.0, pixelY + tileSize / 2.0);
                     spawnPoints.add(enemySpawn);
                 }
             }
@@ -85,6 +85,7 @@ public class GameMap implements IMap {
         return height;
     }
 
+    @Override
     public int getTileSize() {
         return tileSize;
     }

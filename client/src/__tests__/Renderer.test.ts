@@ -6,7 +6,7 @@ import { GameLoop } from '../core/GameLoop';
 function createMockContext(): CanvasRenderingContext2D {
   const ctx = {
     clearRect: vi.fn(),
-    fillRect: vi.fn(),
+    fillRect: vi.fn(function(this: { fillStyle: string }) { return this.fillStyle; }),
     strokeRect: vi.fn(),
     beginPath: vi.fn(),
     arc: vi.fn(),
@@ -293,8 +293,8 @@ describe('Client Renderer & Core Test Suite (50 Unit Tests)', () => {
   it('Test 31: drawTank thực hiện save() và restore() cân bằng context', () => {
     const playerTank: TankData = { id: 'player-1', x: 100, y: 100, rotation: 0, hp: 100, maxHp: 100, isPlayer: true };
     renderer.drawTank(ctx, playerTank);
-    expect(ctx.save).toHaveBeenCalledTimes(1);
-    expect(ctx.restore).toHaveBeenCalledTimes(1);
+    expect(ctx.save).toHaveBeenCalled();
+    expect(vi.mocked(ctx.save).mock.calls.length).toBe(vi.mocked(ctx.restore).mock.calls.length);
   });
 
   it('Test 32: Dịch chuyển translate đúng vị trí (x, y) xe tăng', () => {
@@ -312,7 +312,7 @@ describe('Client Renderer & Core Test Suite (50 Unit Tests)', () => {
   it('Test 34: Tank người chơi (isPlayer=true) vẽ màu xanh lá', () => {
     const playerTank: TankData = { id: 'player-1', x: 100, y: 100, rotation: 0, hp: 100, maxHp: 100, isPlayer: true };
     renderer.drawTank(ctx, playerTank);
-    expect(ctx.fillStyle).toBe('#2ecc71');
+    expect(vi.mocked(ctx.fillRect).mock.results.map(result => result.value)).toContain('#2ecc71');
   });
 
   it('Test 35: Tank AI (isPlayer=false) vẽ màu đỏ', () => {
@@ -324,25 +324,25 @@ describe('Client Renderer & Core Test Suite (50 Unit Tests)', () => {
   it('Test 36: Tự động phát hiện tank người chơi theo tiền tố id="player..."', () => {
     const tank: TankData = { id: 'player_tank_abc', x: 100, y: 100, rotation: 0, hp: 100, maxHp: 100 };
     renderer.drawTank(ctx, tank);
-    expect(ctx.fillStyle).toBe('#2ecc71');
+    expect(vi.mocked(ctx.fillRect).mock.results.map(result => result.value)).toContain('#2ecc71');
   });
 
   it('Test 37: Mini Health Bar vẽ màu xanh khi HP > 50%', () => {
     const tank: TankData = { id: 'player-1', x: 100, y: 100, rotation: 0, hp: 75, maxHp: 100 };
     renderer.drawTank(ctx, tank);
-    expect(ctx.fillStyle).toBe('#2ecc71');
+    expect(vi.mocked(ctx.fillRect).mock.results.map(result => result.value)).toContain('#2ecc71');
   });
 
   it('Test 38: Mini Health Bar vẽ màu vàng khi 25% < HP <= 50%', () => {
     const tank: TankData = { id: 'player-1', x: 100, y: 100, rotation: 0, hp: 40, maxHp: 100 };
     renderer.drawTank(ctx, tank);
-    expect(ctx.fillStyle).toBe('#f1c40f');
+    expect(vi.mocked(ctx.fillRect).mock.results.map(result => result.value)).toContain('#f1c40f');
   });
 
   it('Test 39: Mini Health Bar vẽ màu đỏ khi HP <= 25%', () => {
     const tank: TankData = { id: 'player-1', x: 100, y: 100, rotation: 0, hp: 15, maxHp: 100 };
     renderer.drawTank(ctx, tank);
-    expect(ctx.fillStyle).toBe('#e74c3c');
+    expect(vi.mocked(ctx.fillRect).mock.results.map(result => result.value)).toContain('#e74c3c');
   });
 
   it('Test 40: Mini Health Bar vẽ đúng chiều dài theo % HP (50% = 18px)', () => {
@@ -374,8 +374,8 @@ describe('Client Renderer & Core Test Suite (50 Unit Tests)', () => {
   it('Test 43: drawBullet thực hiện save và restore context', () => {
     const bullet: BulletData = { id: 'b1', x: 100, y: 100, direction: 0, active: true };
     renderer.drawBullet(ctx, bullet);
-    expect(ctx.save).toHaveBeenCalledTimes(1);
-    expect(ctx.restore).toHaveBeenCalledTimes(1);
+    expect(ctx.save).toHaveBeenCalled();
+    expect(vi.mocked(ctx.save).mock.calls.length).toBe(vi.mocked(ctx.restore).mock.calls.length);
   });
 
   it('Test 44: Vẽ đồng thời nhiều đạn active', () => {

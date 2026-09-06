@@ -16,6 +16,9 @@ import java.util.List;
  */
 public interface IMap {
 
+    /** Size of one grid cell in pixels. */
+    int getTileSize();
+
     /**
      * @return chiều rộng bản đồ (số ô theo trục x).
      */

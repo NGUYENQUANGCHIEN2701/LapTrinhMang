@@ -92,7 +92,7 @@ export class Renderer {
   }
 
   private generateMapHash(mapData: GameMapData): string {
-    return `${mapData.width}_${mapData.height}_${mapData.tileSize}_${mapData.grid.length}`;
+    return `${mapData.width}_${mapData.height}_${mapData.tileSize}_${JSON.stringify(mapData.grid)}`;
   }
 
   /**
