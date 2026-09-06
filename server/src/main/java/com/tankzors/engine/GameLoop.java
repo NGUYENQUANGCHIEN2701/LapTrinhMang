@@ -3,6 +3,7 @@ package com.tankzors.engine;
 import com.tankzors.ServerConfig;
 import com.tankzors.ai.DifficultyLevel;
 import com.tankzors.entity.AITank;
+import com.tankzors.map.GameMap;
 import com.tankzors.map.TileType;
 import com.tankzors.entity.Direction;
 import com.tankzors.entity.Position;
@@ -70,6 +71,8 @@ public class GameLoop {
     private long lastMetricTime;
     private volatile int actualTickRate = 0;
 
+    private String currentLevelId = "campaign_1";
+
     // ========== CONSTRUCTOR ==========
 
     /**
@@ -81,6 +84,10 @@ public class GameLoop {
     public GameLoop(GameState gameState, MessageSender messageSender) {
         this.gameState = gameState;
         this.messageSender = messageSender;
+    }
+
+    public String getCurrentLevelId() {
+        return currentLevelId;
     }
 
     // ========== LIFECYCLE ==========
@@ -197,6 +204,8 @@ public class GameLoop {
             checkCollisions();
             broadcastState();
             cleanupDeadTanks();
+        } else if (gameState.getStatus() == GameState.Status.VICTORY || gameState.getStatus() == GameState.Status.DEFEAT) {
+            broadcastState();
         }
         gameState.incrementTick();
     }
@@ -219,7 +228,7 @@ public class GameLoop {
     /**
      * Áp dụng một input từ người chơi lên game state.
      */
-    void applyInput(String sessionId, InputMessage msg) {
+    public void applyInput(String sessionId, InputMessage msg) {
         String action = msg.getAction();
 
         if (action == null) return;
@@ -302,7 +311,22 @@ public class GameLoop {
             }
         }
 
-        boolean shouldResetMatch = gameState.getStatus() == GameState.Status.WAITING
+        boolean levelChanged = false;
+        String requestedLevel = msg.getLevelId();
+        if (requestedLevel != null && !requestedLevel.isBlank()) {
+            if (!requestedLevel.equals(currentLevelId) || gameState.getCurrentMap() == null) {
+                com.tankzors.map.GameMap newMap = com.tankzors.map.MapLoader.load(requestedLevel);
+                if (newMap != null) {
+                    gameState.setCurrentMap(newMap);
+                    currentLevelId = requestedLevel;
+                    levelChanged = true;
+                    logger.info("[GameLoop] Đã nạp bản đồ mới cho level: {}", requestedLevel);
+                }
+            }
+        }
+
+        boolean shouldResetMatch = levelChanged
+                || gameState.getStatus() != GameState.Status.PLAYING
                 || gameState.getAllTanks().stream().noneMatch(t -> t instanceof com.tankzors.entity.PlayerTank && t.isAlive());
 
         if (shouldResetMatch) {
@@ -312,18 +336,15 @@ public class GameLoop {
             logger.info("[GameLoop] Bắt đầu trận mới: reset AI và đạn, game status -> PLAYING");
         }
 
-        if (gameState.getTank(sessionId) == null) {
-            Position spawn = findPlayerSpawn();
-            com.tankzors.entity.PlayerTank playerTank = new com.tankzors.entity.PlayerTank(sessionId, spawn.getX(), spawn.getY());
-            gameState.addTank(playerTank);
-            logger.info("[GameLoop] Tạo PlayerTank cho {} tại vị trí ({}, {})", sessionId, spawn.getX(), spawn.getY());
-        } else if (shouldResetMatch) {
+        if (gameState.getTank(sessionId) == null || shouldResetMatch) {
             Position spawn = findPlayerSpawn();
             gameState.removeTank(sessionId);
             com.tankzors.entity.PlayerTank playerTank = new com.tankzors.entity.PlayerTank(sessionId, spawn.getX(), spawn.getY());
             gameState.addTank(playerTank);
-            logger.info("[GameLoop] Reset PlayerTank cho {} tại vị trí ({}, {})", sessionId, spawn.getX(), spawn.getY());
+            logger.info("[GameLoop] Tạo/Reset PlayerTank cho {} tại vị trí ({}, {})", sessionId, spawn.getX(), spawn.getY());
         }
+
+        broadcastState();
     }
 
     private void clearEnemiesAndBullets() {
@@ -357,10 +378,35 @@ public class GameLoop {
     private void spawnMapEnemies() {
         var map = gameState.getCurrentMap();
         if (map == null || gameState.getAllTanks().stream().anyMatch(t -> t instanceof AITank)) return;
+
+        // Nếu map có danh sách enemies metadata (Task 2.3)
+        if (map instanceof GameMap gameMap && gameMap.getEnemies() != null && !gameMap.getEnemies().isEmpty()) {
+            for (GameMap.EnemyConfig config : gameMap.getEnemies()) {
+                DifficultyLevel diff = DifficultyLevel.EASY;
+                if (config.getDifficulty() != null) {
+                    try {
+                        diff = DifficultyLevel.valueOf(config.getDifficulty().trim().toUpperCase());
+                    } catch (IllegalArgumentException ignored) {
+                    }
+                }
+                int col = config.getSpawnX();
+                int row = config.getSpawnY();
+                AITank enemy = new AITank("ai-" + col + "-" + row,
+                        (col + 0.5) * map.getTileSize(), (row + 0.5) * map.getTileSize(), diff);
+                if (!CollisionManager.checkTankWallCollision(enemy, map, enemy.getPosition())) {
+                    gameState.addTank(enemy);
+                    logger.info("[AI] Spawn AI {} tại ({}, {}) với độ khó {}", enemy.getId(), col, row, diff);
+                } else {
+                    logger.warn("[AI] Bỏ qua spawn AI không hợp lệ tại ({}, {})", col, row);
+                }
+            }
+            return;
+        }
+
+        // Fallback quét ô SPAWN_ENEMY nếu map không có enemies metadata
         for (int row = 0; row < map.getHeight(); row++) {
             for (int col = 0; col < map.getWidth(); col++) {
                 if (map.getTileAt(col, row) != TileType.SPAWN_ENEMY) continue;
-                // The current campaign_1 has no enemy metadata yet (task 2.3).
                 AITank enemy = new AITank("ai-" + col + "-" + row,
                         (col + 0.5) * map.getTileSize(), (row + 0.5) * map.getTileSize(), DifficultyLevel.EASY);
                 if (!CollisionManager.checkTankWallCollision(enemy, map, enemy.getPosition())) {
@@ -438,11 +484,10 @@ public class GameLoop {
 
     /**
      * Gửi trạng thái game hiện tại tới toàn bộ client đang kết nối.
-     * Chỉ broadcast khi game đang PLAYING và có ít nhất 1 tank.
+     * Bỏ qua khi game đang ở trạng thái WAITING.
      */
     private void broadcastState() {
-        if (!gameState.isPlaying()) return;
-        if (gameState.getTankCount() == 0) return;
+        if (gameState.getStatus() == GameState.Status.WAITING) return;
 
         if (messageSender == null) return;
         StateMessage stateMsg = gameState.toStateMessage();
@@ -467,8 +512,18 @@ public class GameLoop {
             gameState.removeTank(id);
             logger.info("[GameLoop] Tank {} bị phá hủy và xóa khỏi game.", id);
         }
-        if (gameState.getAllTanks().stream().noneMatch(t -> t instanceof com.tankzors.entity.PlayerTank)) {
-            gameState.setStatus(GameState.Status.WAITING);
+
+        boolean hasPlayer = gameState.getAllTanks().stream().anyMatch(t -> t instanceof com.tankzors.entity.PlayerTank && t.isAlive());
+        boolean hasAI = gameState.getAllTanks().stream().anyMatch(t -> t instanceof AITank && t.isAlive());
+
+        if (!hasPlayer) {
+            gameState.setStatus(GameState.Status.DEFEAT);
+            logger.info("[GameLoop] Người chơi đã bị tiêu diệt -> DEFEAT");
+            broadcastState();
+        } else if (!hasAI) {
+            gameState.setStatus(GameState.Status.VICTORY);
+            logger.info("[GameLoop] Toàn bộ AI đã bị tiêu diệt -> VICTORY");
+            broadcastState();
         }
     }
 

@@ -3,8 +3,8 @@ package com.tankzors.ai;
 /** Shared AI configuration: distances in pixels, delays in simulation seconds. */
 public enum DifficultyLevel {
     EASY(80, 200, 0.5, 2.0, 15.0),
-    MEDIUM(120, 300, 0.3, 1.5, 8.0),
-    HARD(140, 400, 0.1, 1.0, 3.0);
+    MEDIUM(90, 240, 0.5, 2.5, 10.0),
+    HARD(105, 280, 0.3, 2.0, 6.0);
 
     private final double speed;
     private final double visionRange;

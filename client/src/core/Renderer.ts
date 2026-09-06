@@ -32,6 +32,8 @@ export interface GameStateData {
   bullets: BulletData[];
   playerHP?: number;
   maxHP?: number;
+  score?: number;
+  gameStatus?: 'WAITING' | 'PLAYING' | 'VICTORY' | 'DEFEAT' | string;
 }
 
 export class Renderer {
@@ -76,7 +78,8 @@ export class Renderer {
     const isMapReady =
       this.spriteManager.isReady('ground') &&
       this.spriteManager.isReady('wall') &&
-      this.spriteManager.isReady('bush');
+      this.spriteManager.isReady('bush') &&
+      this.spriteManager.isReady('spikes');
     const needsSpriteUpdate = isMapReady && !this.wasMapSpriteReady;
 
     if (!this.mapCanvas || this.cachedMapHash !== currentHash || needsSpriteUpdate) {
@@ -119,9 +122,11 @@ export class Renderer {
     const groundSprite = this.spriteManager.getSprite('ground');
     const wallSprite = this.spriteManager.getSprite('wall');
     const bushSprite = this.spriteManager.getSprite('bush');
+    const spikesSprite = this.spriteManager.getSprite('spikes');
     const isGroundReady = this.spriteManager.isReady('ground');
     const isWallReady = this.spriteManager.isReady('wall');
     const isBushReady = this.spriteManager.isReady('bush');
+    const isSpikesReady = this.spriteManager.isReady('spikes');
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
@@ -154,12 +159,29 @@ export class Renderer {
             drawTarget.strokeRect(px, py, tileSize, tileSize);
           }
         }
-        // Ô nước (TileType = 2)
+        // Ô chông gai sắt chống tăng (TileType = 2: Chặn xe nhưng cho đạn bay xuyên qua)
         else if (tileType === 2) {
-          drawTarget.fillStyle = '#3498db';
-          drawTarget.fillRect(px, py, tileSize, tileSize);
-          drawTarget.strokeStyle = '#2980b9';
-          drawTarget.strokeRect(px, py, tileSize, tileSize);
+          // Vẽ nền đất cỏ bên dưới trước (vì spikes.png là ảnh có nền trong suốt)
+          if (isGroundReady && groundSprite) {
+            const tileVariant = (r * 3 + c * 7) % 5;
+            drawTarget.drawImage(groundSprite, tileVariant * 20, 0, 20, 20, px, py, tileSize, tileSize);
+          } else {
+            drawTarget.fillStyle = '#556b2f';
+            drawTarget.fillRect(px, py, tileSize, tileSize);
+          }
+
+          // Vẽ chông gai sắt lên trên
+          if (isSpikesReady && spikesSprite) {
+            const spikeFrame = (r + c) % 3;
+            drawTarget.drawImage(spikesSprite, spikeFrame * 20, 0, 20, 20, px, py, tileSize, tileSize);
+          } else {
+            // Fallback nếu ảnh spikes chưa sẵn sàng
+            drawTarget.fillStyle = '#718093';
+            drawTarget.fillRect(px + 4, py + 4, tileSize - 8, tileSize - 8);
+            drawTarget.strokeStyle = '#2f3640';
+            drawTarget.lineWidth = 2;
+            drawTarget.strokeRect(px + 4, py + 4, tileSize - 8, tileSize - 8);
+          }
         }
         // Ô bụi cây / cây cối (TileType = 5) từ palms.png
         else if (tileType === 5) {
@@ -237,11 +259,10 @@ export class Renderer {
     const halfSize = size / 2;
 
     if (this.spriteManager.isReady(spriteKey) && tankSprite) {
-      // Spritesheet tank cắt theo thứ tự Ngược Chiều Kim Đồng Hồ (CCW).
-      // Chuyển đổi góc rotation (CW) sang góc của Spritesheet (CCW):
+      // Spritesheet của Tankzors gồm 16 frame góc (mỗi frame 22.5 độ theo chiều kim đồng hồ):
+      // Frame 0: DOWN (180°), Frame 4: LEFT (270°), Frame 8: UP (0°), Frame 12: RIGHT (90°)
       const normalizedRotation = ((tank.rotation % 360) + 360) % 360;
-      const ccwRotation = (360 - normalizedRotation) % 360;
-      const frameIndex = Math.floor((ccwRotation + 11.25) / 22.5) % 16;
+      const frameIndex = (Math.floor((normalizedRotation + 11.25) / 22.5) + 8) % 16;
       const sx = frameIndex * 24;
 
       ctx.drawImage(tankSprite, sx, 0, 24, 24, -halfSize, -halfSize, size, size);

@@ -27,6 +27,7 @@ export class SpriteManager {
     wall: '/assets/map/wall.png',
     ground: '/assets/map/ground.png',
     bush: '/assets/map/palms.png',
+    spikes: '/assets/map/spikes.png',
 
     // Effects
     bullet: '/assets/effects/bullet.png',

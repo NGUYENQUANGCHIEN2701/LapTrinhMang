@@ -321,6 +321,28 @@ describe('Client Renderer & Core Test Suite (50 Unit Tests)', () => {
     expect(ctx.fillRect).toHaveBeenCalledWith(-20, -20, 40, 40);
   });
 
+  it('Test 35b: Spritesheet frame index chính xác theo hướng: UP=Frame 8, RIGHT=Frame 12, DOWN=Frame 0, LEFT=Frame 4', () => {
+    vi.spyOn(SpriteManager.getInstance(), 'isReady').mockReturnValue(true);
+    const mockSprite = new Image();
+    vi.spyOn(SpriteManager.getInstance(), 'getSprite').mockReturnValue(mockSprite);
+
+    // UP (0 deg) -> Frame 8 -> sx = 192
+    renderer.drawTank(ctx, { id: 'player-1', x: 100, y: 100, rotation: 0, hp: 100, maxHp: 100 });
+    expect(ctx.drawImage).toHaveBeenCalledWith(mockSprite, 192, 0, 24, 24, -20, -20, 40, 40);
+
+    // RIGHT (90 deg) -> Frame 12 -> sx = 288
+    renderer.drawTank(ctx, { id: 'player-1', x: 100, y: 100, rotation: 90, hp: 100, maxHp: 100 });
+    expect(ctx.drawImage).toHaveBeenCalledWith(mockSprite, 288, 0, 24, 24, -20, -20, 40, 40);
+
+    // DOWN (180 deg) -> Frame 0 -> sx = 0
+    renderer.drawTank(ctx, { id: 'player-1', x: 100, y: 100, rotation: 180, hp: 100, maxHp: 100 });
+    expect(ctx.drawImage).toHaveBeenCalledWith(mockSprite, 0, 0, 24, 24, -20, -20, 40, 40);
+
+    // LEFT (270 deg) -> Frame 4 -> sx = 96
+    renderer.drawTank(ctx, { id: 'player-1', x: 100, y: 100, rotation: 270, hp: 100, maxHp: 100 });
+    expect(ctx.drawImage).toHaveBeenCalledWith(mockSprite, 96, 0, 24, 24, -20, -20, 40, 40);
+  });
+
   it('Test 36: Tự động phát hiện tank người chơi theo tiền tố id="player..."', () => {
     const tank: TankData = { id: 'player_tank_abc', x: 100, y: 100, rotation: 0, hp: 100, maxHp: 100 };
     renderer.drawTank(ctx, tank);

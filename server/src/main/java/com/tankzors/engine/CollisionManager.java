@@ -17,6 +17,9 @@ import com.tankzors.interfaces.ITank;
  */
 public class CollisionManager {
 
+    /** Margin inset cho hitbox di chuyển của xe tăng (4px mỗi cạnh) giúp xe lướt mượt qua hành lang 1 ô */
+    public static final double TANK_WALL_MARGIN = 4.0;
+
     /**
      * Lấy Bounding Box của xe tăng nếu đặt tại toạ độ tâm {@code pos}.
      */
@@ -29,6 +32,23 @@ public class CollisionManager {
                 pos.getY() - height / 2.0,
                 width,
                 height
+        );
+    }
+
+    /**
+     * Lấy Bounding Box di chuyển của xe tăng để kiểm tra va chạm với tường và địa hình.
+     * Áp dụng margin 4px mỗi cạnh (hitbox thực tế 32x32px trong ô 40px)
+     * giúp xe di chuyển mượt mà qua các hành lang chiến hào 1 ô mà không bị kẹt mép tường.
+     */
+    public static Rectangle getTankWallCollisionBoxAt(ITank tank, Position pos) {
+        if (pos == null) return null;
+        double width = (tank instanceof Tank) ? ((Tank) tank).getWidth() : 40.0;
+        double height = (tank instanceof Tank) ? ((Tank) tank).getHeight() : 40.0;
+        return new Rectangle(
+                pos.getX() - width / 2.0 + TANK_WALL_MARGIN,
+                pos.getY() - height / 2.0 + TANK_WALL_MARGIN,
+                Math.max(1.0, width - TANK_WALL_MARGIN * 2.0),
+                Math.max(1.0, height - TANK_WALL_MARGIN * 2.0)
         );
     }
 
@@ -46,7 +66,7 @@ public class CollisionManager {
             return false;
         }
 
-        Rectangle targetBox = getTankBoundingBoxAt(tank, targetPos);
+        Rectangle targetBox = getTankWallCollisionBoxAt(tank, targetPos);
         if (targetBox == null) return false;
 
         // 1. Kiểm tra tràn ra ngoài biên bản đồ (Canvas boundaries)
@@ -87,6 +107,7 @@ public class CollisionManager {
      *   <li>Nếu vị trí {@code targetPos} không va chạm -> cho phép đi đến đó.</li>
      *   <li>Nếu có va chạm nhưng có thể trượt theo trục X -> cho phép trượt trục X.</li>
      *   <li>Nếu có va chạm nhưng có thể trượt theo trục Y -> cho phép trượt trục Y.</li>
+     *   <li>Corner Nudging: Nếu hơi lệch tâm hành lang, tự động căn về tâm để không bị khựng góc.</li>
      *   <li>Nếu cả 2 trục đều bị chặn -> giữ nguyên vị trí cũ.</li>
      * </ul>
      *
@@ -122,7 +143,38 @@ public class CollisionManager {
             return tryY;
         }
 
-        // 4. Bị chặn cả 2 hướng -> đứng yên tại vị trí hiện tại
+        // 4. Corner nudging: Khi di chuyển theo trục Y nhưng hơi lệch tâm ô X, tự động căn nhẹ vào giữa hành lang
+        int tileSize = map.getTileSize();
+        double dy = targetPos.getY() - currentPos.getY();
+        if (Math.abs(dy) > 1e-6) {
+            int col = (int) Math.floor(currentPos.getX() / tileSize);
+            double centerX = (col + 0.5) * tileSize;
+            double diffX = centerX - currentPos.getX();
+            if (Math.abs(diffX) > 1e-4 && Math.abs(diffX) <= 6.0) {
+                double nudgeX = currentPos.getX() + Math.signum(diffX) * Math.min(Math.abs(diffX), 2.0);
+                Position tryNudge = new Position(nudgeX, targetPos.getY());
+                if (!checkTankWallCollision(tank, map, tryNudge)) {
+                    return tryNudge;
+                }
+            }
+        }
+
+        // Tương tự khi di chuyển theo trục X nhưng hơi lệch tâm ô Y, tự động căn nhẹ vào giữa hành lang
+        double dx = targetPos.getX() - currentPos.getX();
+        if (Math.abs(dx) > 1e-6) {
+            int row = (int) Math.floor(currentPos.getY() / tileSize);
+            double centerY = (row + 0.5) * tileSize;
+            double diffY = centerY - currentPos.getY();
+            if (Math.abs(diffY) > 1e-4 && Math.abs(diffY) <= 6.0) {
+                double nudgeY = currentPos.getY() + Math.signum(diffY) * Math.min(Math.abs(diffY), 2.0);
+                Position tryNudge = new Position(targetPos.getX(), nudgeY);
+                if (!checkTankWallCollision(tank, map, tryNudge)) {
+                    return tryNudge;
+                }
+            }
+        }
+
+        // 5. Bị chặn cả 2 hướng -> đứng yên tại vị trí hiện tại
         return currentPos;
     }
 

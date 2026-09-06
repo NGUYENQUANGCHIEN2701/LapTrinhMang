@@ -1,8 +1,13 @@
 {
   "name": "Màn 1 - Khu vực tập luyện",
+  "difficulty": "EASY",
   "width": 20,
   "height": 15,
   "tileSize": 40,
+  "enemies": [
+    { "type": "AI", "difficulty": "EASY", "spawnX": 16, "spawnY": 11 }
+  ],
+  "rewards": { "stars": 3, "coins": 100 },
   "grid": [
     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
     [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],

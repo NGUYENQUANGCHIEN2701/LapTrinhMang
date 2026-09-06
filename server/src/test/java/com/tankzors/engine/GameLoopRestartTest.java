@@ -67,9 +67,9 @@ public class GameLoopRestartTest {
         // Chạy 1 tick để gameLoop dọn dẹp tank chết
         gameLoop.step(0.033);
 
-        // Player đã bị dọn khỏi gameState và status chuyển sang WAITING
+        // Player đã bị dọn khỏi gameState và status chuyển sang DEFEAT
         assertNull(gameState.getTank("session-1"));
-        assertEquals(GameState.Status.WAITING, gameState.getStatus(), "Game phải chuyển sang WAITING khi người chơi chết");
+        assertEquals(GameState.Status.DEFEAT, gameState.getStatus(), "Game phải chuyển sang DEFEAT khi người chơi chết");
 
         // 4. Player F5 lại trang web -> Client tạo session mới và gửi JOIN_GAME
         InputMessage rejoinMsg = new InputMessage("JOIN_GAME");

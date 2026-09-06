@@ -103,16 +103,16 @@ public class ShootBehaviorTest {
     }
 
     @Test
-    @DisplayName("AI tuân thủ Cooldown theo độ khó: EASY (2s), MEDIUM (1.5s), HARD (1s)")
+    @DisplayName("AI tuân thủ Cooldown theo độ khó: EASY (2s), MEDIUM (2.5s), HARD (2s)")
     public void testShootCooldownByDifficulty() {
-        // Test EASY: 2 giây/lần
-        testCooldownForDifficulty(DifficultyLevel.EASY, 2.0);
+        // Test EASY: 2.0 giây/lần
+        testCooldownForDifficulty(DifficultyLevel.EASY, DifficultyLevel.EASY.getShootCooldown());
 
-        // Test MEDIUM: 1.5 giây/lần
-        testCooldownForDifficulty(DifficultyLevel.MEDIUM, 1.5);
+        // Test MEDIUM: 2.5 giây/lần
+        testCooldownForDifficulty(DifficultyLevel.MEDIUM, DifficultyLevel.MEDIUM.getShootCooldown());
 
-        // Test HARD: 1.0 giây/lần
-        testCooldownForDifficulty(DifficultyLevel.HARD, 1.0);
+        // Test HARD: 2.0 giây/lần
+        testCooldownForDifficulty(DifficultyLevel.HARD, DifficultyLevel.HARD.getShootCooldown());
     }
 
     private void testCooldownForDifficulty(DifficultyLevel difficulty, double expectedCooldown) {

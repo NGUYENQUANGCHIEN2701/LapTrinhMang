@@ -149,4 +149,29 @@ class CollisionManagerTest {
         MockBullet farBullet = new MockBullet("player-1", 300, 300);
         assertFalse(CollisionManager.checkBulletTankCollision(farBullet, enemyTank));
     }
+
+    @Test
+    @DisplayName("[AC] Xe tăng di chuyển qua hành lang 1 ô (40px) có lệch tâm nhẹ không bị kẹt")
+    void resolveCollision_narrowCorridorWithOffset_canMove() {
+        GameMap map2 = MapLoader.load("campaign_2");
+        assertNotNull(map2);
+
+        // Trong map 2, cột 5 là hành lang thông thoáng giữa cột 4 và cột 6 (tường).
+        // Tâm hành lang là X = (5 + 0.5) * 40 = 220.0
+        // Đặt xe hơi lệch tâm (X = 222.0, Y = 300.0)
+        PlayerTank tankInCorridor = new PlayerTank("player-corridor", 222.0, 300.0);
+
+        // Xe muốn đi xuống: target Y = 305.0
+        Position targetDown = new Position(222.0, 305.0);
+        Position resolvedDown = CollisionManager.resolveCollision(tankInCorridor, targetDown, map2);
+
+        // Xe phải đi tiếp được (Y phải thay đổi), không bị đóng băng ở 300.0!
+        assertTrue(resolvedDown.getY() > 300.0, "Xe phải di chuyển được xuống dọc hành lang dù hơi lệch tâm");
+
+        // Xe muốn đi lên: target Y = 295.0
+        Position targetUp = new Position(222.0, 295.0);
+        Position resolvedUp = CollisionManager.resolveCollision(tankInCorridor, targetUp, map2);
+
+        assertTrue(resolvedUp.getY() < 300.0, "Xe phải di chuyển được lên dọc hành lang dù hơi lệch tâm");
+    }
 }
