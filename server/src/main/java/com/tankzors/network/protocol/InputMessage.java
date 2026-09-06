@@ -20,6 +20,7 @@ public class InputMessage extends GameMessage {
     private Boolean moving;         // true nếu đang bấm giữ phím di chuyển
     private String playerName;      // Tên người chơi khi tham gia
     private String levelId;         // ID bản đồ (ví dụ: campaign_1, online_1)
+    private String mode;            // "campaign", "online", ...
     private Object payload;         // Dữ liệu mở rộng tuỳ chọn nếu client gửi payload lồng nhau
 
     public InputMessage() {
@@ -69,6 +70,22 @@ public class InputMessage extends GameMessage {
 
     public void setLevelId(String levelId) {
         this.levelId = levelId;
+    }
+
+    public String getMode() {
+        return mode;
+    }
+
+    public void setMode(String mode) {
+        this.mode = mode;
+    }
+
+    public String getGameMode() {
+        return mode;
+    }
+
+    public void setGameMode(String mode) {
+        this.mode = mode;
     }
 
     public Object getPayload() {

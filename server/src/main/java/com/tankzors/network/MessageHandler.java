@@ -107,7 +107,7 @@ public class MessageHandler {
         JsonObject normalized = packet.deepCopy();
         if (packet.has("payload") && packet.get("payload").isJsonObject()) {
             JsonObject payload = packet.getAsJsonObject("payload");
-            for (String key : new String[]{"action", "direction", "moving", "playerName", "levelId"}) {
+            for (String key : new String[]{"action", "direction", "moving", "playerName", "levelId", "mode"}) {
                 if (!normalized.has(key) && payload.has(key)) normalized.add(key, payload.get(key));
             }
         }

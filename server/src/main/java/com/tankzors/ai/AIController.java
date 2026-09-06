@@ -13,8 +13,9 @@ public final class AIController {
     private final IdleBehavior idle = new IdleBehavior();
     private final ChaseBehavior chase = new ChaseBehavior();
     private final PatrolBehavior patrol = new PatrolBehavior();
+    private final ShootBehavior defaultShootBehavior = new ShootBehavior();
     private IAIBehavior behavior = idle;
-    private IAIBehavior shootBehavior;
+    private IAIBehavior shootBehavior = defaultShootBehavior;
     private PlayerTank target;
     private Position lastSeen;
     private double reactionElapsed;
@@ -25,6 +26,8 @@ public final class AIController {
     public Position getLastSeenPosition() {
         return lastSeen == null ? null : new Position(lastSeen.getX(), lastSeen.getY());
     }
+
+    public IAIBehavior getShootBehavior() { return shootBehavior; }
 
     /** Task 2.2 plugs shooting in after movement, without replacing Chase/Patrol. */
     public void setShootBehavior(IAIBehavior shootBehavior) { this.shootBehavior = shootBehavior; }
@@ -38,6 +41,9 @@ public final class AIController {
         map = null;
         chase.reset();
         patrol.reset();
+        if (shootBehavior instanceof ShootBehavior sb) {
+            sb.reset();
+        }
     }
 
     public void update(AITank self, GameState state, double dt) {

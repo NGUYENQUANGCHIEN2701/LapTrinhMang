@@ -23,7 +23,8 @@ public class AITank extends Tank {
         controller.update(this, state, deltaTime);
     }
 
-    /** Task 2.2 adds firing and its cooldown; movement never creates bullets. */
     @Override
-    public IBullet shoot() { return null; }
+    public IBullet shoot() {
+        return new com.tankzors.entity.Bullet(id, new Position(position.getX(), position.getY()), rotation);
+    }
 }

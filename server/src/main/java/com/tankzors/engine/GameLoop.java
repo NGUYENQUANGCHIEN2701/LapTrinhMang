@@ -241,6 +241,7 @@ public class GameLoop {
                 gameState.removeTank(sessionId);
                 if (gameState.getAllTanks().stream().noneMatch(t -> t instanceof com.tankzors.entity.PlayerTank)) {
                     gameState.setStatus(GameState.Status.WAITING);
+                    clearEnemiesAndBullets();
                 }
                 break;
 
@@ -290,19 +291,53 @@ public class GameLoop {
         logger.info("[GameLoop] Player join: sessionId={}, name={}, level={}",
                 sessionId, msg.getPlayerName(), msg.getLevelId());
 
+        if ("campaign".equalsIgnoreCase(msg.getGameMode())) {
+            // Trong chế độ campaign, chỉ có 1 người chơi; dọn các session cũ nếu có
+            List<String> oldPlayerIds = gameState.getAllTanks().stream()
+                    .filter(t -> t instanceof com.tankzors.entity.PlayerTank && !t.getId().equals(sessionId))
+                    .map(ITank::getId)
+                    .toList();
+            for (String pid : oldPlayerIds) {
+                gameState.removeTank(pid);
+            }
+        }
+
+        boolean shouldResetMatch = gameState.getStatus() == GameState.Status.WAITING
+                || gameState.getAllTanks().stream().noneMatch(t -> t instanceof com.tankzors.entity.PlayerTank && t.isAlive());
+
+        if (shouldResetMatch) {
+            clearEnemiesAndBullets();
+            spawnMapEnemies();
+            gameState.setStatus(GameState.Status.PLAYING);
+            logger.info("[GameLoop] Bắt đầu trận mới: reset AI và đạn, game status -> PLAYING");
+        }
+
         if (gameState.getTank(sessionId) == null) {
             Position spawn = findPlayerSpawn();
             com.tankzors.entity.PlayerTank playerTank = new com.tankzors.entity.PlayerTank(sessionId, spawn.getX(), spawn.getY());
             gameState.addTank(playerTank);
             logger.info("[GameLoop] Tạo PlayerTank cho {} tại vị trí ({}, {})", sessionId, spawn.getX(), spawn.getY());
+        } else if (shouldResetMatch) {
+            Position spawn = findPlayerSpawn();
+            gameState.removeTank(sessionId);
+            com.tankzors.entity.PlayerTank playerTank = new com.tankzors.entity.PlayerTank(sessionId, spawn.getX(), spawn.getY());
+            gameState.addTank(playerTank);
+            logger.info("[GameLoop] Reset PlayerTank cho {} tại vị trí ({}, {})", sessionId, spawn.getX(), spawn.getY());
         }
+    }
 
-        // Chuyển sang trạng thái PLAYING nếu đang WAITING
-        if (gameState.getStatus() == GameState.Status.WAITING) {
-            spawnMapEnemies();
-            gameState.setStatus(GameState.Status.PLAYING);
-            logger.info("[GameLoop] Game status -> PLAYING");
+    private void clearEnemiesAndBullets() {
+        List<String> aiIds = gameState.getAllTanks().stream()
+                .filter(t -> t instanceof AITank)
+                .map(ITank::getId)
+                .toList();
+        for (String id : aiIds) {
+            gameState.removeTank(id);
         }
+        for (IBullet bullet : gameState.getAllBullets()) {
+            bullet.deactivate();
+        }
+        gameState.removeInactiveBullets();
     }
 
     private Position findPlayerSpawn() {
@@ -409,6 +444,7 @@ public class GameLoop {
         if (!gameState.isPlaying()) return;
         if (gameState.getTankCount() == 0) return;
 
+        if (messageSender == null) return;
         StateMessage stateMsg = gameState.toStateMessage();
         messageSender.broadcast(stateMsg);
     }
@@ -430,6 +466,9 @@ public class GameLoop {
         for (String id : deadIds) {
             gameState.removeTank(id);
             logger.info("[GameLoop] Tank {} bị phá hủy và xóa khỏi game.", id);
+        }
+        if (gameState.getAllTanks().stream().noneMatch(t -> t instanceof com.tankzors.entity.PlayerTank)) {
+            gameState.setStatus(GameState.Status.WAITING);
         }
     }
 
