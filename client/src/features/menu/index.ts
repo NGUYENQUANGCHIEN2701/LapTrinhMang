@@ -1,1 +1,1 @@
-// Menu feature module skeleton
+export { MainMenu } from './MainMenu';
