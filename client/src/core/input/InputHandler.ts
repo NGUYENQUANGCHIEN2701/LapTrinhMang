@@ -19,7 +19,7 @@ const KEY_TO_DIRECTION: Record<string, Direction> = {
   ArrowRight: 'RIGHT',
 };
 
-const SHOOT_KEY = ' '; // Space
+const isShootKey = (key: string) => key === ' ' || key === 'j' || key === 'J';
 
 /**
  * Callback khi trạng thái input thay đổi.
@@ -92,7 +92,7 @@ export class InputHandler {
     const element = e.target;
     if (element instanceof HTMLElement && (element.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(element.tagName))) return;
     const direction = KEY_TO_DIRECTION[e.key];
-    const isShoot = e.key === SHOOT_KEY;
+    const isShoot = isShootKey(e.key);
 
     // Chặn hành vi mặc định cho phím game (tránh scroll trang)
     if (direction || isShoot) {
@@ -143,7 +143,7 @@ export class InputHandler {
     }
 
     // Xử lý nhả phím bắn
-    if (e.key === SHOOT_KEY) {
+    if (isShootKey(e.key)) {
       this.pressedKeys.delete((e.key.length === 1 ? e.key.toLowerCase() : e.key));
     }
   }

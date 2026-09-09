@@ -1,6 +1,17 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { CAMPAIGN_LEVELS } from '../core/network/hooks/useGameSession';
 
+const storageMock = (() => {
+  let store: Record<string, string> = {};
+  return {
+    getItem: (key: string) => store[key] ?? null,
+    setItem: (key: string, value: string) => { store[key] = value.toString(); },
+    clear: () => { store = {}; },
+    removeItem: (key: string) => { delete store[key]; }
+  };
+})();
+Object.defineProperty(globalThis, 'localStorage', { value: storageMock, writable: true, configurable: true });
+
 describe('Campaign Level Progression & Selection System', () => {
   beforeEach(() => {
     localStorage.clear();
