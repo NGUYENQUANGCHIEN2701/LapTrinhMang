@@ -1,0 +1,13 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: tankzors-server-spring
+  main:
+    banner-mode: "off"
+
+logging:
+  level:
+    com.tankzors: INFO
+    org.springframework: WARN

@@ -1,105 +1,258 @@
-# Lộ trình: Tankzors Pro
+# Roadmap: Migrate code hiện tại sang Java Web stack mới
 
-## Tổng quan
+## Mục tiêu
 
-Dự án được chia thành 3 giai đoạn gọn gàng. Giai đoạn 1 xây dựng lõi game (di chuyển xe tăng, bắn, va chạm, hạ tầng WebSocket) — đây là nền tảng mà mọi thứ khác xây trên. Giai đoạn 2 thêm AI đối thủ và chế độ Campaign 3 màn. Giai đoạn 3 thêm chế độ Online + Bảng xếp hạng để hoàn thiện phần lập trình mạng. Mỗi giai đoạn kết thúc với một sản phẩm chạy được, có thể demo cho giáo viên.
+Migrate toàn bộ chức năng đang có sang stack mới, không mở rộng gameplay trong đợt này.
 
-## Các giai đoạn
+```text
+Website shell: Spring Boot + Thymeleaf
+Gameplay client: LibGDX HTML5/GWT
+Realtime: WebSocket
+Server: Java 21 + Spring Boot
+Database: PostgreSQL
+```
 
-- [ ] **Giai đoạn 1: Lõi Game + Khung cơ bản** - Xe tăng di chuyển, bắn, va chạm với tường, WebSocket client-server hoạt động
-- [ ] **Giai đoạn 2: Chế độ Campaign + AI** - 3 màn tuần tự, AI đối thủ, hệ thống phần thưởng (sao + tiền + vật phẩm)
-- [ ] **Giai đoạn 3: Chế độ Online + Bảng xếp hạng** - 3 bản đồ độc lập, bảng xếp hạng lưu MySQL đồng bộ trên server
+Các tính năng mới trong hai PDF được giữ ở backlog. Đợt này chỉ giữ parity với code hiện tại: connect, join game, campaign hiện tại, movement, shooting, bullet, collision, HP, AI, map, victory/defeat, leaderboard hiện có.
 
-## Chi tiết từng giai đoạn
+## Các phase
 
-### Giai đoạn 1: Lõi Game + Khung cơ bản
+- [x] **Phase 0: Baseline và contract** - Đóng băng behavior hiện tại, chốt protocol (xong 13/09/2026 - `docs/protocol-v1.md`, `docs/parity-checklist.md`)
+- [x] **Phase 1: Tạo structure mới** - Tạo target modules/folders, chưa xóa code cũ (xong 13/09/2026 - 4 module mới + migration-mapping)
+- [ ] **Phase 2: Migrate backend sang Spring Boot** - Giữ nguyên game engine và behavior
+- [ ] **Phase 3: Migrate client sang LibGDX HTML5** - Thay React Canvas bằng Java gameplay client
+- [ ] **Phase 4: Migrate persistence và website** - PostgreSQL, Thymeleaf và leaderboard hiện có
+- [ ] **Phase 5: Cutover và verification** - Chạy end-to-end, gỡ legacy sau khi parity pass
 
-**Mục tiêu**: Một xe tăng di chuyển được trên bản đồ có tường, bắn đạn, va chạm hoạt động — toàn bộ qua kiến trúc WebSocket client-server, Java backend theo SOLID.
+## Phase 0: Baseline và contract
 
-**Phụ thuộc**: Không (giai đoạn đầu tiên)
-**Yêu cầu liên quan**: COMBAT-01, COMBAT-02, COMBAT-04, COMBAT-05, NET-01, NET-02, ARCH-01, ARCH-02
-**Tiêu chí thành công**:
+### Mục tiêu
 
-  1. React client kết nối Java WebSocket server; nhấn phím di chuyển xe tăng trên màn hình
-  2. Xe tăng không đi xuyên tường — phát hiện va chạm hoạt động
-  3. Nhấn bắn, đạn bay ra theo hướng xe tăng, dừng khi chạm tường
-  4. Xe tăng có máu (HP) hiển thị; đạn trúng xe tăng giảm HP
-  5. Code Java backend tuân thủ SOLID — có thể chỉ ra từng nguyên tắc được áp dụng ở đâu
+Ghi nhận hành vi hiện tại trước migration.
 
-**Kiến trúc SOLID (phải thể hiện trong giai đoạn này):**
-- **S** (Nguyên tắc đơn trách nhiệm): Tách GameEngine / NetworkHandler / MapLoader / BulletManager / TankEntity
-- **O** (Nguyên tắc đóng-mở): Có thể thêm loại đạn/vũ khí mới mà không sửa code cũ (dùng interface Weapon)
-- **L** (Nguyên tắc thay thế Liskov): Lớp con của Tank (PlayerTank, AITank) thay thế được lớp cha Tank
-- **I** (Nguyên tắc phân tách interface): Client không cần biết logic AI; AI không cần biết render
-- **D** (Nguyên tắc đảo ngược phụ thuộc): GameEngine phụ thuộc vào abstraction (IMap, ITank, IBullet), không phụ thuộc vào lớp cụ thể
+### Kiểm tra
 
-**Kế hoạch chi tiết**: Chưa tạo
+```cmd
+mvn -f server\pom.xml test
+cd client
+npm test
+npm run build
+```
 
-### Giai đoạn 2: Chế độ Campaign + AI
+### Việc cần làm
 
-**Mục tiêu**: Người chơi có thể chơi 3 màn Campaign tuần tự, mỗi màn có AI đối thủ với hành vi riêng, thắng nhận phần thưởng.
+- Ghi lại flow connect -> join -> move/shoot -> state -> leave.
+- Ghi lại message `CONNECT`, `INPUT`, `JOIN_GAME`, `STATE`, `ACK`, `PONG`, `ERROR`.
+- Ghi lại map format, tank format, bullet format và status format.
+- Ghi lại các test hiện tại làm safety net.
+- Chốt endpoint WebSocket vẫn là `/game`.
 
-**Phụ thuộc**: Giai đoạn 1
-**Yêu cầu liên quan**: COMBAT-03, CAMP-01, CAMP-02, CAMP-03, CAMP-04
-**Tiêu chí thành công**:
+### Nghiệm thu
 
-  1. AI xe tăng di chuyển, tìm người chơi, và bắn lại (không chỉ đứng yên)
-  2. Màn 1 dễ (1 AI chậm), Màn 2 trung bình (2 AI), Màn 3 khó (2-3 AI nhanh hơn)
-  3. Phải thắng Màn 1 mới mở Màn 2, thắng Màn 2 mới mở Màn 3
-  4. Thắng màn hiển thị màn hình kết quả: 3 sao + tiền thưởng + vật phẩm nhặt được
-  5. Vật phẩm từ màn trước cộng vào kho đồ, có giới hạn tối đa mỗi loại
+- Có protocol document version 1. -> `docs/protocol-v1.md` (13/09/2026)
+- Server/client hiện tại build và test pass. -> 112 server tests + 62 client tests + build pass
+- Có danh sách behavior phải giữ nguyên. -> `docs/parity-checklist.md`
 
-**Kế hoạch chi tiết**: Chưa tạo
+## Phase 1: Target structure
 
-### Giai đoạn 3: Chế độ Online + Bảng xếp hạng
+### Mục tiêu
 
-**Mục tiêu**: Chế độ Online cho phép chọn bất kỳ bản đồ nào chơi ngay, kết quả lưu MySQL, bảng xếp hạng hiển thị cho tất cả clients.
+Tạo cấu trúc đích song song với code cũ để migration từng phần.
 
-**Phụ thuộc**: Giai đoạn 2
-**Yêu cầu liên quan**: ONLINE-01, ONLINE-02, ONLINE-03, NET-03
-**Tiêu chí thành công**:
+### Cấu trúc repository đích
 
-  1. Từ menu Online, chọn 1 trong 3 bản đồ và bắt đầu chơi ngay (không cần mở khóa)
-  2. Mỗi bản đồ có độ khó cố định (không dễ dần như Campaign)
-  3. Sau khi hoàn thành bản đồ, điểm/kết quả gửi lên server và lưu vào MySQL
-  4. Mở trang Bảng xếp hạng thấy thứ hạng điểm cao — refresh thấy dữ liệu mới nhất từ server
-  5. 2 trình duyệt mở cùng lúc đều thấy cùng dữ liệu bảng xếp hạng
+```text
+LapTrinhMang/
+├── server/                         # Spring Boot + game server
+│   └── src/
+│       ├── main/java/com/tankzors/
+│       │   ├── TankzorsApplication.java
+│       │   ├── domain/
+│       │   │   ├── entity/
+│       │   │   ├── valueobject/
+│       │   │   └── rules/
+│       │   ├── application/
+│       │   │   ├── game/
+│       │   │   ├── campaign/
+│       │   │   └── leaderboard/
+│       │   ├── engine/
+│       │   ├── ai/
+│       │   ├── map/
+│       │   ├── network/
+│       │   │   ├── websocket/
+│       │   │   └── protocol/
+│       │   ├── persistence/
+│       │   └── config/
+│       └── main/resources/
+│           ├── application.yml
+│           └── maps/
+├── game-client/                    # LibGDX
+│   ├── core/src/main/java/
+│   ├── html/src/main/java/
+│   ├── desktop/src/main/java/
+│   └── assets/
+├── web/                             # Thymeleaf/static web resources
+│   └── src/main/resources/
+│       ├── templates/
+│       └── static/
+├── shared-protocol/                 # Chỉ DTO/constant wire protocol
+├── infra/
+│   └── docker-compose.yml
+└── .planning/
+```
 
-**Kế hoạch chi tiết**: Chưa tạo
+### Quy tắc dependency
 
-## Tiến độ
+```text
+shared-protocol <- server
+shared-protocol <- game-client/core
 
-**Thứ tự thực hiện:** 1 → 2 → 3
+web -> application services
+network -> application services
+application -> engine/domain
+persistence -> application/domain ports
+engine/domain -> không phụ thuộc Spring/WebSocket/JPA
+```
 
-| Giai đoạn | Kế hoạch hoàn thành | Trạng thái | Ngày xong |
-|-----------|---------------------|------------|-----------|
-| 1. Lõi Game + Khung cơ bản | 0/Chưa xác định | Chưa bắt đầu | - |
-| 2. Chế độ Campaign + AI | 0/Chưa xác định | Chưa bắt đầu | - |
-| 3. Chế độ Online + Bảng xếp hạng | 0/Chưa xác định | Chưa bắt đầu | - |
+Không dùng chung server entity với LibGDX client. Chỉ dùng chung protocol DTO/enum/constant tối giản.
 
-## Phân bổ yêu cầu
+## Phase 2: Migrate backend sang Spring Boot
 
-| Yêu cầu | Giai đoạn |
-|----------|-----------|
-| COMBAT-01 | Giai đoạn 1 |
-| COMBAT-02 | Giai đoạn 1 |
-| COMBAT-03 | Giai đoạn 2 |
-| COMBAT-04 | Giai đoạn 1 |
-| COMBAT-05 | Giai đoạn 1 |
-| CAMP-01 | Giai đoạn 2 |
-| CAMP-02 | Giai đoạn 2 |
-| CAMP-03 | Giai đoạn 2 |
-| CAMP-04 | Giai đoạn 2 |
-| ONLINE-01 | Giai đoạn 3 |
-| ONLINE-02 | Giai đoạn 3 |
-| ONLINE-03 | Giai đoạn 3 |
-| NET-01 | Giai đoạn 1 |
-| NET-02 | Giai đoạn 1 |
-| NET-03 | Giai đoạn 3 |
-| ARCH-01 | Giai đoạn 1 |
-| ARCH-02 | Giai đoạn 1 |
+### Mục tiêu
 
-**Tổng kết:** 17/17 yêu cầu đã phân bổ, không trùng lặp, không thiếu sót.
+Thay Javalin bằng Spring Boot nhưng giữ `GameLoop`, AI, collision, map và protocol behavior.
 
----
-*Lộ trình tạo ngày: 21/08/2026 — chuyển từ 5 giai đoạn PvP sang 3 giai đoạn PvE*
+### Mapping class hiện tại
+
+| Code hiện tại | Vị trí đích | Cách xử lý |
+|---|---|---|
+| `GameLoop` | `engine` | Giữ logic, bỏ dependency network cụ thể |
+| `GameState` | `engine`/`domain` | Giữ state simulation |
+| `Tank`, `PlayerTank`, `AITank` | `domain/entity` | Giữ behavior, tách DTO |
+| `Bullet`, `CollisionManager` | `engine`/`domain/rules` | Giữ logic |
+| `AIController`, behaviors | `ai` | Giữ thuật toán hiện tại |
+| `MapLoader`, `GameMap` | `map` | Giữ map JSON và loader |
+| `InputMessage`, `StateMessage` | `shared-protocol`/`network/protocol` | Chuẩn hóa DTO |
+| `MessageHandler` | `network/websocket` | Spring WebSocket adapter |
+| `MessageSender` | `network/websocket` | Publisher adapter |
+| `WebSocketServer` | Spring configuration/handler | Thay Javalin endpoint |
+| `LeaderboardService` | `application/leaderboard` | Tách port và persistence adapter |
+
+### Việc cần làm
+
+1. Thêm Spring Boot entry point và configuration.
+2. Tạo WebSocket handler tại `/game`.
+3. Tạo `GameSessionService` quản lý session/player.
+4. Tạo input port để handler enqueue input.
+5. Tạo state publisher port để engine không biết WebSocket.
+6. Inject `GameLoop` bằng Spring nhưng không đưa Spring annotation vào domain entity.
+7. Giữ graceful shutdown.
+8. Giữ HTTP health endpoint.
+9. Chạy client React cũ với server Spring Boot để kiểm tra parity.
+
+### Nghiệm thu
+
+- Spring Boot start thành công.
+- React client cũ vẫn connect `/game`.
+- Join, move, shoot, collision, AI, victory/defeat hoạt động.
+- Tất cả server tests pass.
+
+## Phase 3: Migrate client sang LibGDX HTML5
+
+### Mục tiêu
+
+Thay `client/src/core/Renderer.ts`, `GameLoop.ts`, `GameCanvas.tsx` bằng LibGDX gameplay client chạy trong browser.
+
+### Mapping client hiện tại
+
+| Client hiện tại | LibGDX đích |
+|---|---|
+| `Renderer.ts` | `GameRenderer` + `SpriteBatch` |
+| `GameLoop.ts` | LibGDX `render(delta)` |
+| `SpriteManager.ts` | `AssetManager` |
+| `InputHandler.ts` | `InputProcessor`/input polling |
+| `GameCanvas.tsx` | `GameScreen` mount trong HTML target |
+| `GameStateData` | client snapshot model |
+| `WebSocketClient.ts` | browser WebSocket bridge |
+
+### Thứ tự migrate
+
+1. Tạo LibGDX `core`, `html`, `desktop` modules.
+2. Chạy một map và một tank bằng desktop backend.
+3. Chuyển asset loading.
+4. Chuyển map renderer.
+5. Chuyển tank/bullet renderer.
+6. Chuyển keyboard input.
+7. Kết nối WebSocket tới Spring Boot.
+8. Parse snapshot và cập nhật entity.
+9. Thêm animation/effect/HUD đang có.
+10. Build HTML5 và nhúng vào website.
+
+### Nghiệm thu
+
+- LibGDX desktop test chạy.
+- HTML5 target chạy trong browser.
+- Game hiện tại có cùng map/entity/controls.
+- Snapshot server được render đúng.
+- React client cũ vẫn được giữ đến khi cutover hoàn tất.
+
+## Phase 4: PostgreSQL và Thymeleaf
+
+### Mục tiêu
+
+Đưa các dữ liệu đang có vào database và chuyển website shell sang Thymeleaf; không thêm shop/research/save nâng cao.
+
+### Database hiện tại cần migrate
+
+- Leaderboard hiện có.
+- Match result hiện có nếu đã được tạo.
+- Player profile tối thiểu nếu flow hiện tại cần.
+
+### Việc cần làm
+
+- Tạo PostgreSQL trong `infra/docker-compose.yml`.
+- Tạo datasource config bằng environment variables.
+- Tạo migration/schema cho leaderboard và match result.
+- Tách `LeaderboardRepository` interface khỏi implementation PostgreSQL.
+- Tạo Thymeleaf pages cho main menu, game selection, campaign selection và leaderboard hiện có.
+- Tạo trang play chứa LibGDX HTML5 output.
+- Giữ UI tối giản tương đương behavior hiện tại.
+
+### Nghiệm thu
+
+- Restart server không mất leaderboard.
+- Website Thymeleaf mở được bằng browser.
+- Có thể từ menu vào game.
+- Có thể xem leaderboard từ PostgreSQL.
+
+## Phase 5: Cutover và verification
+
+### Việc cần làm
+
+- Chạy end-to-end: website -> play -> WebSocket -> game loop -> result.
+- Test nhiều browser session.
+- Test disconnect/reconnect/leave.
+- So sánh behavior client mới với React client cũ.
+- Xóa legacy code chỉ sau khi parity checklist pass.
+- Cập nhật README, architecture diagram và runbook.
+- Cập nhật `TRELLO-TASKS.md` hoặc đánh dấu task legacy.
+
+### Nghiệm thu cuối phase
+
+- Không còn flow production phụ thuộc React/Javalin cũ.
+- Không có game rule trong controller/WebSocket handler.
+- Game engine chạy được bằng unit test.
+- Website chạy bằng Spring Boot + Thymeleaf.
+- Gameplay chạy bằng LibGDX HTML5.
+- Dữ liệu leaderboard đọc/ghi PostgreSQL.
+
+## Backlog sau migration
+
+Chỉ làm sau Phase 5:
+
+- Save/load nhiều slot.
+- Shop và research tree.
+- Practice procedural map.
+- Online Levels.
+- Vũ khí/tank/AI nâng cao.
+- Fog of war, terrain effect, boss, ally tank.
+- Touch/mobile optimization.

@@ -13,3 +13,25 @@ Thumbs.db
 
 # Logs
 *.log
+
+.idea/
+.vscode/
+
+# Maven build output
+target/
+*/target/
+
+# Gradle build output
+build/
+*/build/
+.gradle/
+*/.gradle/
+
+# Gradle wrapper binary (properties OK để commit)
+gradle/wrapper/gradle-wrapper.jar
+
+# Maven dependency reduced POM
+*.versionsBackup
+
+# Static analysis caches
+pont.log

@@ -1,0 +1,36 @@
+# infra/docker-compose.yml - PostgreSQL skeleton cho Phase 4
+#
+# Phase 1 chỉ tạo file để developer có thể start postgres本地. Server-spring
+# chưa kết nối DB. Phase 4 sẽ:
+#   - Thêm spring-boot-starter-data-jpa vào server-spring.
+#   - Schema migration qua Flyway/Liquibase (chưa chốt).
+#   - Tách LeaderboardRepository interface khỏi implementation PostgreSQL.
+#
+# Cách chạy:
+#   docker compose -f infra/docker-compose.yml up -d
+#   docker compose -f infra/docker-compose.yml logs -f postgres
+#   docker compose -f infra/docker-compose.yml down
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tankzors-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tankzors
+      POSTGRES_USER: tankzors
+      POSTGRES_PASSWORD: tankzors_dev_password
+      TZ: UTC
+    ports:
+      - "5432:5432"
+    volumes:
+      - tankzors_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tankzors -d tankzors"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  tankzors_pg_data:
+    name: tankzors_pg_data

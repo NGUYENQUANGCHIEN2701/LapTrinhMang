@@ -1408,3 +1408,6 @@ Viết phần báo cáo giải thích cách game sử dụng lập trình mạng
 - [ ] Có sơ đồ (sequence diagram hoặc flow chart)
 - [ ] Giải thích được tại sao chọn WebSocket
 - [ ] Code minh hoạ cho mỗi loại message
+# LEGACY NOTICE
+
+Tài liệu task cũ này được giữ để tham chiếu lịch sử. Stack và thứ tự triển khai mới nằm trong `ROADMAP.md`, `REFACTOR-PLAN.md` và `FEATURE-MATRIX.md`. Không dùng các task còn ghi React/Javalin/MySQL làm nguồn kế hoạch mới; chúng sẽ được thay thế dần bằng Spring Boot + Thymeleaf + LibGDX HTML5 + WebSocket + PostgreSQL.

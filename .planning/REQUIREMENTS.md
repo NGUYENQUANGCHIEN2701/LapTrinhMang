@@ -1,7 +1,7 @@
 # Yêu cầu: Tankzors Pro
 
 **Ngày tạo:** 21/08/2026
-**Giá trị cốt lõi:** Game xe tăng PvE hoàn chỉnh với 2 chế độ chơi, thể hiện kiến thức Lập trình mạng (WebSocket client-server) và nguyên tắc SOLID trong Java backend.
+**Giá trị cốt lõi:** Game xe tăng PvE hoàn chỉnh trên website với 2 chế độ chơi, thể hiện kiến thức Lập trình mạng (WebSocket client-server) và nguyên tắc SOLID trong Java backend.
 
 ## Yêu cầu phiên bản 1
 
@@ -56,7 +56,7 @@ Yêu cầu cho phiên bản chấm điểm. Mỗi yêu cầu tương ứng với
 | PvP nhiều người chơi thời gian thực | Quá phức tạp; đồng bộ trạng thái cho 2+ người vượt quá thời gian cho phép |
 | Hệ thống tài khoản (JWT, OAuth) | Không cần thiết cho demo 3 màn; tập trung vào gameplay + mạng |
 | Thoại/Video chat | Hoàn toàn ngoài phạm vi môn học |
-| Ứng dụng di động | Ưu tiên web, React Canvas là đủ |
+| Ứng dụng di động | Ưu tiên web; mobile/touch chỉ là backlog sau MVP |
 | Hơn 3 màn chơi | Đủ demo; ghi vào kế hoạch phiên bản 2 |
 | Ghép trận theo trình độ | Không có PvP nên không cần |
 | Trình chỉnh sửa bản đồ | Phạm vi riêng biệt, dùng bản đồ cố định |
