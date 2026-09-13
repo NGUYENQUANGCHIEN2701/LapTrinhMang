@@ -35,6 +35,12 @@
             <artifactId>spring-boot-starter-websocket</artifactId>
         </dependency>
 
+        <!-- Thymeleaf view resolver (Phase 4.5) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
+
         <!-- JPA + Hibernate (Phase 4) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

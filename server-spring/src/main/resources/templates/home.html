@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trang chủ - Tankzors Pro</title>
+    <style>
+        .hero {
+            text-align: center;
+            padding: 3rem 1rem;
+            max-width: 720px;
+        }
+        .hero h1 {
+            font-size: 3rem;
+            color: #00e676;
+            letter-spacing: 4px;
+            margin-bottom: 1rem;
+            text-shadow: 0 0 20px rgba(0, 230, 118, 0.3);
+        }
+        .hero p {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 2rem;
+            color: #c0c0c0;
+        }
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.2rem;
+            width: 100%;
+            max-width: 720px;
+        }
+        .menu-card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 1.6rem 1rem;
+            text-align: center;
+            transition: all 0.2s;
+            cursor: pointer;
+            text-decoration: none;
+            color: #e0e0e0;
+            display: block;
+        }
+        .menu-card:hover {
+            background: rgba(0, 230, 118, 0.08);
+            border-color: #00e676;
+            transform: translateY(-2px);
+        }
+        .menu-card .icon {
+            font-size: 2.6rem;
+            margin-bottom: 0.5rem;
+        }
+        .menu-card .title {
+            font-size: 1.15rem;
+            font-weight: bold;
+            margin-bottom: 0.4rem;
+            color: #00e676;
+        }
+        .menu-card .desc {
+            font-size: 0.85rem;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+<div th:fragment="content">
+    <div class="hero">
+        <h1>TANKZORS PRO</h1>
+        <p>Game xe tăng PvE thời gian thực. Điều khiển tank, hạ gục AI trên các bản đồ chiến thuật. Server-authoritative qua WebSocket; leaderboard lưu PostgreSQL.</p>
+        <div class="menu-grid">
+            <a class="menu-card" th:href="@{/campaign}">
+                <div class="icon">🎮</div>
+                <div class="title">Campaign</div>
+                <div class="desc">3 màn chơi tuần tự</div>
+            </a>
+            <a class="menu-card" th:href="@{/play}">
+                <div class="icon">⚔️</div>
+                <div class="title">Chơi ngay</div>
+                <div class="desc">Vào trận campaign_1</div>
+            </a>
+            <a class="menu-card" th:href="@{/leaderboard}">
+                <div class="icon">🏆</div>
+                <div class="title">Leaderboard</div>
+                <div class="desc">Top điểm mỗi map</div>
+            </a>
+        </div>
+    </div>
+</div>
+</body>
+</html>

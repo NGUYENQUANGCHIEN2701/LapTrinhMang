@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title th:text="${pageTitle} != null ? ${pageTitle} + ' - Tankzors Pro' : 'Tankzors Pro'">Tankzors Pro</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        header {
+            padding: 0.75rem 1.5rem;
+            background: rgba(0, 0, 0, 0.5);
+            border-bottom: 2px solid #00e676;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        header .brand {
+            font-weight: bold;
+            font-size: 1.3rem;
+            color: #00e676;
+            text-decoration: none;
+            letter-spacing: 2px;
+        }
+        nav a {
+            color: #b0b0b0;
+            margin-left: 1.2rem;
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: color 0.15s;
+        }
+        nav a:hover { color: #00e676; }
+        nav a.active { color: #00e676; }
+        main {
+            flex: 1;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        footer {
+            font-size: 0.75rem;
+            padding: 0.6rem;
+            text-align: center;
+            border-top: 1px solid #333;
+            color: #707070;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <a class="brand" th:href="@{/}">TANKZORS PRO</a>
+        <nav>
+            <a th:href="@{/}" th:classappend="${activePage == 'home'} ? 'active'">Home</a>
+            <a th:href="@{/campaign}" th:classappend="${activePage == 'campaign'} ? 'active'">Campaign</a>
+            <a th:href="@{/leaderboard}" th:classappend="${activePage == 'leaderboard'} ? 'active'">Leaderboard</a>
+        </nav>
+    </header>
+    <main>
+        <th:block th:replace="${content}"></th:block>
+    </main>
+    <footer>
+        Tankzors Pro - Đồ án môn Lập trình mạng - Spring Boot + WebSocket + PostgreSQL
+    </footer>
+</body>
+</html>

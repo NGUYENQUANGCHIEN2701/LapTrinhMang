@@ -7,23 +7,17 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * REST endpoints tương đương Javalin cũ:
+ * REST health endpoint.
  *
- * <ul>
- *   <li>{@code GET /} -> "Tankzors Server is running" (text).</li>
- *   <li>{@code GET /api/health} -> JSON {@code {"status":"UP","port":8081}}.</li>
- * </ul>
+ * <p>Phase 4.5: route {@code /} đã chuyển sang {@link PageController#home}
+ * để hiển thị Thymeleaf template. Controller này chỉ giữ lại
+ * {@code GET /api/health}.</p>
  */
 @RestController
 public class HealthController {
 
     @Value("${server.port:8081}")
     private int serverPort;
-
-    @GetMapping("/")
-    public String root() {
-        return "Tankzors Server (Spring) is running";
-    }
 
     @GetMapping("/api/health")
     public Map<String, Object> health() {

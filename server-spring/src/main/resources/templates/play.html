@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Play - Tankzors Pro</title>
+    <style>
+        .play-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+        .play-header {
+            color: #999;
+            font-size: 0.85rem;
+            margin-bottom: 0.6rem;
+        }
+        .play-header strong { color: #00e676; }
+        /* iframe chứa React build đã có base './' */
+        .game-frame {
+            width: 800px;
+            height: 600px;
+            border: 0;
+            background: #1e272e;
+        }
+        .controls-hint {
+            margin-top: 1rem;
+            color: #707070;
+            font-size: 0.85rem;
+            text-align: center;
+        }
+        kbd {
+            display: inline-block;
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 3px;
+            padding: 0.1rem 0.4rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+            margin: 0 0.1rem;
+        }
+    </style>
+</head>
+<body>
+<div th:fragment="content">
+    <div class="play-wrap">
+        <p class="play-header">
+            Đang chơi: <strong th:text="${levelId}">campaign_1</strong>
+            · WebSocket: <code>/game</code>
+        </p>
+        <iframe
+            class="game-frame"
+            th:src="@{/play/index.html}"
+            title="Tankzors Game"
+            allow="autoplay; fullscreen"
+        ></iframe>
+        <p class="controls-hint">
+            <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> hoặc phím mũi tên để di chuyển ·
+            <kbd>Space</kbd> hoặc <kbd>J</kbd> để bắn
+        </p>
+    </div>
+</div>
+</body>
+</html>

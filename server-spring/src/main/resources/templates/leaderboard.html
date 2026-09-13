@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Leaderboard - Tankzors Pro</title>
+    <style>
+        .leaderboard-wrap {
+            width: 100%;
+            max-width: 720px;
+        }
+        .map-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        .map-tabs a {
+            padding: 0.4rem 0.9rem;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid #333;
+            color: #b0b0b0;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        .map-tabs a.active {
+            background: #00e676;
+            color: #000;
+            border-color: #00e676;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 0.7rem 1rem;
+            text-align: left;
+        }
+        th {
+            background: rgba(0,230,118,0.1);
+            color: #00e676;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+        .rank-1 td { color: gold; }
+        .rank-2 td { color: silver; }
+        .rank-3 td { color: #cd7f32; }
+        .empty {
+            text-align: center;
+            color: #707070;
+            padding: 2rem;
+        }
+    </style>
+</head>
+<body>
+<div th:fragment="content">
+    <h2 style="color:#00e676; margin-bottom:1rem;">🏆 Leaderboard</h2>
+
+    <div class="leaderboard-wrap">
+        <div class="map-tabs">
+            <a th:each="m : ${maps}"
+               th:href="@{/leaderboard(mapId=${m})}"
+               th:classappend="${m == currentMap} ? 'active' : ''"
+               th:text="${m}">campaign_1</a>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Player</th>
+                    <th>Score</th>
+                    <th>Time (s)</th>
+                    <th>HP còn</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="entry, iter : ${entries}"
+                    th:classappend="${iter.index < 3} ? 'rank-' + ${iter.index + 1} : ''">
+                    <td th:text="${iter.index + 1}">1</td>
+                    <td th:text="${entry.playerName}">Hero</td>
+                    <td th:text="${entry.score}">1000</td>
+                    <td th:text="${entry.timeSeconds}">60</td>
+                    <td th:text="${entry.hpRemain}">60</td>
+                </tr>
+                <tr th:if="${entries.isEmpty()}">
+                    <td colspan="5" class="empty">Chưa có điểm nào cho map này. Hãy là người đầu tiên!</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>
