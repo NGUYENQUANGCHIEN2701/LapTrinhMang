@@ -19,7 +19,8 @@ Các tính năng mới trong hai PDF được giữ ở backlog. Đợt này ch�
 - [x] **Phase 0: Baseline và contract** - Đóng băng behavior hiện tại, chốt protocol (xong 13/09/2026 - `docs/protocol-v1.md`, `docs/parity-checklist.md`)
 - [x] **Phase 1: Tạo structure mới** - Tạo target modules/folders, chưa xóa code cũ (xong 13/09/2026 - 4 module mới + migration-mapping)
 - [x] **Phase 2: Migrate backend sang Spring Boot** - Giữ nguyên game engine và behavior (xong 13/09/2026 - 115 tests pass + manual parity PASS)
-- [ ] **Phase 3: Migrate client sang LibGDX HTML5** - Thay React Canvas bằng Java gameplay client
+- [~] **Phase 3: Migrate client sang LibGDX HTML5** - Desktop launcher parity OK (13/09/2026); HTML5/GWT build pending Phase 3.5
+- [ ] **Phase 4: Migrate persistence và website** - PostgreSQL, Thymeleaf và leaderboard hiện có
 - [ ] **Phase 3: Migrate client sang LibGDX HTML5** - Thay React Canvas bằng Java gameplay client
 - [ ] **Phase 4: Migrate persistence và website** - PostgreSQL, Thymeleaf và leaderboard hiện có
 - [ ] **Phase 5: Cutover và verification** - Chạy end-to-end, gỡ legacy sau khi parity pass

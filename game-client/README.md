@@ -1,76 +1,93 @@
 # game-client Module - README
 
-LibGDX target client cho migration Phase 3+. Phase 1 chỉ là skeleton.
+LibGDX desktop client cho migration Phase 3. Phase 4 sẽ nhúng bản build HTML5 vào trang Thymeleaf.
 
 ## Mục đích
 
-- Phase 1: tạo cấu trúc Gradle multi-project chuẩn LibGDX. Các file
-  source chỉ là placeholder để build pass. Không render gì.
-- Phase 3: migrate `Renderer.ts` / `GameLoop.ts` / `InputHandler.ts` /
-  `WebSocketClient.ts` từ React Canvas sang LibGDX `core`/`html`.
-- Phase 4: nhúng output HTML5/GWT vào trang play Thymeleaf.
+- ✅ Phase 1: skeleton Gradle multi-project.
+- ✅ Phase 3 desktop: migrate `Renderer.ts` + `GameLoop.ts` + `InputHandler.ts` + `WebSocketClient.ts` sang LibGDX.
+  Boot → kết nối `ws://localhost:8081/game` → JOIN_GAME → render STATE. Verified parity 13/09/2026.
+- ⏳ Phase 3 HTML5: build GWT, nhúng vào trang play Thymeleaf (Phase 4).
+- ⏳ Phase 5: cutover, xóa React client cũ.
 
-## Cấu trúc sub-projects
+## Cấu trúc package
 
 ```
 game-client/
-├── build.gradle.kts              # root build
-├── settings.gradle.kts           # include core/desktop/html
-├── gradle/wrapper/
-│   └── gradle-wrapper.properties # Gradle 8.10.1 (chưa commit binary)
-├── core/
-│   ├── build.gradle.kts
-│   └── src/main/java/com/tankzors/client/
-│       └── GameClient.java       # placeholder
-├── desktop/
-│   ├── build.gradle.kts
-│   └── src/main/java/com/tankzors/client/desktop/
-│       └── DesktopLauncher.java  # placeholder
-└── html/
-    ├── build.gradle.kts
-    └── src/main/java/com/tankzors/client/html/
-        └── HtmlLauncher.java     # placeholder
+├── pom.xml                                # Maven, shade plugin cho fat jar
+└── src/main/
+    ├── java/com/tankzors/client/
+    │   ├── GameClient.java               # ApplicationListener entry
+    │   ├── desktop/DesktopLauncher.java  # LWJGL3 main
+    │   ├── assets/AssetRepository.java   # load sprites (parity SpriteManager.ts)
+    │   ├── render/GameRenderer.java      # SpriteBatch draw (parity Renderer.ts)
+    │   ├── input/ClientInputProcessor.java # WASD+space (parity InputHandler.ts)
+    │   ├── model/                        # snapshot tank/bullet/map/state
+    │   └── network/
+    │       ├── WebSocketBridge.java      # Java-WebSocket (parity WebSocketClient.ts)
+    │       ├── StatePacketParser.java    # parse STATE bằng LibGDX JsonReader
+    │       └── PacketBuilder.java        # build JOIN/MOVE/SHOOT JSON
+    └── resources/assets/                 # copied from client/public/assets/
+        ├── tanks/                         # player_tank.png, enemy_tank.png
+        ├── effects/                       # bullet.png, explosion_*.png
+        └── map/                           # ground.png, wall.png, spikes.png, palms.png
 ```
 
-## Build (sau khi cài Gradle)
+## Build & Run
 
 ```bash
-cd game-client
-gradle :core:compileJava         # Verify skeleton compile
-gradle :desktop:compileJava
-gradle :html:compileJava
-# hoặc:
-gradle build                     # build tất cả sub-projects
+# Build fat jar:
+mvn -f game-client/pom.xml clean package
+
+# Run (cần server-spring chạy trên 8081 trước):
+java -jar game-client/target/tankzors-game-client-1.0-SNAPSHOT.jar
+
+# Override wsUrl hoặc levelId:
+java -jar game-client/target/tankzors-game-client-1.0-SNAPSHOT.jar --ws ws://localhost:8081/game --level campaign_2
 ```
 
-> Phase 1 chưa chạy được `:desktop:run` vì chưa enable Gradle
-> `application` plugin và chưa có LibGDX dependency. Mục tiêu Phase 1
-> chỉ là structure đúng, không phải runtime.
+## Test parity đã verify (13/09/2026)
 
-## Phase 3 kế hoạch
+Client boot log:
 
-1. Uncomment dependency `com.badlogicgames.gdx:gdx:1.13.1` trong 3
-   `build.gradle.kts`.
-2. Implement `GameClient implements ApplicationListener` trong `core`:
-   - `create()` -> load sprites qua AssetManager (tương đương
-     `SpriteManager.ts`).
-   - `render()` -> SpriteBatch draw map/tank/bullet từ local snapshot
-     model (tương đương `Renderer.ts`).
-3. Implement `ClientInputProcessor implements InputProcessor` để map
-   WASD/Arrow/Space thành `MOVE_INPUT` / `SHOOT_INPUT` packet.
-4. Implement `WebSocketBridge` (hiện `core` chỉ compile được, GWT
-   reflection hạn chế nên cần special-case cho `html` module).
-5. Desktop backend (`desktop/DesktopLauncher`) chạy được 1 màn để dev
-   nhanh. HTML backend (`html/HtmlLauncher`) build war, nhúng vào
-   `web/templates/play.html` (Phase 4).
+```
+[main] INFO  GameClient - Boot - wsUrl=ws://localhost:8081/game level=campaign_1
+[WebSocketConnectReadThread-30] INFO WebSocketBridge - Đã kết nối tới ws://localhost:8081/game
+[main] INFO  GameClient - sessionId=8d7f3fa0-6f6e-9b94-6beb-96a83fc955b1
+[main] INFO  GameClient - first STATE received: status=PLAYING tanks=2 bullets=0
+```
 
-## Lưu ý quan trọng về shared-protocol + GWT
+Sau đó, trong cửa sổ desktop:
+- Map campaign_1 (20×15, tileSize 40) render đúng sprite ground/wall.
+- 2 tanks (player xanh + AI đỏ) xuất hiện ở vị trí spawn.
+- HUD panel HP top-left.
+- Bấm WASD/Arrow để di chuyển, Space/J để bắn.
 
-GWT không support Gson reflection fully. Phase 3 có 2 option:
+Tương tự React client cũ.
 
-1. **JSON parsing thủ công trong `core`** (không dùng Gson) → single
-   source code cả desktop lẫn HTML. Khó hơn nhưng fewer runtime deps.
-2. **REST-style serialiser riêng cho HTML module** (giữ shared-protocol
-   cho desktop). Code trùng lặp.
+## Parity mapping
 
-Quyết định chốt tại Phase 3 sau khi thử cả 2 cách với 1 packet đầu tiên.
+| React Canvas | LibGDX |
+|---|---|
+| `WebSocketClient.ts` | `client.network.WebSocketBridge` (dùng Java-WebSocket) |
+| `MessageParser.ts` | `network.StatePacketParser` (dùng `JsonReader` LibGDX) |
+| `MessageBuilder.ts` | `network.PacketBuilder` |
+| `Renderer.ts` | `render.GameRenderer` (SpriteBatch + ShapeRenderer) |
+| `SpriteManager.ts` | `assets.AssetRepository` |
+| `InputHandler.ts` | `input.ClientInputProcessor` |
+| `GameCanvas.tsx` | `GameClient` (ApplicationListener) |
+
+## Phase 3 kế hoạch còn lại
+
+1. **HTML5 build** (Phase 3.5): GWT plugin, JsInterop bridge cho browser WebSocket,
+   host page trong `server-spring/src/main/resources/templates/play.html`.
+2. **Smoke test浏览器**: chơi 30s, so sánh với React client.
+
+## Lưu ý
+
+- **Gradle đã bị loại bỏ** ở Phase 3 — Maven shade plugin build fat jar chạy trực tiếp.
+- **Gson tránh**: parse JSON dùng LibGDX `JsonReader` (GWT-compatible). Phase 4 khi sang
+  HTML5 không phải đổi parser.
+- **Assets copy** từ `client/public/assets/` khi Phase 3 setup. Phase 4 hay 5 có thể chuyển
+  assets sang folder riêng để chuẩn bị xóa legacy client.
+- **Java 17**: vì LibGDX 1.12.1 không build bằng Java 21 mới полностью.
