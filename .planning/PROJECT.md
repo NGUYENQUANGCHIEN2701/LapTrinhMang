@@ -28,6 +28,23 @@ Người chơi có thể chơi game xe tăng qua 2 chế độ (Campaign tuần 
   115 tests pass (112 copy + 3 context). Manual parity test với Node `ws`
   client: CONNECT + JOIN_GAME + ACK + STATE (tanks=2, map, PLAYING) PASS.
   Legacy server/ giữ nguyên làm rollback.
+- [x] Phase 3 desktop migration (13/09/2026): LibGDX 1.12.1 + LWJGL3.
+  game-client Maven single-module. 12 class Java. Boot → connect 8081 →
+  first STATE received = tanks:2. HTML5/GWT defer Phase 3.5.
+- [x] Phase 4 + 4.5 persistence + website (13/09/2026): Spring Data JPA +
+  Flyway migration V1 (leaderboard) + V2 (player_progress). REST API
+  `/api/leaderboard` upsert best score, `/api/progress` server-side
+  unlock per-session. Thymeleaf templates: home, campaign, play (iframe
+  React), leaderboard.
+- [x] Phase 5 verification (13/09/2026): 10/10 parity checklist PASS.
+  Server restart không mất leaderboard + progression. WebSocket flow
+  CONNECT/JOIN/MOVE/SHOOT/STATE parity verified bằng Node ws script.
+- [x] Phase 5+ score submission (13/09/2026): Server-side auto-submit
+  score khi VICTORY. ScoreCalculator (HP*10 + AI*200 + max(0,1000-t*10)).
+  MatchEndObserver port (async hook không block GameLoop).
+  Campaign progression persist qua PostgreSQL.
+- [x] Documentation tổng kết (13/09/2026): README root + architecture +
+  networking + runbook. 141 tests pass + 112 legacy pass.
 
 ### Đang thực hiện
 
