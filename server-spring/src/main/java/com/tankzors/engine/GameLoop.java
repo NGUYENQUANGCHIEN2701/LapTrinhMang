@@ -45,6 +45,16 @@ public class GameLoop {
 
     private final GameState gameState;
     private final StatePublisherPort statePublisher;
+    private MatchEndObserver matchEndObserver;
+
+    // Snapshot time để tính elapsed khi match kết thúc
+    private volatile long matchStartTime = 0L;
+    // sessionId của player (set khi JOIN_GAME)
+    private volatile String lastPlayerSessionId;
+    // Đếm AI chết để truyền vào score calc
+    private volatile int aiKilledThisMatch = 0;
+    // Flag để chỉ gọi observer 1 lần mỗi match
+    private volatile boolean matchEndFired = false;
 
     // ========== SCHEDULING ==========
 
@@ -86,6 +96,14 @@ public class GameLoop {
     public GameLoop(GameState gameState, StatePublisherPort statePublisher) {
         this.gameState = gameState;
         this.statePublisher = statePublisher;
+    }
+
+    /**
+     * Đăng ký observer nhận callback khi match end (VICTORY/DEFEAT). Engine không
+     * biết observer implementation là gì (LeaderboardService, MatchEndService...).
+     */
+    public void setMatchEndObserver(MatchEndObserver observer) {
+        this.matchEndObserver = observer;
     }
 
     public String getCurrentLevelId() {
@@ -335,6 +353,10 @@ public class GameLoop {
             clearEnemiesAndBullets();
             spawnMapEnemies();
             gameState.setStatus(GameState.Status.PLAYING);
+            matchStartTime = System.currentTimeMillis();
+            aiKilledThisMatch = 0;
+            matchEndFired = false;
+            lastPlayerSessionId = sessionId;
             logger.info("[GameLoop] Bắt đầu trận mới: reset AI và đạn, game status -> PLAYING");
         }
 
@@ -475,7 +497,10 @@ public class GameLoop {
                 if (CollisionManager.checkBulletTankCollision(bullet, tank)) {
                     tank.takeDamage(bullet.getDamage());
                     bullet.deactivate();
-                    if (!tank.isAlive()) gameState.addScore(100);
+                    if (!tank.isAlive()) {
+                        gameState.addScore(100);
+                        if (tank instanceof AITank) aiKilledThisMatch++;
+                    }
                     break;
                 }
             }
@@ -522,10 +547,32 @@ public class GameLoop {
             gameState.setStatus(GameState.Status.DEFEAT);
             logger.info("[GameLoop] Người chơi đã bị tiêu diệt -> DEFEAT");
             broadcastState();
+            fireMatchEnd("DEFEAT", 0);
         } else if (!hasAI) {
             gameState.setStatus(GameState.Status.VICTORY);
             logger.info("[GameLoop] Toàn bộ AI đã bị tiêu diệt -> VICTORY");
             broadcastState();
+            int hpRemain = gameState.getAllTanks().stream()
+                .filter(t -> t instanceof com.tankzors.entity.PlayerTank)
+                .map(ITank::getHP)
+                .findFirst().orElse(0);
+            fireMatchEnd("VICTORY", hpRemain);
+        }
+    }
+
+    private void fireMatchEnd(String status, int hpRemain) {
+        if (matchEndFired) return;
+        if (matchEndObserver == null) return;
+        matchEndFired = true;
+
+        String sid = lastPlayerSessionId != null ? lastPlayerSessionId : "unknown";
+        long elapsedMs = matchStartTime > 0 ? (System.currentTimeMillis() - matchStartTime) : 0;
+        int elapsedSeconds = (int) Math.max(0, elapsedMs / 1000);
+
+        try {
+            matchEndObserver.onMatchEnd(sid, currentLevelId, status, hpRemain, aiKilledThisMatch, elapsedSeconds);
+        } catch (Exception e) {
+            logger.warn("[GameLoop] MatchEndObserver throw: {}", e.getMessage());
         }
     }
 

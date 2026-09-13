@@ -18,15 +18,26 @@
             border-radius: 10px;
             padding: 1.2rem;
             transition: all 0.2s;
+            position: relative;
         }
-        .level-card a {
+        .level-card.unlocked a {
             color: inherit;
             text-decoration: none;
             display: block;
         }
-        .level-card:hover {
+        .level-card.unlocked:hover {
             background: rgba(0, 230, 118, 0.08);
             border-color: #00e676;
+        }
+        .level-card.locked {
+            opacity: 0.55;
+            background: rgba(0, 0, 0, 0.3);
+        }
+        .level-card .lock-icon {
+            position: absolute;
+            top: 0.7rem;
+            right: 0.7rem;
+            font-size: 1.2rem;
         }
         .level-card .name {
             font-size: 1.15rem;
@@ -34,13 +45,15 @@
             color: #00e676;
             margin-bottom: 0.4rem;
         }
-        .level-card .difficulty {
+        .level-card.locked .name { color: #888; }
+        .level-card .difficulty-badge {
             display: inline-block;
             padding: 0.2rem 0.6rem;
             border-radius: 4px;
             font-size: 0.8rem;
             font-weight: 600;
             margin-bottom: 0.5rem;
+            color: #fff;
         }
         .diff-EASY { background: #2e7d32; }
         .diff-MEDIUM { background: #f57f17; }
@@ -61,16 +74,22 @@
             text-align: center;
             max-width: 600px;
         }
+        .note code {
+            background: #222;
+            padding: 0.1rem 0.4rem;
+            border-radius: 3px;
+        }
     </style>
 </head>
 <body>
 <div th:fragment="content">
     <h2 style="color:#00e676; margin-bottom:1rem;">Chọn màn Campaign</h2>
     <div class="campaign-list">
-        <div class="level-card" th:each="lvl : ${levels}">
-            <a th:href="@{/play(levelId=${lvl.id})}">
+        <div class="level-card" th:each="lvl : ${levels}"
+             th:classappend="${unlockedLevels.contains(lvl.id)} ? 'unlocked' : 'locked'">
+            <a th:if="${unlockedLevels.contains(lvl.id)}" th:href="@{/play(levelId=${lvl.id})}">
                 <div class="name" th:text="${lvl.title}">Màn 1</div>
-                <div class="difficulty" th:classappend="'diff-' + ${lvl.difficulty}"
+                <div class="difficulty-badge" th:classappend="'diff-' + ${lvl.difficulty}"
                      th:text="${lvl.difficultyLabel}">EASY</div>
                 <div class="desc" th:text="${lvl.desc}">Mô tả</div>
                 <div class="meta">
@@ -78,9 +97,20 @@
                     · <span th:text="${lvl.difficulty}"></span>
                 </div>
             </a>
+            <div th:unless="${unlockedLevels.contains(lvl.id)}">
+                <div class="lock-icon">🔒</div>
+                <div class="name" th:text="${lvl.title}">Màn 2</div>
+                <div class="difficulty-badge" th:classappend="'diff-' + ${lvl.difficulty}"
+                     th:text="${lvl.difficultyLabel}">MEDIUM</div>
+                <div class="desc" th:text="${lvl.desc}">Mô tả</div>
+                <div class="meta">Hoàn thành màn trước để mở khóa</div>
+            </div>
         </div>
     </div>
-    <p class="note">Màn chơi phải được mở khoá tuần tự. Trạng thái mở khoá hiện nằm ở client (localStorage). Phase sau sẽ chuyển sang server.</p>
+    <p class="note">
+        Tiến trình được lưu theo session của trình duyệt (HttpSession).
+        Session ID của bạn: <code th:text="${sessionId}">?</code>
+    </p>
 </div>
 </body>
 </html>

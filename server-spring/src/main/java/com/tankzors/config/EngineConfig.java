@@ -4,9 +4,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 import com.tankzors.engine.GameLoop;
 import com.tankzors.engine.GameState;
+import com.tankzors.engine.MatchEndObserver;
 import com.tankzors.engine.StatePublisherPort;
 import com.tankzors.map.GameMap;
 import com.tankzors.map.MapLoader;
@@ -20,8 +22,12 @@ import com.google.gson.Gson;
  * <p>Bean lifecycle (start/stop game loop) nằm ở {@link EngineLifecycle}
  * để tránh phụ thuộc vòng (Spring không cho @Configuration bean gọi
  * method @Bean của nó trong constructor).</p>
+ *
+ * <p>{@code @EnableAsync} cho {@link com.tankzors.application.MatchEndService}
+ * chạy submit score/progress ngoài GameLoop thread.</p>
  */
 @Configuration
+@EnableAsync
 public class EngineConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(EngineConfig.class);
@@ -40,8 +46,10 @@ public class EngineConfig {
     }
 
     @Bean
-    public GameLoop gameLoop(GameState gameState, StatePublisherPort statePublisher) {
-        return new GameLoop(gameState, statePublisher);
+    public GameLoop gameLoop(GameState gameState, StatePublisherPort statePublisher, MatchEndObserver matchEndObserver) {
+        GameLoop loop = new GameLoop(gameState, statePublisher);
+        loop.setMatchEndObserver(matchEndObserver);
+        return loop;
     }
 
     @Bean

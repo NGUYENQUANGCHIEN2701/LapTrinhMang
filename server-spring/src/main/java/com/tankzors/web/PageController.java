@@ -14,9 +14,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.tankzors.application.LeaderboardService;
+import com.tankzors.application.PlayerProgressService;
 import com.tankzors.leaderboard.LeaderboardEntry;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 
 /**
  * Thymeleaf page controller (Phase 4.5).
@@ -24,13 +26,13 @@ import jakarta.servlet.http.HttpServletRequest;
  * <p>Routes:</p>
  * <ul>
  *   <li>{@code GET /} -> Home/menu page</li>
- *   <li>{@code GET /campaign} -> Campaign level selection</li>
+ *   <li>{@code GET /campaign} -> Campaign level selection (với unlock state từ server-side)</li>
  *   <li>{@code GET /play?levelId=campaign_X} -> Play page (iframe React build)</li>
  *   <li>{@code GET /leaderboard?mapId=...} -> Leaderboard page</li>
  * </ul>
  *
- * <p>REST endpoints ({@code /api/*}) vẫn nằm ở {@link HealthController} và
- * {@link LeaderboardController}.</p>
+ * <p>REST endpoints ({@code /api/*}) nằm ở {@link HealthController},
+ * {@link LeaderboardController}, {@link ProgressController}.</p>
  */
 @Controller
 public class PageController {
@@ -46,9 +48,11 @@ public class PageController {
     );
 
     private final LeaderboardService leaderboardService;
+    private final PlayerProgressService progressService;
 
-    public PageController(LeaderboardService leaderboardService) {
+    public PageController(LeaderboardService leaderboardService, PlayerProgressService progressService) {
         this.leaderboardService = leaderboardService;
+        this.progressService = progressService;
     }
 
     @GetMapping("/")
@@ -58,9 +62,12 @@ public class PageController {
     }
 
     @GetMapping("/campaign")
-    public String campaign(Model model) {
+    public String campaign(Model model, HttpServletRequest request) {
+        String sid = resolveSid(request);
         model.addAttribute("activePage", "campaign");
         model.addAttribute("levels", CAMPAIGN_LEVELS);
+        model.addAttribute("unlockedLevels", progressService.getUnlocked(sid));
+        model.addAttribute("sessionId", sid);
         return "campaign";
     }
 
@@ -108,5 +115,18 @@ public class PageController {
         m.put("enemiesCount", enemiesCount);
         m.put("desc", desc);
         return m;
+    }
+
+    /**
+     * Resolve player session ID cho progression tracking.
+     * Ưu tiên header {@code X-Player-Session} do React client gửi ws sessionId
+     * (từ CONNECT packet). Fallback HttpSession khi không có.
+     */
+    private static String resolveSid(HttpServletRequest request) {
+        String sid = request.getHeader("X-Player-Session");
+        if (sid != null && !sid.isBlank()) return sid;
+        HttpSession session = request.getSession(false);
+        if (session != null) return session.getId();
+        return request.getSession(true).getId();
     }
 }
