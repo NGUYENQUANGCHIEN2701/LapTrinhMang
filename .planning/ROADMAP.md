@@ -21,7 +21,7 @@ Các tính năng mới trong hai PDF được giữ ở backlog. Đợt này ch�
 - [x] **Phase 2: Migrate backend sang Spring Boot** - Giữ nguyên game engine và behavior (xong 13/09/2026 - 115 tests pass + manual parity PASS)
 - [~] **Phase 3: Migrate client sang LibGDX HTML5** - Desktop launcher parity OK (13/09/2026); HTML5/GWT build pending Phase 3.5
 - [~] **Phase 4: Migrate persistence và website** - PostgreSQL leaderboard done (13/09/2026); Thymeleaf website defer Phase 5/4.5
-- [ ] **Phase 5: Cutover và verification** - Chạy end-to-end, gỡ legacy sau khi parity pass
+- [~] **Phase 5: Cutover và verification** - Verification 10/10 parity PASS (13/09/2026 - `docs/phase5-verification.md`); cutover legacy defer tới Phase 3.5+4.5
 - [ ] **Phase 3: Migrate client sang LibGDX HTML5** - Thay React Canvas bằng Java gameplay client
 - [ ] **Phase 4: Migrate persistence và website** - PostgreSQL, Thymeleaf và leaderboard hiện có
 - [ ] **Phase 5: Cutover và verification** - Chạy end-to-end, gỡ legacy sau khi parity pass
