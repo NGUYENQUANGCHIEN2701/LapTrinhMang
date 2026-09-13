@@ -112,31 +112,31 @@ Chỉ chia sẻ wire DTO, enum và constant. Không dùng server entity trực t
 ### Mapping chính
 
 ```text
-GameLoop          -> engine
-GameState         -> engine/domain
-Tank/Bullet       -> domain/entity
-CollisionManager  -> engine/rules
-AI classes        -> ai
-MapLoader         -> map
-MessageHandler    -> network/websocket
-MessageSender     -> network/websocket adapter
-WebSocketServer   -> Spring WebSocket config/handler
-LeaderboardService-> application/leaderboard
+GameLoop          -> engine               ✅ DONE
+GameState         -> engine/domain        ✅ DONE
+Tank/Bullet       -> domain/entity        ✅ DONE (copy nguyên)
+CollisionManager  -> engine/rules         ✅ DONE (copy nguyên)
+AI classes        -> ai                   ✅ DONE (copy nguyên)
+MapLoader         -> map                  ✅ DONE (copy nguyên)
+MessageHandler    -> network/websocket    ✅ DONE (GameWebSocketHandler)
+MessageSender     -> network adapter      ✅ DONE (WebSocketStatePublisher)
+WebSocketServer   -> Spring WebSocket     ✅ DONE (WebSocketConfig)
+LeaderboardService-> application/leaderboard  ⏳ Phase 4
 ```
 
 ### Công việc
 
-1. Tách input port và state publisher port.
-2. Cho `GameLoop` không phụ thuộc Javalin hoặc `WsContext`.
-3. Đưa protocol DTO vào `shared-protocol` hoặc package protocol độc lập.
-4. Tạo Spring WebSocket endpoint `/game`.
-5. Tạo health endpoint `/api/health`.
-6. Tạo `GameSessionService`.
-7. Giữ game loop single-threaded và 30Hz.
-8. Chạy React client cũ với Spring Boot server để kiểm tra parity.
-9. Chỉ gỡ Javalin khi parity test pass.
+1. Tách input port và state publisher port. ✅ `StatePublisherPort`
+2. Cho `GameLoop` không phụ thuộc Javalin hoặc `WsContext`. ✅ refactor constructor + broadcastState
+3. Đưa protocol DTO vào `shared-protocol` hoặc package protocol độc lập. ⏳ defer Phase 4/5
+4. Tạo Spring WebSocket endpoint `/game`. ✅
+5. Tạo health endpoint `/api/health`. ✅ port 8081
+6. Tạo `GameSessionService`. ✅
+7. Giữ game loop single-threaded và 30Hz. ✅ đo 31-32/s
+8. Chạy React client cũ với Spring Boot server để kiểm tra parity. ✅ 13/09/2026: CONNECT+JOIN_GAME+ACK+STATE(tanks=2,map) PASS
+9. Chỉ gỡ Javalin khi parity test pass. ⏳ Phase 5
 
-**Nghiệm thu**: React cũ vẫn join/move/shoot/leave được với Spring Boot server.
+**Nghiệm thu**: React cũ vẫn join/move/shoot/leave được với Spring Boot server. ✅ Manual parity test 13/09/2026.
 
 ## Phase 3 - Migrate gameplay client
 

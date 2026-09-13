@@ -20,6 +20,14 @@ Người chơi có thể chơi game xe tăng qua 2 chế độ (Campaign tuần 
   `docs/migration-mapping.md` mapping class cũ → vị trí mới. Legacy
   code (Javalin + React Canvas) chưa bị xóa, vẫn dùng làm parity
   reference đến Phase 5.
+- [x] Phase 2 backend migration (13/09/2026): Copy engine/entity/map/ai/
+  protocol từ legacy sang `server-spring/`. Tách `StatePublisherPort`
+  interface. Refactor `GameLoop` chỉ phụ thuộc port. Wire Spring beans:
+  `EngineConfig`, `EngineLifecycle`, `GameSessionService`,
+  `GameWebSocketHandler`, `WebSocketStatePublisher`, `SessionRegistry`.
+  115 tests pass (112 copy + 3 context). Manual parity test với Node `ws`
+  client: CONNECT + JOIN_GAME + ACK + STATE (tanks=2, map, PLAYING) PASS.
+  Legacy server/ giữ nguyên làm rollback.
 
 ### Đang thực hiện
 

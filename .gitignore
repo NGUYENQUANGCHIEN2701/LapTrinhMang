@@ -24,6 +24,8 @@ target/
 # Gradle build output
 build/
 */build/
+bin/
+*/bin/
 .gradle/
 */.gradle/
 

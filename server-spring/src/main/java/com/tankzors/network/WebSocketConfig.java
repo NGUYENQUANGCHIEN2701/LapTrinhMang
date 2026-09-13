@@ -5,15 +5,10 @@ import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 
-import com.tankzors.protocol.ProtocolConstants;
-
 /**
- * Phase 1: đăng ký path {@code /game} với handler placeholder.
+ * Đăng ký WebSocket endpoint {@code /game} - v1 path không đổi.
  *
- * <p>Phase 2 sẽ inject {@code GameWebSocketHandler} thực, kết nối tới
- * engine + session service + shared-protocol packet. Hiện tại chỉ khai
- * báo để Spring Boot có endpoint session handshake nhưng chưa xử lý
- * message (Phase 1 chỉ nghiệm thu build pass).</p>
+ * <p>Endpoint path cố định theo {@code docs/protocol-v1.md} mục 1.</p>
  */
 @Configuration
 @EnableWebSocket
@@ -27,6 +22,6 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(gameWebSocketHandler, ProtocolConstants.WS_PATH).setAllowedOrigins("*");
+        registry.addHandler(gameWebSocketHandler, "/game").setAllowedOrigins("*");
     }
 }

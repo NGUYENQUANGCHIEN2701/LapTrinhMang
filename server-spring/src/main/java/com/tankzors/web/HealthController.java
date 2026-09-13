@@ -2,6 +2,7 @@ package com.tankzors.web;
 
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -12,12 +13,12 @@ import org.springframework.web.bind.annotation.RestController;
  *   <li>{@code GET /} -> "Tankzors Server is running" (text).</li>
  *   <li>{@code GET /api/health} -> JSON {@code {"status":"UP","port":8081}}.</li>
  * </ul>
- *
- * <p>Phase 1 chỉ để smoke test Spring Boot start. Phase 2 thêm list-map
- * endpoint nếu cần.</p>
  */
 @RestController
 public class HealthController {
+
+    @Value("${server.port:8081}")
+    private int serverPort;
 
     @GetMapping("/")
     public String root() {
@@ -26,6 +27,6 @@ public class HealthController {
 
     @GetMapping("/api/health")
     public Map<String, Object> health() {
-        return Map.of("status", "UP", "port", 8081);
+        return Map.of("status", "UP", "port", serverPort);
     }
 }

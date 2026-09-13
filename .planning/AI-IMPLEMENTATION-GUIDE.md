@@ -132,30 +132,30 @@ LeaderboardService-> application/leaderboard
 
 ### Việc cần làm
 
-1. Tách output abstraction để `GameLoop` không nhận `MessageSender` cụ thể.
-2. Tách input port để WebSocket handler chỉ enqueue `InputMessage`.
-3. Di chuyển protocol DTO vào shared protocol hoặc package protocol độc lập.
-4. Tạo Spring Boot WebSocket endpoint `/game`.
-5. Tạo Spring health endpoint `/api/health`.
-6. Tạo `GameSessionService` quản lý session và player mapping.
-7. Inject game engine bằng Spring configuration/service.
-8. Giữ game loop single-threaded và tick rate hiện tại.
-9. Chạy React client cũ với Spring Boot server.
-10. Chỉ gỡ Javalin sau khi join/move/shoot/leave parity pass.
+1. Tách output abstraction để `GameLoop` không nhận `MessageSender` cụ thể. ✅ `engine.StatePublisherPort`
+2. Tách input port để WebSocket handler chỉ enqueue `InputMessage`. ✅ `application.GameSessionService` + `network.InputPacketParser`
+3. Di chuyển protocol DTO vào shared protocol hoặc package protocol độc lập. ⏳ defer (Phase 4/5)
+4. Tạo Spring Boot WebSocket endpoint `/game`. ✅ `network.WebSocketConfig`
+5. Tạo Spring health endpoint `/api/health`. ✅ `web.HealthController` port 8081
+6. Tạo `GameSessionService` quản lý session và player mapping. ✅
+7. Inject game engine bằng Spring configuration/service. ✅ `config.EngineConfig` + `config.EngineLifecycle`
+8. Giữ game loop single-threaded và tick rate hiện tại. ✅ single-thread `GameLoop-Thread`, đo 31-32 tick/s
+9. Chạy React client cũ với Spring Boot server. ✅ 13/09/2026: parity PASS (CONNECT+ACK+STATE tanks=2)
+10. Chỉ gỡ Javalin sau khi join/move/shoot/leave parity pass. ⏳ Phase 5
 
 ### Không được làm
 
-- Không chuyển game rule vào controller.
-- Không thêm database call vào tick.
-- Không đổi logic AI/collision.
-- Không đổi protocol nếu chưa cập nhật compatibility.
+- Không chuyển game rule vào controller. ✅ chỉ routing trong `GameWebSocketHandler`
+- Không thêm database call vào tick. ✅ chưa có DB
+- Không đổi logic AI/collision. ✅ 112 legacy tests pass nguyên
+- Không đổi protocol nếu chưa cập nhật compatibility. ✅ wire format v1 untouched
 
 ### Nghiệm thu
 
-- Spring Boot start.
-- React cũ connect được `/game`.
-- Join, movement, shoot, bullet, collision, HP, AI và result giữ nguyên.
-- Server tests pass.
+- Spring Boot start. ✅ Started in 1.9s
+- React cũ connect được `/game`. ✅ verified manual với ws client Node
+- Join, movement, shoot, bullet, collision, HP, AI và result giữ nguyên. ✅ 115 tests pass + 3 context test pass
+- Server tests pass. ✅
 
 ## Phase 3 - Migrate gameplay client
 
