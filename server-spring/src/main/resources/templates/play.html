@@ -14,15 +14,29 @@
         &middot; <code th:text="${selectedLevelId}">campaign_1</code>
     </p>
 
-    <!-- Mount point cho LibGDX HTML5 (phase sau). Không nhúng React bundle. -->
+    <!-- LibGDX HTML5 mount point (Phase 3.5). data-level-id duoc bootstrap doc. -->
     <div id="game-container"
          class="game-container"
          th:attr="data-level-id=${selectedLevelId}">
-        <div class="game-placeholder">
-            <p class="placeholder-title">LibGDX HTML5 will be mounted here</p>
-            <p class="muted">Gameplay chưa được tích hợp trong phase này.</p>
-        </div>
+        <!-- iframe load GWT build; truyen levelId qua query string. -->
+        <iframe id="game-frame"
+                class="game-frame"
+                th:src="@{/game/libgdx/index.html(levelId=${selectedLevelId})}"
+                title="Tankzors Game"
+                allow="autoplay; fullscreen; gamepad"
+                allowfullscreen></iframe>
+        <noscript>
+            <div class="game-placeholder">
+                <p class="placeholder-title">JavaScript is required</p>
+                <p class="muted">Game LibGDX HTML5 cần JavaScript để chạy.</p>
+            </div>
+        </noscript>
     </div>
+
+    <p class="controls-hint">
+        <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / mũi tên: di chuyển &middot;
+        <kbd>Space</kbd> / <kbd>J</kbd>: bắn
+    </p>
 
     <div class="form-actions">
         <a class="btn btn-ghost" th:href="@{/campaigns}">Back to Campaigns</a>

@@ -72,7 +72,8 @@ class PageControllerTest {
             .andExpect(status().isOk())
             .andExpect(view().name("play"))
             .andExpect(content().string(containsString("data-level-id=\"campaign_1\"")))
-            .andExpect(content().string(containsString("game-container")));
+            .andExpect(content().string(containsString("game-container")))
+            .andExpect(content().string(containsString("/game/libgdx/index.html?levelId=campaign_1")));
     }
 
     @Test
@@ -80,7 +81,15 @@ class PageControllerTest {
         mvc.perform(get("/play").param("levelId", "campaign_2"))
             .andExpect(status().isOk())
             .andExpect(view().name("play"))
-            .andExpect(content().string(containsString("data-level-id=\"campaign_2\"")));
+            .andExpect(content().string(containsString("data-level-id=\"campaign_2\"")))
+            .andExpect(content().string(containsString("/game/libgdx/index.html?levelId=campaign_2")));
+    }
+
+    @Test
+    void libgdxBootstrapIsServedAsStaticResource() throws Exception {
+        mvc.perform(get("/game/libgdx/tankzorshtml/tankzorshtml.nocache.js"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("tankzorshtml")));
     }
 
     @Test
