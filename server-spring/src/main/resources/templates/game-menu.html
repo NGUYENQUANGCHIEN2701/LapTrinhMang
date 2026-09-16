@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: html(content = ~{::content}, pageCss = ~{::pagecss})}">
+<head>
+    <th:block th:fragment="pagecss">
+        <link rel="stylesheet" th:href="@{/css/game-menu.css}" />
+    </th:block>
+</head>
+<body>
+<section th:fragment="content" class="page-narrow">
+    <h2 class="page-title">Game Menu</h2>
+    <p class="page-subtitle">Chọn chế độ chơi</p>
+
+    <div class="mode-list">
+        <a class="btn mode-btn" th:href="@{/play}">
+            Continue
+            <span class="btn-hint">Vào trận với level mặc định</span>
+        </a>
+        <a class="btn mode-btn" th:href="@{/campaigns}">
+            Campaigns
+            <span class="btn-hint">3 màn chơi tuần tự</span>
+        </a>
+        <span class="btn mode-btn disabled" title="Coming soon">
+            Online Levels
+            <span class="badge-soon">Coming soon</span>
+        </span>
+        <a class="btn mode-btn" th:href="@{/load-game}">
+            Load Game
+            <span class="btn-hint">Đọc save đã lưu</span>
+        </a>
+        <span class="btn mode-btn disabled" title="Coming soon">
+            Practice
+            <span class="badge-soon">Coming soon</span>
+        </span>
+        <a class="btn btn-ghost mode-btn" th:href="@{/menu}">
+            Back
+            <span class="btn-hint">Về main menu</span>
+        </a>
+    </div>
+</section>
+</body>
+</html>

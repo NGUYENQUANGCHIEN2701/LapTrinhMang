@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: html(content = ~{::content}, pageCss = ~{::pagecss})}">
+<head>
+    <th:block th:fragment="pagecss">
+        <link rel="stylesheet" th:href="@{/css/campaigns.css}" />
+    </th:block>
+</head>
+<body>
+<section th:fragment="content" class="page-wide">
+    <h2 class="page-title">Chọn màn Campaign</h2>
+
+    <div class="campaign-grid">
+        <div class="card level-card"
+             th:each="lvl : ${levels}"
+             th:classappend="${unlockedLevels.contains(lvl.id)} ? 'unlocked' : 'locked'">
+            <div class="level-head">
+                <span class="level-id" th:text="${lvl.id}">campaign_1</span>
+                <span class="badge" th:classappend="'diff-' + ${lvl.difficulty}"
+                      th:text="${lvl.difficultyLabel}">Dễ</span>
+            </div>
+            <h3 class="level-name" th:text="${lvl.name}">Màn 1</h3>
+            <p class="level-desc" th:text="${lvl.description}">Mô tả</p>
+            <p class="level-meta">
+                <span th:text="${lvl.enemiesCount} + ' AI địch'">1 AI địch</span>
+            </p>
+            <a class="btn btn-primary level-play"
+               th:if="${unlockedLevels.contains(lvl.id)}"
+               th:href="@{/play(levelId=${lvl.id})}">Play</a>
+            <span class="btn btn-ghost level-play disabled"
+                  th:unless="${unlockedLevels.contains(lvl.id)}"
+                  title="Hoàn thành màn trước để mở khóa">&#128274; Đã khóa</span>
+        </div>
+    </div>
+
+    <div class="form-actions">
+        <a class="btn btn-ghost" th:href="@{/game-menu}">Back</a>
+    </div>
+</section>
+</body>
+</html>

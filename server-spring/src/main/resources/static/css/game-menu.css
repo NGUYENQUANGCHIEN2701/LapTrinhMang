@@ -1,0 +1,18 @@
+/* Game menu - chọn chế độ chơi */
+
+.mode-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    width: 100%;
+}
+
+.mode-btn {
+    min-width: 0;
+    width: 100%;
+}
+
+.mode-btn.disabled {
+    pointer-events: auto;
+    cursor: not-allowed;
+}

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: html(content = ~{::content}, pageCss = ~{::pagecss})}">
+<head>
+    <th:block th:fragment="pagecss">
+        <link rel="stylesheet" th:href="@{/css/menu.css}" />
+    </th:block>
+</head>
+<body>
+<section th:fragment="content" class="menu-page">
+    <div class="menu-hero">
+        <h1 class="game-title">TANKZORS</h1>
+        <p class="game-tagline">
+            Game xe tăng PvE thời gian thực &mdash; server-authoritative qua WebSocket,
+            leaderboard lưu PostgreSQL.
+        </p>
+    </div>
+    <div class="menu-actions">
+        <a class="btn btn-primary btn-lg" th:href="@{/game-menu}">
+            Game
+            <span class="btn-hint">Bắt đầu chơi</span>
+        </a>
+        <a class="btn btn-secondary btn-lg" th:href="@{/settings}">
+            Settings
+            <span class="btn-hint">Âm thanh, ngôn ngữ</span>
+        </a>
+        <a class="btn btn-secondary btn-lg" th:href="@{/leaderboard}">
+            Leaderboard
+            <span class="btn-hint">Bảng xếp hạng</span>
+        </a>
+        <span class="btn btn-ghost btn-lg disabled" title="Coming soon">
+            About
+            <span class="badge-soon">Coming soon</span>
+        </span>
+    </div>
+</section>
+</body>
+</html>

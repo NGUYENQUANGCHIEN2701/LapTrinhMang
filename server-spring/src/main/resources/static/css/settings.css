@@ -1,0 +1,10 @@
+/* Settings form */
+
+.settings-form {
+    display: flex;
+    flex-direction: column;
+}
+
+.settings-form .form-actions {
+    justify-content: flex-start;
+}

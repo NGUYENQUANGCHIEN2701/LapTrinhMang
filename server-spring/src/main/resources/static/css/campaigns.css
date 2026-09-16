@@ -1,0 +1,66 @@
+/* Campaign selection - level cards */
+
+.campaign-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1rem;
+    width: 100%;
+}
+
+.level-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    transition: all 0.2s;
+}
+
+.level-card.unlocked:hover {
+    background: var(--color-surface-hover);
+    border-color: var(--color-accent);
+    transform: translateY(-2px);
+}
+
+.level-card.locked {
+    opacity: 0.55;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.level-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.level-id {
+    font-family: monospace;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+}
+
+.level-name {
+    font-size: 1.1rem;
+    color: var(--color-accent);
+}
+
+.level-card.locked .level-name {
+    color: #888;
+}
+
+.level-desc {
+    font-size: 0.9rem;
+    color: var(--color-text-secondary);
+    flex: 1;
+}
+
+.level-meta {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+}
+
+.level-play {
+    margin-top: 0.5rem;
+    width: 100%;
+    min-width: 0;
+}

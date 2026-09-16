@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: html(content = ~{::content}, pageCss = ~{::pagecss})}">
+<head>
+    <th:block th:fragment="pagecss"></th:block>
+</head>
+<body>
+<section th:fragment="content" class="page-narrow load-game-page">
+    <h2 class="page-title">Load Game</h2>
+    <p class="muted">No save system configured.</p>
+
+    <div class="save-slots">
+        <div class="card save-slot" th:each="i : ${#numbers.sequence(1,3)}">
+            <span class="slot-title" th:text="'Slot ' + ${i}">Slot 1</span>
+            <span class="muted">Empty</span>
+        </div>
+    </div>
+
+    <div class="form-actions">
+        <a class="btn btn-ghost" th:href="@{/game-menu}">Back</a>
+    </div>
+</section>
+</body>
+</html>

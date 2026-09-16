@@ -1,0 +1,40 @@
+/* Main menu (Thymeleaf shell) */
+
+.menu-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 2rem 0;
+    text-align: center;
+}
+
+.menu-hero .game-title {
+    font-size: 3.2rem;
+    letter-spacing: 6px;
+    color: var(--color-accent);
+    text-shadow: 0 0 24px rgba(0, 230, 118, 0.35);
+    margin-bottom: 0.75rem;
+}
+
+.menu-hero .game-tagline {
+    color: var(--color-text-secondary);
+    font-size: 1.05rem;
+    line-height: 1.6;
+    max-width: 560px;
+}
+
+.menu-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    width: 100%;
+    max-width: 320px;
+}
+
+@media (max-width: 600px) {
+    .menu-hero .game-title {
+        font-size: 2.2rem;
+        letter-spacing: 3px;
+    }
+}
