@@ -8,6 +8,10 @@ i:map/ground.png:map/ground-1ce95e51045c84b8078791a02619c441.png:83630:image/png
 i:map/palms.png:map/palms-401d0d966b080c712ed97c5a6bda4634.png:32903:image/png:1
 i:map/spikes.png:map/spikes-c5af6def1d3bd4667615aee77c21bf53.png:2453:image/png:1
 i:map/wall.png:map/wall-201c09de49a8c93dc5a434fba7aee138.png:12516:image/png:1
+d:maps:maps:0:application/unknown:1
+t:maps/campaign_1.json:maps/campaign_1-91c82b21e0404f130d4ca6eac20328ac.json:1005:application/json:1
+t:maps/campaign_2.json:maps/campaign_2-716397b9ff9481cdf7c23730005beb1c.json:1081:application/json:1
+t:maps/campaign_3.json:maps/campaign_3-7c2ee1afb36858cb1393da38d68724c4.json:1148:application/json:1
 d:tanks:tanks:0:application/unknown:1
 i:tanks/enemy_tank.png:tanks/enemy_tank-597030d1d7b37e5ae362c26e0df1e5f1.png:15212:image/png:1
 i:tanks/kamikaze_tank.png:tanks/kamikaze_tank-3cd79cf3997158d29ddb7dc9ece0a471.png:18081:image/png:1
