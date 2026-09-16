@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="flash">
+    <div th:if="${flashSuccess}" class="alert alert-success" role="status"
+         th:text="${flashSuccess}">Success message</div>
+    <div th:if="${flashError}" class="alert alert-error" role="alert"
+         th:text="${flashError}">Error message</div>
+    <div th:if="${flashWarning}" class="alert alert-warning" role="status"
+         th:text="${flashWarning}">Warning message</div>
+</div>
+</body>
+</html>

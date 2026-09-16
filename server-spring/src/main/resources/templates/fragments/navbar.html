@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<nav th:fragment="navbar" class="site-nav">
+    <a class="brand" th:href="@{/}">TANKZORS</a>
+    <div class="nav-links">
+        <a th:href="@{/}" th:classappend="${activePage == 'menu'} ? 'active'">Home</a>
+        <a th:href="@{/game-menu}" th:classappend="${activePage == 'game-menu'} ? 'active'">Game</a>
+        <a th:href="@{/campaigns}" th:classappend="${activePage == 'campaigns'} ? 'active'">Campaigns</a>
+        <a th:href="@{/leaderboard}" th:classappend="${activePage == 'leaderboard'} ? 'active'">Leaderboard</a>
+        <a th:href="@{/settings}" th:classappend="${activePage == 'settings'} ? 'active'">Settings</a>
+    </div>
+</nav>
+</body>
+</html>
