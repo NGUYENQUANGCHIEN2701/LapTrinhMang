@@ -2,6 +2,7 @@ package com.tankzors.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
 
 import com.tankzors.ServerConfig;
@@ -12,10 +13,15 @@ import jakarta.annotation.PreDestroy;
 
 /**
  * Lifecycle wrapper: start/stop {@link GameLoop} khi context up/down.
- * Tách riêng khỏi {@link EngineConfig} để tránh phụ thuộc vòng khi Spring
- * dựng bean.
+ *
+ * <p><b>Bước F (client-authoritative)</b>: scheduler engine mặc định TẮT trong
+ * production (tankzors.engine.scheduler.enabled=false). Backend nay chỉ phục vụ
+ * website + relay co-op + persistence; KHÔNG chạy scheduled game-loop thread,
+ * AI, collision hay tính điểm (luật gameplay đã chuyển sang client core).
+ * Bean vẫn còn để test simulation cũ chạy được; chỉ không tự start thread.</p>
  */
 @Configuration
+@ConditionalOnProperty(name = "tankzors.engine.scheduler.enabled", havingValue = "true")
 public class EngineLifecycle {
 
     private static final Logger logger = LoggerFactory.getLogger(EngineLifecycle.class);
@@ -39,3 +45,4 @@ public class EngineLifecycle {
         logger.info("[EngineLifecycle] GameLoop stopped");
     }
 }
+

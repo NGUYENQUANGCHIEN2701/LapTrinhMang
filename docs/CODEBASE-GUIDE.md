@@ -381,13 +381,32 @@ Chu trong overlay bi nguoc/loi font:
 
 ## 12. Nguyen tac refactor tiep theo
 
-- Game rule nam tren server, khong day logic win/lose/AI sang client.
-- Client chi render state va gui input.
-- Protocol thay doi thi update server, client, docs cung luc.
-- Them page website thi dung Thymeleaf trong `server-spring`, khong them React.
-- Them asset thi dat vao `game-client/assets`, build lai HTML5 bundle.
-- Them database table thi tao Flyway migration moi, khong sua migration cu da apply.
-- Khong sua generated bundle trong `static/game/libgdx`; source goc nam o `game-client`.
+> **Lưu ý sau đợt client-authoritative (Bước A–F):** gameplay đã chuyển sang
+> client LibGDX core (`game-client/core/.../client/gameplay`). Backend nay chỉ
+> phục vụ website/leaderboard/progression + relay co-op (`/coop`) + lưu kết quả
+> client-reported (`POST /api/game/results`). Scheduler engine server
+> (GameLoop thread) TẮT mặc định (`tankzors.engine.scheduler.enabled=false`),
+> class vẫn còn để test simulation cũ chạy. Xem thêm
+> [CLIENT-AUTHORITATIVE-MIGRATION-MAPPING.md](CLIENT-AUTHORITATIVE-MIGRATION-MAPPING.md).
+
+- **Gameplay luật (move/shoot/AI/collision/score/win-lose) chạy ở CLIENT**,
+  trong `game-client/core/.../client/gameplay`. Server không recompute, không
+  replay, không chạy AI tick.
+- **Campaign** chạy local 100% client sau bootstrap (`GET /api/game/bootstrap`);
+  kết quả gửi qua `POST /api/game/results` (idempotent, client-reported).
+- **Co-op**: host client chạy simulation, server `/coop` chỉ relay; không lưu
+  điểm co-op vào campaign trong MVP. Points guest chỉ render snapshot host gửi.
+- Protocol thay đổi thì update cả client core network + server
+  network + docs cùng lúc.
+- Không thêm React; website tiếp tục Thymeleaf trong `server-spring`.
+- Thêm asset vào `game-client/assets`, build lại HTML5 bundle
+  (`html:dist html:copyToServer`).
+- Thêm DB table/cột: tạo migration Flyway mới (V4+), KHÔNG sửa migration đã
+  apply.
+- Không sửa generated bundle trong `static/game/libgdx`; source gốc ở
+  `game-client`.
+- Không xóa class engine server (`engine/`, `entity/`, `ai/`, `map/`) ở đợt
+  này; test simulation vẫn tái dùng. Liệt kê ứng viên cleanup riêng.
 
 ## 13. Thu tu doc cho nguoi moi
 
