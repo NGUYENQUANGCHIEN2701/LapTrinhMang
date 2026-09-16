@@ -1,11 +1,22 @@
 server:
   port: 8081
+  servlet:
+    session:
+      # Dùng cookie thay vì nhúng ;jsessionid vào URL (URL sạch và ổn định)
+      tracking-mode: cookie
 
 spring:
   application:
     name: tankzors-server-spring
   main:
     banner-mode: "off"
+
+  # ====== Thymeleaf (Phase 4.5 website shell) ======
+  # cache: false chỉ dùng cho development; production có thể bật lại.
+  thymeleaf:
+    cache: false
+    prefix: classpath:/templates/
+    suffix: .html
 
   # ====== JPA / Datasource (Phase 4) ======
   datasource:
