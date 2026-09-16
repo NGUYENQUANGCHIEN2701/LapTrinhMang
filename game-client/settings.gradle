@@ -1,0 +1,5 @@
+rootProject.name = 'tankzors-game-client'
+
+include 'core'
+include 'desktop'
+include 'html'

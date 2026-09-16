@@ -1,0 +1,88 @@
+apply plugin: 'org.wisepersist.gwt'
+apply plugin: 'war'
+
+// Đảm bảo assets dùng chung có sẵn trong webapp khi build GWT dist.
+def sharedAssetsDir = file('../assets')
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ['src/main/java']
+        }
+    }
+}
+
+gwt {
+    gwtVersion = project.gwtVersion
+    modules 'com.tankzors.client.html.TankzorsHtml'
+
+    // GWT can dich .java cua core sang JS -> phai them source dir cua core.
+    src += files(project(':core').sourceSets.main.allJava.srcDirs)
+    // JsInterop annotations + base sources (LibGDX gwtref cần).
+    src += fileTree("${rootProject.projectDir}/gwt-extra-sources")
+
+    compiler {
+        strict = true
+        disableCastChecking = true
+        optimize = 9
+    }
+
+    maxHeapSize = "2048M"
+}
+
+dependencies {
+    implementation project(':core')
+
+    api "com.badlogicgames.gdx:gdx-backend-gwt:$gdxVersion"
+    api "com.badlogicgames.gdx:gdx:$gdxVersion:sources"
+    api "com.badlogicgames.gdx:gdx-backend-gwt:$gdxVersion:sources"
+    api "com.google.gwt:gwt-user:$gwtVersion"
+    api "com.google.gwt:gwt-dev:$gwtVersion"
+}
+
+// Copy assets dùng chung vào webapp/assets trước khi build GWT.
+tasks.register('syncAssets', Sync) {
+    from sharedAssetsDir
+    into file('src/main/webapp/assets')
+}
+// task dist do plugin wisepersist.gwt cung cấp (gwtCompile).
+// Output GWT wisepersist default: build/gwt/out/<module>.
+def distDir = file("$buildDir/dist")
+
+// Sync (không phải Copy) để build/dist không tích tụ cache.js hash cũ
+// giữa các lần compileGwt — tránh bloat static folder server-spring.
+tasks.register('dist', Sync) {
+    group = 'build'
+    description = 'Assembles GWT distribution into build/dist.'
+    dependsOn 'compileGwt', 'syncAssets'
+    from("$buildDir/gwt/out") {
+        exclude 'soyc*/**'
+        exclude 'symbolMaps/**'
+        exclude 'WEB-INF/**'
+    }
+    // Plugin GWT sinh asset đã hash và manifest chuẩn tại html/war/assets.
+    from('war') {
+        include 'assets/**'
+    }
+    from('src/main/webapp') {
+        exclude 'WEB-INF/**'
+        // GWT tự sinh manifest đúng format tại assets/assets.txt.
+        // Không copy các manifest thủ công để tránh ghi đè file generated.
+        exclude 'assets/**'
+        exclude 'assets.txt'
+    }
+    into distDir
+}
+
+// Copy GWT dist output vào server-spring/static/game/libgdx (plan §11/§12).
+// game-client là Gradle root; server-spring nằm cùng cấp với game-client.
+// Dùng rootProject để không phụ thuộc vào thư mục hiện tại khi chạy task.
+def libgdxOutDir = file("${rootProject.projectDir}/../server-spring/src/main/resources/static/game/libgdx")
+
+tasks.register('copyToServer', Sync) {
+    group = 'build'
+    description = 'Synchronize compiled HTML5 game into server-spring static folder.'
+    dependsOn 'dist'
+    from distDir
+    into libgdxOutDir
+}

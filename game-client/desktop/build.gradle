@@ -1,0 +1,46 @@
+apply plugin: 'application'
+
+// Assets dùng chung nằm ở root game-client/assets/.
+// Cho desktop runtime, assets phải có mặt trên classpath (internal file handle).
+sourceSets {
+    main {
+        // Nạp assets vào classpath khi run khỏi Gradle (run task).
+        resources.srcDirs = ['src/main/resources', '../assets']
+    }
+}
+
+dependencies {
+    implementation project(':core')
+
+    api "com.badlogicgames.gdx:gdx-backend-lwjgl3:$gdxVersion"
+    api "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
+
+    // Desktop WebSocket (TooTallNate) - KHÔNG vào core để html không import.
+    implementation "org.java-websocket:Java-WebSocket:$javaWebSocketVersion"
+    implementation "org.slf4j:slf4j-simple:$slf4jVersion"
+}
+
+application {
+    mainClass = 'com.tankzors.client.desktop.DesktopLauncher'
+    // Working dir = game-client/ để Gdx.files.internal('assets/...') tìm thấy.
+    applicationDefaultJvmArgs = ['-Dfile.encoding=UTF-8']
+}
+
+run {
+    workingDir = rootProject.projectDir
+    //,args = ['--ws', 'ws://localhost:8081/game', '--level', 'campaign_1']
+}
+
+// Build fat jar desktop chạy độc lập.
+tasks.register('fatJar', Jar) {
+    dependsOn ':core:jar'
+    archiveBaseName = 'tankzors-desktop'
+    archiveVersion = project.version
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    with tasks.jar
+    manifest {
+        attributes 'Main-Class': 'com.tankzors.client.desktop.DesktopLauncher'
+    }
+    exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+}

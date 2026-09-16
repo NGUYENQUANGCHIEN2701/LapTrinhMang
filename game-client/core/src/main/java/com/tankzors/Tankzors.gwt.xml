@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GWT module cho core client logic (xác định source paths để GWT biên dịch
+  cùng với html module). Core KHÔNG entry point (html module kế thừa).
+-->
+<!DOCTYPE module PUBLIC "-//Google Inc.//DTD Google Web Toolkit //EN"
+        "http://www.gwtproject.org/doctype/2.10.0/gwt-module.dtd">
+<module rename-to="tankzorscore">
+    <inherits name="com.google.gwt.user.User"/>
+    <inherits name="com.badlogic.gdx.backends.gdx_backends_gwt"/>
+
+    <source path="client">
+        <!-- Sources Java của core (các packages con được dịch sang JS bởi GWT). -->
+    </source>
+</module>

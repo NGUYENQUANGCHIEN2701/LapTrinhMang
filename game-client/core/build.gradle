@@ -1,0 +1,14 @@
+apply plugin: 'java-library'
+
+dependencies {
+    // LibGDX core. KHÔNG thêm backend ở đây (desktop/html tự thêm).
+    api "com.badlogicgames.gdx:gdx:$gdxVersion"
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ['src/main/java']
+        }
+    }
+}
