@@ -1,65 +1,32 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: html(content = ~{::content}, pageCss = ~{::pagecss})}">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Play - Tankzors Pro</title>
-    <style>
-        .play-wrap {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
-        }
-        .play-header {
-            color: #999;
-            font-size: 0.85rem;
-            margin-bottom: 0.6rem;
-        }
-        .play-header strong { color: #00e676; }
-        /* iframe chứa React build đã có base './' */
-        .game-frame {
-            width: 800px;
-            height: 600px;
-            border: 0;
-            background: #1e272e;
-        }
-        .controls-hint {
-            margin-top: 1rem;
-            color: #707070;
-            font-size: 0.85rem;
-            text-align: center;
-        }
-        kbd {
-            display: inline-block;
-            background: #333;
-            border: 1px solid #555;
-            border-radius: 3px;
-            padding: 0.1rem 0.4rem;
-            font-family: monospace;
-            font-size: 0.8rem;
-            margin: 0 0.1rem;
-        }
-    </style>
+    <th:block th:fragment="pagecss">
+        <link rel="stylesheet" th:href="@{/css/play.css}" />
+    </th:block>
 </head>
 <body>
-<div th:fragment="content">
-    <div class="play-wrap">
-        <p class="play-header">
-            Đang chơi: <strong th:text="${levelId}">campaign_1</strong>
-            · WebSocket: <code>/game</code>
-        </p>
-        <iframe
-            class="game-frame"
-            th:src="@{/play/index.html}"
-            title="Tankzors Game"
-            allow="autoplay; fullscreen"
-        ></iframe>
-        <p class="controls-hint">
-            <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> hoặc phím mũi tên để di chuyển ·
-            <kbd>Space</kbd> hoặc <kbd>J</kbd> để bắn
-        </p>
+<section th:fragment="content" class="page-wide play-page">
+    <h2 class="page-title">Play</h2>
+    <p class="play-level">
+        Level: <strong th:text="${levelName}">Màn 1</strong>
+        &middot; <code th:text="${selectedLevelId}">campaign_1</code>
+    </p>
+
+    <!-- Mount point cho LibGDX HTML5 (phase sau). Không nhúng React bundle. -->
+    <div id="game-container"
+         class="game-container"
+         th:attr="data-level-id=${selectedLevelId}">
+        <div class="game-placeholder">
+            <p class="placeholder-title">LibGDX HTML5 will be mounted here</p>
+            <p class="muted">Gameplay chưa được tích hợp trong phase này.</p>
+        </div>
     </div>
-</div>
+
+    <div class="form-actions">
+        <a class="btn btn-ghost" th:href="@{/campaigns}">Back to Campaigns</a>
+    </div>
+</section>
 </body>
 </html>

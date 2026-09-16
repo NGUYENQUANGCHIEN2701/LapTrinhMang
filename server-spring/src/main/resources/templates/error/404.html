@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: html(content = ~{::content}, pageCss = ~{::pagecss})}">
+<head>
+    <th:block th:fragment="pagecss"></th:block>
+</head>
+<body>
+<section th:fragment="content" class="page-narrow error-page">
+    <h1 class="error-code">404</h1>
+    <p class="page-subtitle">
+        Trang bạn tìm không tồn tại hoặc đã bị di chuyển.
+    </p>
+    <div class="form-actions">
+        <a class="btn btn-primary" th:href="@{/}">Back to Home</a>
+    </div>
+</section>
+</body>
+</html>

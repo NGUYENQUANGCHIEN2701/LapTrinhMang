@@ -1,0 +1,75 @@
+/* Leaderboard */
+
+.map-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.map-tabs a {
+    padding: 0.4rem 0.9rem;
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-family: monospace;
+}
+
+.map-tabs a:hover {
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+}
+
+.map-tabs a.active {
+    background: var(--color-accent);
+    color: #000;
+    border-color: var(--color-accent);
+}
+
+.leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--color-surface);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.leaderboard-table th,
+.leaderboard-table td {
+    padding: 0.7rem 1rem;
+    text-align: left;
+}
+
+.leaderboard-table th {
+    background: var(--color-accent-dim);
+    color: var(--color-accent);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.leaderboard-table tr:nth-child(even) td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.leaderboard-table .rank-1 td { color: gold; font-weight: 700; }
+.leaderboard-table .rank-2 td { color: silver; }
+.leaderboard-table .rank-3 td { color: #cd7f32; }
+
+.leaderboard-table .empty {
+    text-align: center;
+    color: var(--color-text-muted);
+    padding: 2rem;
+}
+
+@media (max-width: 600px) {
+    .leaderboard-table th,
+    .leaderboard-table td {
+        padding: 0.5rem 0.5rem;
+        font-size: 0.85rem;
+    }
+}
