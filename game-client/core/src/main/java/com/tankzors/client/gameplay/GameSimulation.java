@@ -9,6 +9,7 @@ import com.tankzors.client.gameplay.entity.Direction;
 import com.tankzors.client.gameplay.entity.PlayerTank;
 import com.tankzors.client.gameplay.entity.Position;
 import com.tankzors.client.gameplay.interfaces.IBullet;
+import com.tankzors.client.gameplay.interfaces.IAIBehavior;
 import com.tankzors.client.gameplay.interfaces.IMap;
 import com.tankzors.client.gameplay.interfaces.ITank;
 import com.tankzors.client.gameplay.map.MapDefinition;
@@ -173,7 +174,11 @@ public class GameSimulation {
         for (ITank t : world.getAllTanks()) {
             if (t instanceof AITank) return;
         }
-        if (map instanceof MapDefinition def && def.getEnemies() != null && !def.getEnemies().isEmpty()) {
+        if (map instanceof MapDefinition) {
+            MapDefinition def = (MapDefinition) map;
+            if (def.getEnemies() == null || def.getEnemies().isEmpty()) {
+                // fall-through tới fallback SPAWN_ENEMY
+            } else {
             for (MapDefinition.EnemyConfig cfg : def.getEnemies()) {
                 DifficultyLevel diff = parseDifficulty(cfg.getDifficulty());
                 int col = cfg.getSpawnX();
@@ -186,6 +191,7 @@ public class GameSimulation {
                 }
             }
             return;
+            }
         }
         // Fallback: quét ô SPAWN_ENEMY
         for (int row = 0; row < map.getHeight(); row++) {
@@ -203,9 +209,9 @@ public class GameSimulation {
 
     private void wireAiBulletIds(AITank enemy) {
         // ShootBehavior default đếm id riêng theo owner.
-        var sb = enemy.getController().getShootBehavior();
-        if (sb instanceof ShootBehavior shoot) {
-            shoot.setBulletIdSource(owner -> bulletIds.next(owner));
+        IAIBehavior sb = enemy.getController().getShootBehavior();
+        if (sb instanceof ShootBehavior) {
+            ((ShootBehavior) sb).setBulletIdSource(owner -> bulletIds.next(owner));
         }
     }
 
@@ -276,7 +282,8 @@ public class GameSimulation {
     private void applyCommand(Command c) {
         if (c.playerId == null) return;
         ITank raw = world.getTank(c.playerId);
-        if (raw instanceof PlayerTank player) {
+        if (raw instanceof PlayerTank) {
+            PlayerTank player = (PlayerTank) raw;
             switch (c.type) {
                 case MOVE:
                     if (world.isPlaying() && player.isAlive()) {
@@ -303,14 +310,15 @@ public class GameSimulation {
     private void updateEntities(double dt) {
         // (a) cooldown + movement player
         for (ITank tank : world.getAllTanks()) {
-            if (tank instanceof PlayerTank player && tank.isAlive()) {
+            if (tank instanceof PlayerTank && tank.isAlive()) {
+                PlayerTank player = (PlayerTank) tank;
                 player.updateCooldown(dt);
                 player.updateMovement(dt, world.getCurrentMap());
             }
         }
         // (b) AI
         for (ITank tank : world.getAllTanks()) {
-            if (tank instanceof AITank ai) ai.update(world, dt);
+            if (tank instanceof AITank) ((AITank) tank).update(world, dt);
         }
         // (c) bullets
         for (IBullet bullet : world.getAllBullets()) {

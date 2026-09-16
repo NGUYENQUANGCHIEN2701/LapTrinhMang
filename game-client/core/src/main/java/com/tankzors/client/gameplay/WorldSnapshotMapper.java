@@ -59,7 +59,8 @@ public final class WorldSnapshotMapper {
         // Bullets (chỉ active)
         for (IBullet bullet : world.getAllBullets()) {
             if (!bullet.isActive()) continue;
-            if (!(bullet instanceof com.tankzors.client.gameplay.entity.Bullet b)) continue;
+            if (!(bullet instanceof com.tankzors.client.gameplay.entity.Bullet)) continue;
+            com.tankzors.client.gameplay.entity.Bullet b = (com.tankzors.client.gameplay.entity.Bullet) bullet;
             BulletSnapshot bs = new BulletSnapshot();
             bs.id = b.getId();
             bs.x = (float) b.getPosition().getX();

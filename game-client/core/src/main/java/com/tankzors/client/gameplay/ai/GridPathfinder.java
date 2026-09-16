@@ -8,6 +8,7 @@ import com.tankzors.client.gameplay.entity.Wall;
 import com.tankzors.client.gameplay.interfaces.IMap;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -48,10 +49,10 @@ public final class GridPathfinder {
     }
 
     public List<Position> findPath(AITank tank, IMap map, Position target) {
-        if (map == null || target == null) return List.of();
+        if (map == null || target == null) return new ArrayList<Position>();
         Cell start = cellAt(tank.getPosition(), map);
         Cell goal = cellAt(target, map);
-        if (!canOccupy(tank, map, start) || !canOccupy(tank, map, goal)) return List.of();
+        if (!canOccupy(tank, map, start) || !canOccupy(tank, map, goal)) return new ArrayList<Position>();
 
         Map<Cell, Cell> previous = new HashMap<>();
         ArrayDeque<Cell> queue = new ArrayDeque<>();
@@ -81,7 +82,7 @@ public final class GridPathfinder {
                 }
             }
         }
-        return List.of();
+        return new ArrayList<Position>();
     }
 
     public static boolean canOccupy(AITank tank, IMap map, Cell cell) {

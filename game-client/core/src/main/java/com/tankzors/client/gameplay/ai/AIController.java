@@ -6,8 +6,8 @@ import com.tankzors.client.gameplay.entity.PlayerTank;
 import com.tankzors.client.gameplay.entity.Position;
 import com.tankzors.client.gameplay.interfaces.IAIBehavior;
 import com.tankzors.client.gameplay.interfaces.IMap;
+import com.tankzors.client.gameplay.interfaces.ITank;
 
-import java.util.Comparator;
 import java.util.Random;
 
 /**
@@ -50,7 +50,7 @@ public final class AIController {
         map = null;
         chase.reset();
         patrol.reset();
-        if (shootBehavior instanceof ShootBehavior sb) sb.reset();
+        if (shootBehavior instanceof ShootBehavior) ((ShootBehavior) shootBehavior).reset();
     }
 
     public void update(AITank self, GameWorld state, double dt) {
@@ -68,7 +68,7 @@ public final class AIController {
             map = state.getCurrentMap();
             double bestDist = Double.MAX_VALUE;
             PlayerTank found = null;
-            for (var t : state.getAllTanks()) {
+            for (ITank t : state.getAllTanks()) {
                 if (!(t instanceof PlayerTank) || !t.isAlive()) continue;
                 double d = distance(self.getPosition(), t.getPosition());
                 if (d < bestDist || (d == bestDist && (found == null || t.getId().compareTo(found.getId()) < 0))) {

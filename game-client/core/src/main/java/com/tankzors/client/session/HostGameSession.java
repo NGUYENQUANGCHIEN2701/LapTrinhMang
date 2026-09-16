@@ -191,7 +191,7 @@ public class HostGameSession implements GameSession {
     private String serializeTanks(GameStateSnapshot s) {
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < s.tanks.size(); i++) {
-            var t = s.tanks.get(i);
+            com.tankzors.client.model.TankSnapshot t = s.tanks.get(i);
             if (i > 0) sb.append(',');
             sb.append("{\"id\":").append(RelayPackets.quote(t.id))
               .append(",\"x\":").append(t.x).append(",\"y\":").append(t.y)
@@ -207,7 +207,7 @@ public class HostGameSession implements GameSession {
     private String serializeBullets(GameStateSnapshot s) {
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < s.bullets.size(); i++) {
-            var b = s.bullets.get(i);
+            com.tankzors.client.model.BulletSnapshot b = s.bullets.get(i);
             if (i > 0) sb.append(',');
             sb.append("{\"id\":").append(RelayPackets.quote(b.id))
               .append(",\"x\":").append(b.x).append(",\"y\":").append(b.y)

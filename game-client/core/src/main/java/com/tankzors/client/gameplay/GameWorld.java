@@ -34,8 +34,8 @@ public class GameWorld {
 
     public void removeTank(String tankId) {
         ITank removed = tanks.remove(tankId);
-        if (removed instanceof AITank ai) ai.getController().reset();
-        if (removed instanceof PlayerTank player) player.stopMoving();
+        if (removed instanceof AITank) ((AITank) removed).getController().reset();
+        if (removed instanceof PlayerTank) ((PlayerTank) removed).stopMoving();
     }
 
     public ITank getTank(String tankId) { return tanks.get(tankId); }
@@ -75,8 +75,8 @@ public class GameWorld {
     /** Reset về WAITING (dùng restart). */
     public void reset() {
         for (ITank tank : tanks.values()) {
-            if (tank instanceof AITank ai) ai.getController().reset();
-            if (tank instanceof PlayerTank player) player.stopMoving();
+            if (tank instanceof AITank) ((AITank) tank).getController().reset();
+            if (tank instanceof PlayerTank) ((PlayerTank) tank).stopMoving();
         }
         tanks.clear();
         bullets.clear();

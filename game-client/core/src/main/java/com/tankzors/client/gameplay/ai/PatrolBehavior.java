@@ -4,6 +4,7 @@ import com.tankzors.client.gameplay.GameWorld;
 import com.tankzors.client.gameplay.entity.AITank;
 import com.tankzors.client.gameplay.entity.Position;
 import com.tankzors.client.gameplay.interfaces.IAIBehavior;
+import com.tankzors.client.gameplay.interfaces.IMap;
 
 import java.util.ArrayList;
 import java.util.Objects;
@@ -41,11 +42,11 @@ public final class PatrolBehavior implements IAIBehavior {
     public void update(AITank self, GameWorld state, double deltaTime) {
         if (anchor == null || !self.isAlive() || !state.isPlaying()
                 || state.getCurrentMap() == null || !Double.isFinite(deltaTime) || deltaTime <= 0) return;
-        var map = state.getCurrentMap();
+        IMap map = state.getCurrentMap();
         if (target == null) {
             GridPathfinder.Cell current = GridPathfinder.cellAt(self.getPosition(), map);
             GridPathfinder.Cell origin = GridPathfinder.cellAt(anchor, map);
-            var choices = new ArrayList<Integer>();
+            ArrayList<Integer> choices = new ArrayList<Integer>();
             for (int i = 0; i < DIRECTIONS.length; i++) {
                 GridPathfinder.Cell next = new GridPathfinder.Cell(current.col + DIRECTIONS[i][0],
                         current.row + DIRECTIONS[i][1]);
@@ -63,7 +64,7 @@ public final class PatrolBehavior implements IAIBehavior {
             target = new GridPathfinder.Cell(current.col + DIRECTIONS[heading][0],
                     current.row + DIRECTIONS[heading][1]).center(map);
         }
-        var result = navigator.move(self, map, target, self.getSpeed() * deltaTime, deltaTime);
+        AINavigator.Result result = navigator.move(self, map, target, self.getSpeed() * deltaTime, deltaTime);
         if (result != AINavigator.Result.MOVING) {
             target = null;
             navigator.reset();

@@ -41,7 +41,7 @@ public final class ShootBehavior implements IAIBehavior {
         // Player sống gần nhất; tiebreak theo id (deterministic).
         PlayerTank target = null;
         double bestDist = Double.MAX_VALUE;
-        for (var t : state.getAllTanks()) {
+        for (com.tankzors.client.gameplay.interfaces.ITank t : state.getAllTanks()) {
             if (!(t instanceof PlayerTank) || !t.isAlive()) continue;
             double d = distance(self.getPosition(), t.getPosition());
             if (d < bestDist || (d == bestDist && (target == null || t.getId().compareTo(target.getId()) < 0))) {
