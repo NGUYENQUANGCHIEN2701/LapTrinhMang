@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Tankzors - Co-op Lobby')}"></head>
+<body>
+<div th:replace="~{fragments/navbar :: navbar('coop')}"></div>
+
+<main class="coop-lobby container">
+  <h1>Co-op Lobby</h1>
+  <p class="note"> MVP: 2 người chơi cùng đánh AI trên map campaign. Host điều khiển trận; người rời trận làm đóng phòng.</p>
+
+  <div class="coop-section">
+    <h2>Tạo phòng mới</h2>
+    <label>Chọn màn:
+      <select id="levelId">
+        <option th:each="lvl : ${unlockedLevels}" th:value="${lvl}" th:text="${lvl}"></option>
+      </select>
+    </label>
+    <button id="btnCreate">Tạo phòng</button>
+  </div>
+
+  <div class="coop-section">
+    <h2>Tham gia bằng mã</h2>
+    <input type="text" id="joinCode" placeholder="VD: ABC123" maxlength="6" />
+    <button id="btnJoin">Tham gia</button>
+  </div>
+
+  <div class="coop-section" id="roomPanel" style="display:none;">
+    <h2>Phòng: <span id="roomCode"></span></h2>
+    <ul id="memberList"></ul>
+    <div class="status" id="roomStatus"></div>
+    <button id="btnReady">Sẵn sàng</button>
+    <button id="btnStart" style="display:none;">Bắt đầu (host)</button>
+    <div th:if="${roomCode != null and roomCode != ''}">
+      <p>Chia sẻ mã phòng cho bạn bè: <strong th:text="${roomCode}"></strong></p>
+    </div>
+  </div>
+
+  <div id="gameFrame" style="display:none;">
+    <iframe th:src="@{'/game/libgdx/index.html?mode=host&levelId=' + ${levelId}}" width="800" height="600" frameborder="0"></iframe>
+  </div>
+</main>
+
+<script th:inline="javascript">
+/*<![CDATA[*/
+  const playerId = /*[[${playerId}]]*/ '';
+  const wsUrl = /*[[${wsUrl}]]*/ '';
+  const initialRoom = /*[[${roomCode}]]*/ '';
+  let ws = null;
+  let amHost = false;
+
+  function connect() {
+    ws = new WebSocket(wsUrl);
+    ws.onopen = () => { /* CONNECT từ server tự gửi */ };
+    ws.onmessage = (ev) => handle(JSON.parse(ev.data));
+    ws.onerror = () => { document.getElementById('roomStatus').textContent = 'Lỗi kết nối. Thử lại.'; };
+  }
+
+  function handle(msg) {
+    if (msg.type === 'CONNECT') {
+      if (initialRoom) ws.send(JSON.stringify({version:'v2', type:'JOIN_ROOM', roomId: initialRoom}));
+      return;
+    }
+    if (msg.type === 'ROOM_STATE') {
+      renderRoom(msg);
+      return;
+    }
+    if (msg.type === 'MATCH_STARTED') {
+      document.getElementById('gameFrame').style.display = 'block';
+      return;
+    }
+    if (msg.type === 'ROOM_CLOSED') {
+      document.getElementById('roomStatus').textContent = 'Phòng đóng: ' + (msg.payload ? msg.payload.reason : msg.payload);
+      return;
+    }
+  }
+
+  function renderRoom(msg) {
+    document.getElementById('roomPanel').style.display = 'block';
+    document.getElementById('roomCode').textContent = msg.roomId || '';
+    const ul = document.getElementById('memberList');
+    ul.innerHTML = '';
+    if (msg.payload && msg.payload.members) {
+      msg.payload.members.forEach(m => {
+        const li = document.createElement('li');
+        li.textContent = (m.playerId === playerId ? 'Bạn' : m.playerId) + (m.host ? ' (host)' : '') + (m.ready ? ' ✓' : '');
+        ul.appendChild(li);
+      });
+    }
+    document.getElementById('roomStatus').textContent = 'Trạng thái: ' + (msg.payload ? msg.payload.status : '');
+    amHost = msg.payload && msg.payload.members && msg.payload.members.some(m => m.host && m.playerId === playerId);
+    document.getElementById('btnStart').style.display = amHost ? 'inline-block' : 'none';
+  }
+
+  document.getElementById('btnCreate').addEventListener('click', () => {
+    const levelId = document.getElementById('levelId').value;
+    if (!ws) connect();
+    setTimeout(() => ws.send(JSON.stringify({version:'v2', type:'CREATE_ROOM', payload:{levelId}})), 300);
+  });
+
+  document.getElementById('btnJoin').addEventListener('click', () => {
+    const code = document.getElementById('joinCode').value.trim().toUpperCase();
+    if (!code) return;
+    if (!ws) connect();
+    setTimeout(() => ws.send(JSON.stringify({version:'v2', type:'JOIN_ROOM', roomId: code})), 300);
+  });
+
+  document.getElementById('btnReady').addEventListener('click', () => {
+    ws.send(JSON.stringify({version:'v2', type:'READY', payload:{ready:true}}));
+  });
+
+  document.getElementById('btnStart').addEventListener('click', () => {
+    ws.send(JSON.stringify({version:'v2', type:'START_MATCH'}));
+  });
+
+  window.addEventListener('beforeunload', () => { if (ws) ws.send(JSON.stringify({version:'v2', type:'LEAVE_ROOM'})); });
+/*]]>*/
+</script>
+</body>
+</html>

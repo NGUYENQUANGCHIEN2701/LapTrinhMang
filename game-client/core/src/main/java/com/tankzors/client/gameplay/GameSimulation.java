@@ -40,6 +40,7 @@ public class GameSimulation {
     private int aiKilledThisMatch = 0;
     private boolean matchEndFired = false;
     private String currentLevelId = "campaign_1";
+    private boolean coopMode = false;
 
     private MatchEndHandler matchEndHandler;
 
@@ -72,6 +73,17 @@ public class GameSimulation {
         commandQueue.add(new Command(localPlayerId, Command.Type.STOP_DIR, direction, false));
     }
 
+    /** Input từ một player cụ thể (co-op: host áp input guest vào đúng tank). */
+    public void enqueueMove(String playerId, Direction direction, boolean moving) {
+        commandQueue.add(new Command(playerId, Command.Type.MOVE, direction, moving));
+    }
+    public void enqueueShoot(String playerId) {
+        commandQueue.add(new Command(playerId, Command.Type.SHOOT, null, false));
+    }
+    public void enqueueStopAll(String playerId) {
+        commandQueue.add(new Command(playerId, Command.Type.STOP, null, false));
+    }
+
     /** Bắt đầu/tải một màn campaign: nạp map, spawn AI, đặt trạng thái PLAYING. */
     public void startCampaignLevel(MapDefinition map, String levelId, String playerId) {
         this.localPlayerId = playerId;
@@ -81,6 +93,50 @@ public class GameSimulation {
         spawnPlayer(playerId);
         spawnMapEnemies();
         world.setStatus(GameWorld.Status.PLAYING);
+    }
+
+    /**
+     * Bắt đầu màn co-op: 2 player tank tại spawn khác nhau + AI. Friendly fire
+     * CHẶN giữa các player (xem {@link #friendlyFirePlayerOff}).
+     * @param playerIds danh sách 2 ID người chơi (host + guest).
+     */
+    public void startCoopLevel(MapDefinition map, String levelId, java.util.List<String> playerIds) {
+        this.currentLevelId = levelId != null ? levelId : map.getName();
+        this.coopMode = true;
+        this.localPlayerId = playerIds.isEmpty() ? null : playerIds.get(0);
+        world.setCurrentMap(map);
+        resetMatch();
+        // Spawn player tanks - vị trí khác nhau (ô player spawn + ô enemy spawn đầu).
+        java.util.List<Position> spots = collectPlayerSpawns(map);
+        for (int i = 0; i < playerIds.size(); i++) {
+            String pid = playerIds.get(i);
+            Position spot = i < spots.size() ? spots.get(i) : new Position(100 + i * 80, 100);
+            PlayerTank player = new PlayerTank(pid, spot.getX(), spot.getY());
+            player.setBulletIdSource(() -> bulletIds.next(pid));
+            world.addTank(player);
+        }
+        spawnMapEnemies();
+        world.setStatus(GameWorld.Status.PLAYING);
+    }
+
+    private java.util.List<Position> collectPlayerSpawns(IMap map) {
+        java.util.List<Position> spots = new java.util.ArrayList<>();
+        Position playerSpawn = findPlayerSpawn();
+        spots.add(playerSpawn);
+        // Thêm ô enemy spawn đầu làm spawn cho player thứ 2 (co-op).
+        IMap m = world.getCurrentMap();
+        if (m != null) {
+            outer:
+            for (int row = 0; row < m.getHeight(); row++) {
+                for (int col = 0; col < m.getWidth(); col++) {
+                    if (m.getTileAt(col, row) == TileType.SPAWN_ENEMY) {
+                        spots.add(new Position((col + 0.5) * m.getTileSize(), (row + 0.5) * m.getTileSize()));
+                        break outer;
+                    }
+                }
+            }
+        }
+        return spots;
     }
 
     /** Khởi động lại màn hiện tại (R). */
@@ -273,6 +329,7 @@ public class GameSimulation {
                 continue;
             }
             for (ITank tank : world.getAllTanks()) {
+                if (coopMode && isFriendlyFire(bullet, tank)) continue;
                 if (Collision.checkBulletTankCollision(bullet, tank)) {
                     tank.takeDamage(bullet.getDamage());
                     bullet.deactivate();
@@ -284,6 +341,15 @@ public class GameSimulation {
                 }
             }
         }
+    }
+
+    private boolean isFriendlyFire(IBullet bullet, ITank tank) {
+        // Co-op: đạn của player không gây damage lên player khác (chỉ chặn cross-player,
+        // tự-bắn-mình đã chặn trong Collision.checkBulletTankCollision).
+        if (tank instanceof PlayerTank && bullet.getOwnerId() != null) {
+            return world.getTank(bullet.getOwnerId()) instanceof PlayerTank;
+        }
+        return false;
     }
 
     private void cleanupDeadTanks() {
