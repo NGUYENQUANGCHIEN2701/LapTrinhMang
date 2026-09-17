@@ -2,6 +2,7 @@ package com.tankzors.client;
 
 import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
 import com.tankzors.client.assets.AssetRepository;
 import com.tankzors.client.input.ClientInputProcessor;
 import com.tankzors.client.input.ClientInputProcessor.Direction;
@@ -109,6 +110,26 @@ public class GameClient implements ApplicationListener {
             }
         });
         Gdx.input.setInputProcessor(input);
+        catchGameplayKeys();
+    }
+
+    /**
+     * Ngăn browser dùng các phím gameplay để cuộn trang khi chạy bản HTML5.
+     *
+     * <p>GWT backend không dựa vào giá trị trả về của
+     * {@link ClientInputProcessor#keyDown(int)} để gọi preventDefault; nó chỉ
+     * chặn những phím đã được đăng ký bằng setCatchKey. Trên desktop các lệnh
+     * này không làm thay đổi hành vi.</p>
+     */
+    private void catchGameplayKeys() {
+        int[] keys = {
+                Input.Keys.UP, Input.Keys.DOWN, Input.Keys.LEFT, Input.Keys.RIGHT,
+                Input.Keys.W, Input.Keys.A, Input.Keys.S, Input.Keys.D,
+                Input.Keys.SPACE, Input.Keys.J, Input.Keys.R, Input.Keys.N
+        };
+        for (int key : keys) {
+            Gdx.input.setCatchKey(key, true);
+        }
     }
 
     @Override
