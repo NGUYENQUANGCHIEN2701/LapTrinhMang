@@ -47,8 +47,8 @@ public class HtmlLauncher extends GwtApplication {
                     browserPlayerId(), levelId, mapSource,
                     (MatchResult r) -> { GwtAppBridge.get().submitResult(r); return true; });
             client.setSession(session);
-            // Kích hoạt fetch bootstrap (async JSNI callback quay lại Java).
-            mapSource.request(levelId, session);
+            // start() (fetch bootstrap ban đầu) được GameClient.create() gọi.
+            // Restart/nextLevel sau này cũng qua cùng requestLevel path.
         }
         // else: legacy server-authoritative (chỉ tới khi Bước E tích hợp host/guest).
 
@@ -78,19 +78,24 @@ public class HtmlLauncher extends GwtApplication {
 
     // ===== JSNI bridge cho REST bootstrap/result (async) =====
 
-    /** Nguồn map qua REST bootstrap (Bước D). Load async qua XMLHttpRequest. */
+    /**
+     * Nguồn map qua REST bootstrap (Bước D). Tải <b>bất đồng bộ</b> qua XMLHttpRequest:
+     * kết quả về qua {@link MapSource.LevelCallback} (JSNI callback quay lại Java),
+     * không bao giờ trả sync — nên {@link #loadMapJson} luôn null.
+     */
     static final class BootstrapMapSource implements MapSource {
         @Override public String loadMapJson(String levelId) { return null; } // async; trả null khi sync
         @Override public String newRunId(String levelId) { return "pending"; }
         @Override public String mapVersion(String levelId) { return ""; }
 
-        void request(String levelId, LocalCampaignSession session) {
+        @Override
+        public void requestLevel(String levelId, LevelCallback callback) {
             String url = "/api/game/bootstrap?levelId=" + encode(levelId) + "&mode=campaign";
-            fetchBootstrap(url, session);
+            fetchBootstrap(url, callback);
         }
 
-        private native void fetchBootstrap(String url, LocalCampaignSession session) /*-{
-            var self = this;
+        /** Fetch async; kích đúng 1 callback (onLevelLoaded hoặc onLoadError). */
+        private native void fetchBootstrap(String url, LevelCallback callback) /*-{
             try {
                 var xhr = new XMLHttpRequest();
                 xhr.open("GET", url, true);
@@ -103,17 +108,20 @@ public class HtmlLauncher extends GwtApplication {
                             var runId = resp.runId || ("local-" + resp.levelId);
                             var mapVersion = resp.mapVersion || "";
                             var levelId = resp.levelId;
-                            session.@com.tankzors.client.session.LocalCampaignSession::changeLevel(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)(levelId, mapJson, runId, mapVersion);
+                            callback.@com.tankzors.client.session.MapSource$LevelCallback::onLevelLoaded(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)(levelId, mapJson, runId, mapVersion);
                         } catch (e) {
                             $wnd.console && $wnd.console.error("[bootstrap] parse failed", e);
+                            callback.@com.tankzors.client.session.MapSource$LevelCallback::onLoadError(Ljava/lang/String;)("parse: " + e);
                         }
                     } else {
                         $wnd.console && $wnd.console.error("[bootstrap] HTTP " + xhr.status);
+                        callback.@com.tankzors.client.session.MapSource$LevelCallback::onLoadError(Ljava/lang/String;)("HTTP " + xhr.status);
                     }
                 });
                 xhr.send();
             } catch (e) {
                 $wnd.console && $wnd.console.error("[bootstrap] request failed", e);
+                callback.@com.tankzors.client.session.MapSource$LevelCallback::onLoadError(Ljava/lang/String;)("fetch: " + e);
             }
         }-*/;
 
