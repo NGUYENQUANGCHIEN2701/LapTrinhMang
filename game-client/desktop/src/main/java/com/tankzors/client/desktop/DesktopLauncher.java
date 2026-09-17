@@ -40,12 +40,13 @@ public final class DesktopLauncher {
         GameClient client = new GameClient(wsUrl, levelId, socket);
 
         if (!online) {
-            // Campaign local: MapSource load lazy (Gdx.files) trong GameClient.create().
+            // Campaign local: MapSource load map qua requestLevel (sync trên desktop).
             DesktopMapSource mapSource = new DesktopMapSource();
             LocalCampaignSession session = new LocalCampaignSession(
                     "desktop-player", levelId, mapSource,
                     result -> { System.out.println("[Match] " + result.status + " score=" + result.score); return true; });
             client.setSession(session);
+            // start() được GameClient.create() gọi (sau khi Gdx.files đã sẵn sàng).
         }
 
         try {
