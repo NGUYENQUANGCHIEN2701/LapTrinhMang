@@ -11,6 +11,12 @@ import java.util.List;
  */
 public final class GameStateSnapshot {
     public String gameStatus = "WAITING";
+    /**
+     * Trạng thái chuyển màn của session (không phải world status). Khi khác null
+     * ({@code "LOADING"} / {@code "LOAD_ERROR"}), renderer vẽ overlay chuyển màn
+     * thay vì overlay VICTORY/DEFEAT, và gameStatus giữ nguyên kết quả cũ.
+     */
+    public String transitionStatus;
     public int score;
     public MapSnapshot map;
     public final List<TankSnapshot> tanks = new ArrayList<>();
