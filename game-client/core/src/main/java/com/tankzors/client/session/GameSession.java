@@ -33,6 +33,13 @@ public interface GameSession {
     /** Chuyển màn kế (N) nếu VICTORY. */
     void nextLevel();
 
+    /**
+     * Kích hoạt session (nạp map đầu tiên). Gọi sau khi Gdx đã ready
+     * (trong {@code GameClient.create()}). Với session có sẵn map (host/guest)
+     * có thể no-op.
+     */
+    default void start() {}
+
     /** Kết quả đã chốt, hoặc null nếu chưa kết thúc/chưa lưu. */
     MatchResult matchResult();
 
