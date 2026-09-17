@@ -111,6 +111,10 @@ public class GameClient implements ApplicationListener {
         });
         Gdx.input.setInputProcessor(input);
         catchGameplayKeys();
+
+        // Session tự kích hoạt (nạp map đầu qua requestLevel async) — gọi sau khi
+        // Gdx đã ready. Session có sẵn map (host/guest) mặc định no-op.
+        if (session != null) session.start();
     }
 
     /**
