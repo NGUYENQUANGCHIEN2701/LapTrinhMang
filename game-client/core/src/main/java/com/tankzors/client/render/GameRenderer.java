@@ -62,6 +62,9 @@ public class GameRenderer implements Disposable {
 
         if (state == null) return;
 
+        // Khi đang chuyển màn / lỗi tải: giữ world cũ (nếu có) và vẽ overlay transition.
+        boolean transitioning = state.transitionStatus != null;
+
         // 1. Map
         if (state.map != null) {
             drawMap(state.map);
@@ -85,6 +88,11 @@ public class GameRenderer implements Disposable {
         }
         shapes.end();
 
+        if (transitioning) {
+            drawTransitionOverlay(state.transitionStatus);
+            return;
+        }
+
         // 5. HUD (player HP + status)
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         drawHud(state);
@@ -94,6 +102,43 @@ public class GameRenderer implements Disposable {
             || "DEFEAT".equalsIgnoreCase(state.gameStatus)) {
             drawResultOverlay(state);
         }
+    }
+
+    /**
+     * Overlay khi đang tải màn kế (LOADING) hoặc lỗi tải (LOAD_ERROR).
+     * Giữ thông điệp ASCII (font mặc định thiếu glyph tiếng Việt).
+     */
+    private void drawTransitionOverlay(String transitionStatus) {
+        float width = Gdx.graphics.getWidth();
+        float height = Gdx.graphics.getHeight();
+        boolean error = "LOAD_ERROR".equalsIgnoreCase(transitionStatus);
+
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(0f, 0f, 0f, 0.72f);
+        shapes.rect(0, 0, width, height);
+
+        float panelWidth = Math.min(520f, width - 48f);
+        float panelHeight = 160f;
+        float panelX = (width - panelWidth) / 2f;
+        float panelY = (height - panelHeight) / 2f;
+        shapes.setColor(error ? 0.16f : 0.10f, 0.14f, 0.12f, 0.98f);
+        shapes.rect(panelX, panelY, panelWidth, panelHeight);
+        shapes.setColor(error ? 0.90f : 0.30f, error ? 0.25f : 0.55f, 0.15f, 1f);
+        shapes.rect(panelX, panelY, panelWidth, 5f);
+        shapes.end();
+
+        font.getData().setScale(1.6f);
+        font.setColor(error ? 1f : 0.85f, error ? 0.30f : 0.85f, error ? 0.15f : 0.55f, 1f);
+        drawCentered(error ? "KHONG TAI DUOC MAN" : "DANG TAI MAN...", width / 2f, panelY + 95f);
+
+        if (error) {
+            font.getData().setScale(0.95f);
+            font.setColor(0.75f, 0.78f, 0.82f, 1f);
+            drawCentered("Nhan N / R de thu lai", width / 2f, panelY + 55f);
+        }
+
+        font.getData().setScale(1f);
+        font.setColor(Color.WHITE);
     }
 
     private void drawMap(MapSnapshot map) {
