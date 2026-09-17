@@ -26,6 +26,11 @@
         #loading.hidden {
             display: none;
         }
+
+        canvas {
+            display: block;
+            outline: none;
+        }
     </style>
 </head>
 <body>
@@ -40,7 +45,16 @@
         (function () {
             var loading = document.getElementById('loading');
             var observer = new MutationObserver(function () {
-                if (document.querySelector('canvas')) {
+                var canvas = document.querySelector('canvas');
+                if (canvas) {
+                    // Đảm bảo iframe/canvas nhận bàn phím ngay khi game sẵn sàng.
+                    // pointerdown giữ focus đúng sau khi người chơi click lại game.
+                    canvas.setAttribute('tabindex', '0');
+                    canvas.addEventListener('pointerdown', function () {
+                        canvas.focus();
+                    });
+                    window.focus();
+                    canvas.focus();
                     loading.classList.add('hidden');
                     observer.disconnect();
                 }
