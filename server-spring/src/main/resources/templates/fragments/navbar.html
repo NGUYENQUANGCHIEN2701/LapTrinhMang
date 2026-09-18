@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <body>
 <nav th:fragment="navbar" class="site-nav">
     <a class="brand" th:href="@{/}">TANKZORS</a>
@@ -9,6 +10,20 @@
         <a th:href="@{/campaigns}" th:classappend="${activePage == 'campaigns'} ? 'active'">Campaigns</a>
         <a th:href="@{/leaderboard}" th:classappend="${activePage == 'leaderboard'} ? 'active'">Leaderboard</a>
         <a th:href="@{/settings}" th:classappend="${activePage == 'settings'} ? 'active'">Settings</a>
+        <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin}" th:classappend="${activePage == 'admin'} ? 'active'"
+           style="color: var(--color-accent-alt); font-weight: 700;">Admin</a>
+    </div>
+    <div class="nav-auth">
+        <span sec:authorize="isAuthenticated()" class="user-info">
+            <span class="user-display" sec:authentication="name"></span>
+            <span sec:authorize="hasRole('ADMIN')" class="badge-role badge-admin">ADMIN</span>
+            <span sec:authorize="hasRole('USER') and !hasRole('ADMIN')" class="badge-role badge-user">USER</span>
+        </span>
+        <a sec:authorize="isAuthenticated()" th:href="@{/logout}" class="nav-logout"
+           onclick="event.preventDefault(); document.getElementById('logoutForm').submit();">Logout</a>
+        <form id="logoutForm" th:action="@{/logout}" method="post" style="display:none"></form>
+        <a sec:authorize="isAnonymous()" th:href="@{/login}" class="nav-login">Login</a>
+        <a sec:authorize="isAnonymous()" th:href="@{/register}" class="nav-register">Register</a>
     </div>
 </nav>
 </body>

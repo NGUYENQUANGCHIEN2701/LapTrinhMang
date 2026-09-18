@@ -331,6 +331,84 @@ code {
     color: var(--color-text-muted);
 }
 
+/* ===== Nav Auth (Login/Register/User info) ===== */
+.nav-auth {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.user-display {
+    color: var(--color-accent);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.badge-role {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+}
+
+.badge-admin {
+    background: var(--color-accent-alt);
+    color: #000;
+}
+
+.badge-user {
+    background: var(--color-info);
+    color: #000;
+}
+
+.nav-login, .nav-register, .nav-logout {
+    font-size: 0.9rem;
+    text-decoration: none;
+    padding: 0.35rem 0.9rem;
+    border-radius: var(--radius-sm);
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.nav-login {
+    color: var(--color-accent);
+    border: 1px solid var(--color-border);
+}
+
+.nav-login:hover {
+    border-color: var(--color-accent);
+}
+
+.nav-register {
+    background: var(--color-accent);
+    color: #000;
+    border: 1px solid var(--color-accent);
+}
+
+.nav-register:hover {
+    background: #33eb91;
+    border-color: #33eb91;
+}
+
+.nav-logout {
+    color: var(--color-danger);
+    border: 1px solid var(--color-border);
+    cursor: pointer;
+}
+
+.nav-logout:hover {
+    border-color: var(--color-danger);
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 600px) {
     .site-nav {

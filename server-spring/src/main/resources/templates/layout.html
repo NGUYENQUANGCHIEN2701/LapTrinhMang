@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
       th:fragment="html(content, pageCss)">
 <head>
     <th:block th:replace="~{fragments/head :: head(${pageTitle})}"></th:block>
