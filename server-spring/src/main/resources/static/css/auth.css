@@ -1,0 +1,77 @@
+/* ============================================================
+   auth.css — Login & Register pages
+   ============================================================ */
+
+.auth-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+}
+
+.auth-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+}
+
+.auth-title {
+    color: var(--color-accent);
+    font-size: 1.8rem;
+    text-align: center;
+    margin-bottom: 0.3rem;
+}
+
+.auth-subtitle {
+    color: var(--color-text-secondary);
+    text-align: center;
+    font-size: 0.9rem;
+    margin-bottom: 2rem;
+}
+
+.auth-form .form-group input {
+    width: 100%;
+}
+
+.auth-form input::placeholder {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+}
+
+.auth-form .req {
+    color: var(--color-danger);
+}
+
+.btn-auth {
+    width: 100%;
+    min-width: auto;
+}
+
+.auth-footer {
+    text-align: center;
+    margin-top: 1.5rem;
+    color: var(--color-text-secondary);
+    font-size: 0.9rem;
+}
+
+.auth-footer a {
+    color: var(--color-accent);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.auth-footer a:hover {
+    text-decoration: underline;
+}
+
+.form-actions {
+    justify-content: stretch;
+}
+
+.form-actions .btn-auth {
+    flex: 1;
+}

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{layout :: html(content = ~{::content}, pageCss = ~{::pagecss})}">
+<head>
+    <th:block th:fragment="pagecss">
+        <link rel="stylesheet" th:href="@{/css/auth.css}" />
+    </th:block>
+</head>
+<body>
+<section th:fragment="content" class="auth-page">
+    <div class="auth-card">
+        <h1 class="auth-title">Đăng Nhập</h1>
+        <p class="auth-subtitle">Đăng nhập để chơi Tankzors Pro</p>
+
+        <div th:if="${param.error}" class="alert alert-error">
+            Sai tên đăng nhập hoặc mật khẩu.
+        </div>
+        <div th:if="${param.logout}" class="alert alert-success">
+            Bạn đã đăng xuất thành công.
+        </div>
+
+        <form th:action="@{/login}" method="post" class="auth-form">
+            <div class="form-group">
+                <label for="username">Tên đăng nhập</label>
+                <input type="text" id="username" name="username"
+                       placeholder="Nhập tên đăng nhập" required autofocus />
+            </div>
+            <div class="form-group">
+                <label for="password">Mật khẩu</label>
+                <input type="password" id="password" name="password"
+                       placeholder="Nhập mật khẩu" required />
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-auth">Đăng Nhập</button>
+            </div>
+        </form>
+
+        <p class="auth-footer">
+            Chưa có tài khoản?
+            <a th:href="@{/register}">Đăng ký ngay</a>
+        </p>
+    </div>
+</section>
+</body>
+</html>

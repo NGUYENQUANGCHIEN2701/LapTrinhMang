@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: html(content = ~{::content}, pageCss = ~{::pagecss})}">
+<head>
+    <th:block th:fragment="pagecss">
+        <link rel="stylesheet" th:href="@{/css/auth.css}" />
+    </th:block>
+</head>
+<body>
+<section th:fragment="content" class="auth-page">
+    <div class="auth-card">
+        <h1 class="auth-title">Đăng Ký</h1>
+        <p class="auth-subtitle">Tạo tài khoản mới để chơi Tankzors Pro</p>
+
+        <form th:action="@{/register}" th:object="${registerForm}" method="post" class="auth-form">
+            <div class="form-group">
+                <label for="username">Tên đăng nhập <span class="req">*</span></label>
+                <input type="text" id="username" th:field="*{username}"
+                       placeholder="3-50 ký tự" required />
+            </div>
+            <div class="form-group">
+                <label for="displayName">Tên hiển thị</label>
+                <input type="text" id="displayName" th:field="*{displayName}"
+                       placeholder="Tên trong game (tùy chọn)" />
+            </div>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" th:field="*{email}"
+                       placeholder="email@example.com" />
+            </div>
+            <div class="form-group">
+                <label for="password">Mật khẩu <span class="req">*</span></label>
+                <input type="password" id="password" th:field="*{password}"
+                       placeholder="Tối thiểu 6 ký tự" required />
+            </div>
+            <div class="form-group">
+                <label for="confirmPassword">Xác nhận mật khẩu <span class="req">*</span></label>
+                <input type="password" id="confirmPassword" th:field="*{confirmPassword}"
+                       placeholder="Nhập lại mật khẩu" required />
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-auth">Đăng Ký</button>
+                <a th:href="@{/login}" class="btn btn-ghost btn-auth">Hủy</a>
+            </div>
+        </form>
+
+        <p class="auth-footer">
+            Đã có tài khoản?
+            <a th:href="@{/login}">Đăng nhập</a>
+        </p>
+    </div>
+</section>
+</body>
+</html>
