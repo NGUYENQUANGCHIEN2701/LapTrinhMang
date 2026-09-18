@@ -1,0 +1,13 @@
+# Giảm Docker build context — bỏ thư mục không cần thiết
+game-client/
+infra/
+docs/
+.planning/
+.idea/
+.claude/
+**/target/
+**/build/
+**/.gradle/
+**/*.log
+**/.DS_Store
+gitignore

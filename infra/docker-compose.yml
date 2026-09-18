@@ -1,17 +1,18 @@
-# infra/docker-compose.yml - PostgreSQL skeleton cho Phase 4
+# ============================================================
+# infra/docker-compose.yml — One-command dev stack
 #
-# Phase 1 chỉ tạo file để developer có thể start postgres本地. Server-spring
-# chưa kết nối DB. Phase 4 sẽ:
-#   - Thêm spring-boot-starter-data-jpa vào server-spring.
-#   - Schema migration qua Flyway/Liquibase (chưa chốt).
-#   - Tách LeaderboardRepository interface khỏi implementation PostgreSQL.
+# Chạy:
+#   docker compose -f infra/docker-compose.yml up --build
 #
-# Cách chạy:
-#   docker compose -f infra/docker-compose.yml up -d
-#   docker compose -f infra/docker-compose.yml logs -f postgres
+# Dừng:
 #   docker compose -f infra/docker-compose.yml down
+#
+# App:  http://localhost:8081
+# DB:   localhost:5432 (tankzors / tankzors_dev_password)
+# ============================================================
 
 services:
+
   postgres:
     image: postgres:16-alpine
     container_name: tankzors-postgres
@@ -27,9 +28,27 @@ services:
       - tankzors_pg_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U tankzors -d tankzors"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+
+  app:
+    build:
+      context: ..
+      dockerfile: server-spring/Dockerfile
+    container_name: tankzors-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/tankzors
+      DB_USER: tankzors
+      DB_PASSWORD: tankzors_dev_password
+      DB_DRIVER: org.postgresql.Driver
+      SPRING_JPA_HIBERNATE_DDL-AUTO: validate
+    ports:
+      - "8081:8081"
 
 volumes:
   tankzors_pg_data:
