@@ -59,6 +59,13 @@ public class MatchResultEntity {
     @Column(name = "hp_remain")
     private Integer hpRemain;
 
+    /** Reward nhận được trận này (clamped theo map). VICTORY campaign mới khác 0. */
+    @Column(name = "stars_earned")
+    private Integer starsEarned;
+
+    @Column(name = "coins_earned")
+    private Integer coinsEarned;
+
     @Column(name = "payload_hash", length = 64)
     private String payloadHash;
 
@@ -93,6 +100,10 @@ public class MatchResultEntity {
     public void setTimeSeconds(Integer timeSeconds) { this.timeSeconds = timeSeconds; }
     public Integer getHpRemain() { return hpRemain; }
     public void setHpRemain(Integer hpRemain) { this.hpRemain = hpRemain; }
+    public Integer getStarsEarned() { return starsEarned; }
+    public void setStarsEarned(Integer starsEarned) { this.starsEarned = starsEarned; }
+    public Integer getCoinsEarned() { return coinsEarned; }
+    public void setCoinsEarned(Integer coinsEarned) { this.coinsEarned = coinsEarned; }
     public String getPayloadHash() { return payloadHash; }
     public void setPayloadHash(String payloadHash) { this.payloadHash = payloadHash; }
     public Instant getEndedAt() { return endedAt; }

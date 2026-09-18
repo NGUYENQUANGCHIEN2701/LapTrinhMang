@@ -127,6 +127,10 @@ public class GameApiController {
         body.put("unlockedLevels", out.unlockedLevels);
         body.put("saved", true);
         body.put("alreadySaved", out.alreadySaved);
+        body.put("starsEarned", out.view.starsEarned);
+        body.put("coinsEarned", out.view.coinsEarned);
+        body.put("totalStars", out.totalStars);
+        body.put("totalCoins", out.totalCoins);
         return ResponseEntity.ok(body);
     }
 
