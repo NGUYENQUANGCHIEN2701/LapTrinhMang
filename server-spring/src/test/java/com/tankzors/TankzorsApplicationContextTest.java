@@ -43,8 +43,10 @@ class TankzorsApplicationContextTest {
     }
 
     @Test
-    void gameLoopStarted() {
-        assertNotNull(gameLoop);
-        assertTrue(gameLoop.isRunning(), "GameLoop phải running sau context load");
+    void gameLoopBeanPresentButSchedulerOffByDefault() {
+        // Bước F: scheduler engine TẮT mặc định (tankzors.engine.scheduler.enabled false).
+        // Bean vẫn còn (test simulation cũ cần), nhưng KHÔNG chạy thread.
+        assertNotNull(gameLoop, "GameLoop bean vẫn phải tồn tại (test simulation cần)");
+        assertTrue(!gameLoop.isRunning(), "Scheduler engine phải off sau Bước F");
     }
 }

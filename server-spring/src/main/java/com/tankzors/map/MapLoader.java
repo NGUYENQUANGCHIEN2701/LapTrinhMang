@@ -53,9 +53,6 @@ public class MapLoader {
             if (!file.exists()) {
                 file = new File("src/main/resources/" + resourcePath);
             }
-            if (!file.exists()) {
-                file = new File("server/src/main/resources/" + resourcePath);
-            }
             if (file.exists()) {
                 try {
                     is = new FileInputStream(file);

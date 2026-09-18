@@ -23,6 +23,7 @@
                 class="game-frame"
                 th:src="@{/game/libgdx/index.html(levelId=${selectedLevelId})}"
                 title="Tankzors Game"
+                tabindex="0"
                 allow="autoplay; fullscreen; gamepad"
                 allowfullscreen></iframe>
         <noscript>
@@ -32,6 +33,28 @@
             </div>
         </noscript>
     </div>
+
+    <script>
+        // Chuyển focus vào iframe sau khi LibGDX tải xong để các phím mũi tên
+        // đi tới game thay vì cuộn trang Thymeleaf bên ngoài.
+        document.addEventListener('DOMContentLoaded', function () {
+            var frame = document.getElementById('game-frame');
+            if (!frame) return;
+
+            var focusGame = function () {
+                frame.focus();
+                try {
+                    frame.contentWindow.focus();
+                } catch (ignored) {
+                    // Same-origin ở runtime; giữ fallback frame.focus().
+                }
+            };
+
+            frame.addEventListener('load', focusGame);
+            frame.addEventListener('pointerdown', focusGame);
+            focusGame();
+        });
+    </script>
 
     <p class="controls-hint">
         <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / mũi tên: di chuyển &middot;
