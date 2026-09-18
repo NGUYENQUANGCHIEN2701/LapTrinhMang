@@ -1,0 +1,184 @@
+/* ============================================================
+   admin.css — Admin Dashboard
+   ============================================================ */
+
+.admin-page {
+    width: 100%;
+}
+
+.admin-stats {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    flex: 1;
+    min-width: 120px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 1.2rem;
+    text-align: center;
+}
+
+.stat-number {
+    display: block;
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--color-accent);
+    line-height: 1;
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    margin-top: 0.4rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.admin-section {
+    margin-bottom: 2.5rem;
+}
+
+.section-title {
+    font-size: 1.3rem;
+    color: var(--color-accent);
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 0.5rem;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+.admin-table thead {
+    background: rgba(0, 0, 0, 0.35);
+}
+
+.admin-table th {
+    padding: 0.65rem 0.85rem;
+    text-align: left;
+    color: var(--color-text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.admin-table td {
+    padding: 0.55rem 0.85rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    white-space: nowrap;
+}
+
+.admin-table tbody tr:hover {
+    background: var(--color-surface-hover);
+}
+
+.admin-table td.mono {
+    font-family: 'Consolas', monospace;
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+}
+
+.empty-row {
+    text-align: center;
+    color: var(--color-text-muted);
+    padding: 1.5rem;
+}
+
+/* Role/Status badges */
+.role-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+}
+
+.role-admin {
+    background: var(--color-accent-alt);
+    color: #000;
+}
+
+.role-user {
+    background: var(--color-info);
+    color: #000;
+}
+
+.status-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+}
+
+.status-active {
+    background: rgba(0, 230, 118, 0.15);
+    color: var(--color-success);
+    border: 1px solid var(--color-success);
+}
+
+.status-disabled {
+    background: rgba(239, 83, 80, 0.15);
+    color: var(--color-danger);
+    border: 1px solid var(--color-danger);
+}
+
+/* Action buttons */
+.action-cell {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.btn-icon {
+    padding: 0.3rem 0.7rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.btn-icon:hover {
+    background: var(--color-surface-hover);
+}
+
+.btn-toggle {
+    color: var(--color-warning);
+    border-color: var(--color-warning);
+}
+
+.btn-toggle:hover {
+    background: rgba(255, 214, 0, 0.1);
+}
+
+.btn-delete {
+    color: var(--color-danger);
+    border-color: var(--color-danger);
+}
+
+.btn-delete:hover {
+    background: rgba(239, 83, 80, 0.1);
+}

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: html(content = ~{::content}, pageCss = ~{::pagecss})}">
+<head>
+    <th:block th:fragment="pagecss">
+        <link rel="stylesheet" th:href="@{/css/admin.css}" />
+    </th:block>
+</head>
+<body>
+<section th:fragment="content" class="admin-page">
+    <div class="page-wide">
+        <h1 class="page-title">Admin Dashboard</h1>
+        <p class="page-subtitle">Quản lý tài khoản, leaderboard và lịch sử trận</p>
+
+        <!-- Stats overview -->
+        <div class="admin-stats">
+            <div class="stat-card">
+                <span class="stat-number" th:text="${totalUsers}">0</span>
+                <span class="stat-label">Tổng Users</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number" th:text="${adminCount}">0</span>
+                <span class="stat-label">Admins</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number" th:text="${userCount}">0</span>
+                <span class="stat-label">Players</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number" th:text="${totalScores}">0</span>
+                <span class="stat-label">Score Entries</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number" th:text="${totalMatches}">0</span>
+                <span class="stat-label">Matches</span>
+            </div>
+        </div>
+
+        <!-- User Management -->
+        <div class="admin-section">
+            <h2 class="section-title">Quản lý tài khoản</h2>
+            <div class="table-wrapper">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Username</th>
+                            <th>Display Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Trạng thái</th>
+                            <th>Ngày tạo</th>
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="u : ${users}">
+                            <td th:text="${u.id}"></td>
+                            <td th:text="${u.username}"></td>
+                            <td th:text="${u.displayName}"></td>
+                            <td th:text="${u.email != null ? u.email : '-'}"></td>
+                            <td>
+                                <span th:class="'role-badge ' + ${u.role == 'ROLE_ADMIN' ? 'role-admin' : 'role-user'}"
+                                      th:text="${u.role == 'ROLE_ADMIN' ? 'ADMIN' : 'USER'}"></span>
+                            </td>
+                            <td>
+                                <span th:class="'status-badge ' + ${u.enabled ? 'status-active' : 'status-disabled'}"
+                                      th:text="${u.enabled ? 'Active' : 'Disabled'}"></span>
+                            </td>
+                            <td th:text="${u.createdAt}"></td>
+                            <td class="action-cell">
+                                <form th:if="${u.role != 'ROLE_ADMIN'}"
+                                      th:action="@{'/admin/users/' + ${u.id} + '/toggle'}"
+                                      method="post" style="display:inline">
+                                    <button type="submit" class="btn-icon btn-toggle"
+                                            th:text="${u.enabled ? 'Disable' : 'Enable'}"></button>
+                                </form>
+                                <form th:if="${u.role != 'ROLE_ADMIN'}"
+                                      th:action="@{'/admin/users/' + ${u.id} + '/delete'}"
+                                      method="post" style="display:inline"
+                                      onsubmit="return confirm('Xóa user này?')">
+                                    <button type="submit" class="btn-icon btn-delete">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Leaderboard -->
+        <div class="admin-section">
+            <h2 class="section-title">Leaderboard toàn bộ</h2>
+            <div class="table-wrapper">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Player</th>
+                            <th>Map</th>
+                            <th>Score</th>
+                            <th>Ngày</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="e, iter : ${leaderboardEntries}">
+                            <td th:text="${iter.count}"></td>
+                            <td th:text="${e.playerName}"></td>
+                            <td th:text="${e.mapId}"></td>
+                            <td th:text="${e.score}"></td>
+                            <td th:text="${e.createdAt}"></td>
+                        </tr>
+                        <tr th:if="${leaderboardEntries.isEmpty()}">
+                            <td colspan="5" class="empty-row">Chưa có dữ liệu</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Match Results -->
+        <div class="admin-section">
+            <h2 class="section-title">Lịch sử trận gần đây</h2>
+            <div class="table-wrapper">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Run ID</th>
+                            <th>Player</th>
+                            <th>Map</th>
+                            <th>Mode</th>
+                            <th>Status</th>
+                            <th>Score</th>
+                            <th>Kết thúc</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="m : ${matchResults}">
+                            <td class="mono" th:text="${m.runId}"></td>
+                            <td th:text="${m.playerName}"></td>
+                            <td th:text="${m.mapId}"></td>
+                            <td th:text="${m.mode}"></td>
+                            <td>
+                                <span th:class="'status-badge ' + ${m.status == 'VICTORY' ? 'status-active' : 'status-disabled'}"
+                                      th:text="${m.status}"></span>
+                            </td>
+                            <td th:text="${m.score}"></td>
+                            <td th:text="${m.endedAt}"></td>
+                        </tr>
+                        <tr th:if="${matchResults.isEmpty()}">
+                            <td colspan="7" class="empty-row">Chưa có dữ liệu</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+</body>
+</html>
