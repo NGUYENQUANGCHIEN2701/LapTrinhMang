@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LocalCampaignSessionTest {
@@ -52,6 +53,102 @@ class LocalCampaignSessionTest {
                 .filter(tank -> tank.isPlayer)
                 .findFirst()
                 .orElseThrow();
+    }
+
+    // ===== Reward: VICTORY mang stars/coins map, DEFEAT = 0 =====
+
+    /**
+     * Map KHÔNG có AI + khai báo reward. Khi session bootstrap xong và step một
+     * frame, simulation tự detect "kh còn AI" → VICTORY ngay (xem GameSimulation
+     * cleanupDeadTanks: hasAI=false → VICTORY). Đây là cách deterministic nhất để
+     * thúc đẩy terminal mà không cần truy cập nội bộ GameSimulation.
+     */
+    private static final String MAP_JSON_VICTORY_REWARDS = """
+            {
+              "name": "Victory reward test",
+              "difficulty": "EASY",
+              "width": 7, "height": 5, "tileSize": 40,
+              "enemies": [],
+              "rewards": {"stars": 3, "coins": 50},
+              "grid": [
+                [1,1,1,1,1,1,1],
+                [1,0,0,0,0,0,1],
+                [1,0,3,0,0,0,1],
+                [1,0,0,0,0,0,1],
+                [1,1,1,1,1,1,1]
+              ]
+            }
+            """;
+
+    /** Map có AI (nhưng ta sẽ không kết thúc qua DEFEAT-manía ở đây) + reward. */
+    private static final String MAP_JSON_REWARDS = """
+            {
+              "name": "Reward test",
+              "difficulty": "EASY",
+              "width": 7, "height": 5, "tileSize": 40,
+              "enemies": [{"type": "AI", "difficulty": "EASY", "spawnX": 5, "spawnY": 2}],
+              "rewards": {"stars": 3, "coins": 50},
+              "grid": [
+                [1,1,1,1,1,1,1],
+                [1,0,0,0,0,0,1],
+                [1,0,3,0,0,4,1],
+                [1,0,0,0,0,0,1],
+                [1,1,1,1,1,1,1]
+              ]
+            }
+            """;
+
+    @Test
+    void victoryMatchResultCarriesMapReward() {
+        FakeAsyncMapSource source = new FakeAsyncMapSource();
+        LocalCampaignSession session = new LocalCampaignSession(
+                "player", "campaign_1", source, result -> true);
+        session.start();
+        source.pending.onLevelLoaded("campaign_1", MAP_JSON_VICTORY_REWARDS, "run-1", "v1");
+        assertEquals("PLAYING", session.status());
+
+        // không có AI → step 1 frame tự VICTORY.
+        session.update((float) GameplayConfig.STEP_SECONDS);
+
+        assertEquals("VICTORY", session.status(), "Map không có AI → VICTORY ngay");
+        assertNotNull(session.matchResult());
+        assertEquals(3, session.matchResult().starsEarned, "VICTORY nhận stars theo map");
+        assertEquals(50, session.matchResult().coinsEarned, "VICTORY nhận coins theo map");
+    }
+
+    @Test
+    void snapshotCarriesRewardAndDebriefFieldsOnVictory() {
+        FakeAsyncMapSource source = new FakeAsyncMapSource();
+        LocalCampaignSession session = new LocalCampaignSession(
+                "player", "campaign_1", source, result -> true);
+        session.start();
+        source.pending.onLevelLoaded("campaign_1", MAP_JSON_VICTORY_REWARDS, "run-1", "v1");
+        session.update((float) GameplayConfig.STEP_SECONDS);
+
+        GameStateSnapshot snap = session.snapshot();
+        assertEquals("VICTORY", snap.gameStatus);
+        assertEquals(3, snap.starsEarned, "Snapshot phải cho reward để renderer vẽ debrief");
+        assertEquals(50, snap.coinsEarned);
+        assertTrue(snap.elapsedSeconds >= 0);
+    }
+
+    @Test
+    void restartClearsPriorMatchResult() {
+        FakeAsyncMapSource source = new FakeAsyncMapSource();
+        LocalCampaignSession session = new LocalCampaignSession(
+                "player", "campaign_1", source, result -> true);
+        session.start();
+        source.pending.onLevelLoaded("campaign_1", MAP_JSON_VICTORY_REWARDS, "run-1", "v1");
+        session.update((float) GameplayConfig.STEP_SECONDS);
+        assertEquals("VICTORY", session.status());
+        assertNotNull(session.matchResult());
+
+        // Restart phải reset matchResult + re-bootstrap (runId mới).
+        session.restart();
+        assertNull(session.matchResult(), "Restart phải xóa matchResult cũ (chống reward trùng)");
+        source.pending.onLevelLoaded("campaign_1", MAP_JSON_REWARDS, "run-2", "v1");
+        assertEquals("PLAYING", session.status());
+        assertNull(session.matchResult(), "Chưa kết thúc màn mới → chưa có matchResult");
     }
 
     // ===== Existing tests (compat path: changeLevel sync) =====
