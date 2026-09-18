@@ -22,6 +22,17 @@ public final class GameStateSnapshot {
     public final List<TankSnapshot> tanks = new ArrayList<>();
     public final List<BulletSnapshot> bullets = new ArrayList<>();
 
+    // ===== Debrief fields (chỉ fill khi terminal — VICTORY/DEFEAT) =====
+    /** HP còn lại của player khi kết thúc; 0 nếu chưa kết thúc. */
+    public int hpRemain;
+    /** Số AI đã diệt trong trận. */
+    public int aiKills;
+    /** Thời gian trận (giây simulation). */
+    public int elapsedSeconds;
+    /** Reward lấy từ map (chỉ VICTORY). */
+    public int starsEarned;
+    public int coinsEarned;
+
     public void clearEntities() {
         tanks.clear();
         bullets.clear();

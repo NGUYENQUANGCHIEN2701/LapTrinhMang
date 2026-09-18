@@ -223,8 +223,9 @@ public class HostGameSession implements GameSession {
         if (matchResultFired) return;
         matchResultFired = true;
         int score = ScoreCalculator.calculate(hpRemain, aiKills, elapsedSeconds);
+        // Co-op reward chưa trong scope — chuyển tiếp 0 (client-reported, server vẫn clamp).
         matchResult = new MatchResult(runId, "COOP", lvl,
-                mapVersion == null ? "" : mapVersion, statusStr, score, hpRemain, aiKills, elapsedSeconds);
+                mapVersion == null ? "" : mapVersion, statusStr, score, hpRemain, aiKills, elapsedSeconds, 0, 0);
         // Broadcast MATCH_RESULT tới guests.
         String payload = "\"runId\":" + RelayPackets.quote(runId)
                 + ",\"mode\":\"COOP\""
@@ -234,7 +235,9 @@ public class HostGameSession implements GameSession {
                 + ",\"score\":" + score
                 + ",\"hpRemain\":" + hpRemain
                 + ",\"aiKills\":" + aiKills
-                + ",\"elapsedSeconds\":" + elapsedSeconds;
+                + ",\"elapsedSeconds\":" + elapsedSeconds
+                + ",\"starsEarned\":0"
+                + ",\"coinsEarned\":0";
         socket.send(RelayPackets.envelope("MATCH_RESULT", null, runId, 0, payload));
         if (resultHandler != null) {
             try { resultHandler.onResult(matchResult); }

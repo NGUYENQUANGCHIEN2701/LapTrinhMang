@@ -44,6 +44,9 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
 
     // Map đã nạp, dùng cho spawn khi restart (desktop path sync).
     private MapDefinition loadedMap;
+    /** Reward của màn hiện tại (lấy từ MapDefinition.rewards), reset mỗi lần load map. */
+    private int currentRewardStars;
+    private int currentRewardCoins;
 
     /** Phase do session quản lý, tách khỏi {@link GameWorld.Status} (vốn chỉ PLAYING/VICTORY/DEFEAT). */
     private enum Phase { INIT, PLAYING, LOADING_NEXT, LOAD_ERROR }
@@ -100,6 +103,9 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
             System.err.println("[LocalCampaignSession] Không parse được map '" + levelId + "'");
             return false;
         }
+        int[] rw = readRewards(loadedMap);
+        currentRewardStars = rw[0];
+        currentRewardCoins = rw[1];
         sim.setMatchEndHandler(this::onMatchEnd);
         sim.startCampaignLevel(loadedMap, levelId, playerId);
         return true;
@@ -144,6 +150,21 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
             snap.transitionStatus = "LOADING";
         } else if (phase == Phase.LOAD_ERROR) {
             snap.transitionStatus = "LOAD_ERROR";
+        }
+        // Debrief fields: chỉ có ý nghĩa khi terminal — fill luôn (renderer tự check status).
+        snap.elapsedSeconds = elapsedSec;
+        snap.aiKills = sim.getAiKilledThisMatch();
+        snap.hpRemain = 0;
+        for (com.tankzors.client.gameplay.interfaces.ITank t : w.getAllTanks()) {
+            if (t instanceof com.tankzors.client.gameplay.entity.PlayerTank) {
+                snap.hpRemain = t.getHP();
+                break;
+            }
+        }
+        // Reward/from MatchResult (chốt cuối trận). 0 khi chưa kết thúc hoặc DEFEAT.
+        if (matchResult != null) {
+            snap.starsEarned = matchResult.starsEarned;
+            snap.coinsEarned = matchResult.coinsEarned;
         }
         return snap;
     }
@@ -235,6 +256,9 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
                 : "local-" + loadedLevelId + "-" + nextSeq++;
         this.mapVersion = newMapVersion != null ? newMapVersion : mapSource.mapVersion(loadedLevelId);
         this.loadedMap = nextMap;
+        int[] rw = readRewards(nextMap);
+        currentRewardStars = rw[0];
+        currentRewardCoins = rw[1];
         matchResult = null;
         matchResultFired = false;
         sim.setMatchEndHandler(this::onMatchEnd);
@@ -267,6 +291,9 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         this.runId = runId != null ? runId : "local-" + newLevelId + "-" + nextSeq++;
         this.mapVersion = mapVersion != null ? mapVersion : mapSource.mapVersion(newLevelId);
         this.loadedMap = nextMap;
+        int[] rw = readRewards(nextMap);
+        currentRewardStars = rw[0];
+        currentRewardCoins = rw[1];
         matchResult = null;
         matchResultFired = false;
         sim.setMatchEndHandler(this::onMatchEnd);
@@ -279,8 +306,12 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         if (matchResultFired) return;
         matchResultFired = true;
         int score = ScoreCalculator.calculate(hpRemain, aiKills, elapsedSeconds);
+        // Chỉ tính reward khi VICTORY; map reward lấy theo màn hiện tại.
+        boolean victory = "VICTORY".equalsIgnoreCase(status);
+        int stars = victory ? currentRewardStars : 0;
+        int coins = victory ? currentRewardCoins : 0;
         matchResult = new MatchResult(runId, mode, lvl, mapVersion != null ? mapVersion : "",
-                status, score, hpRemain, aiKills, elapsedSeconds);
+                status, score, hpRemain, aiKills, elapsedSeconds, stars, coins);
         if (resultHandler != null) {
             try { resultHandler.onResult(matchResult); }
             catch (Exception ignored) { /* kết quả vẫn hiển thị */ }
@@ -296,6 +327,16 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
     public String getRunId() { return runId; }
 
     // ===== helpers =====
+    /** Đọc reward (stars/coins) từ map; null-safe. Trả 0 nếu map không khai báo. */
+    private static int[] readRewards(MapDefinition map) {
+        int stars = 0, coins = 0;
+        if (map != null && map.getRewards() != null) {
+            stars = Math.max(0, map.getRewards().getStars());
+            coins = Math.max(0, map.getRewards().getCoins());
+        }
+        return new int[]{stars, coins};
+    }
+
     private static long seedFor(String runId, String levelId) {
         // Deterministic: cùng runId+level → cùng seed → AI reproducible.
         long h = 0;

@@ -90,7 +90,8 @@ public class GuestGameSession implements GameSession {
                         p.getString("runId", ""), p.getString("mode", "COOP"),
                         p.getString("levelId", ""), p.getString("mapVersion", ""),
                         p.getString("status", ""), p.getInt("score", 0),
-                        p.getInt("hpRemain", 0), p.getInt("aiKills", 0), p.getInt("elapsedSeconds", 0));
+                        p.getInt("hpRemain", 0), p.getInt("aiKills", 0), p.getInt("elapsedSeconds", 0),
+                        p.getInt("starsEarned", 0), p.getInt("coinsEarned", 0));
                 if (resultHandler != null) resultHandler.onResult(matchResult);
             }
         } else if ("ROOM_CLOSED".equals(type)) {
