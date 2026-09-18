@@ -43,7 +43,6 @@ Y tuong chinh:
 LapTrinhMang/
   server-spring/          Spring Boot app, website, websocket, game engine, DB
   game-client/            LibGDX client: core, desktop launcher, HTML5 launcher
-  shared-protocol/        Java DTO/packet contract dung lam protocol target
   infra/                  Docker Compose PostgreSQL dev
   docs/                   Tai lieu kien truc, protocol, runbook, guide nay
   README.md               Huong dan tong quan o root
@@ -53,7 +52,6 @@ Khong sua truc tiep cac output build/generated:
 
 - `game-client/**/build/`
 - `game-client/.gradle/`
-- `shared-protocol/target/`
 - `server-spring/target/`
 - `server-spring/src/main/resources/static/game/libgdx/` neu muc tieu la sua source game. Thu muc nay la bundle HTML5 da build ra.
 
@@ -237,10 +235,10 @@ GameState phat hien win/lose
 
 Tai lieu chi tiet nam o `docs/protocol-v1.md`.
 
-Hien tai co 2 noi can chu y:
+Hai noi runtime can dong bo:
 
-- `server-spring/src/main/java/com/tankzors/network/protocol`: message server dang dung runtime.
-- `shared-protocol/src/main/java/com/tankzors/protocol`: packet contract target de thong nhat DTO ve sau.
+- `server-spring/src/main/java/com/tankzors/network`: parse/relay packet phia server.
+- `game-client/core/src/main/java/com/tankzors/client/network`: build/parse packet phia client.
 
 Khi sua protocol, can check ca 3 cho:
 

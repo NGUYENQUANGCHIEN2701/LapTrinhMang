@@ -7,9 +7,8 @@ Hướng dẫn build, run, troubleshoot Tankzors Pro. Tài liệu chính của r
 | Tool | Version | Lý do |
 |---|---|---|
 | **JDK** | 17+ (test 17 và 21) | Spring Boot + game-client |
-| **Maven** | 3.9+ | Build server-spring, server, shared-protocol |
+| **Maven** | 3.9+ | Build server-spring |
 | **Docker Desktop** | 4.20+ | Chạy PostgreSQL 16 qua docker compose |
-| **Node.js** | 18+ | Build React client (`npm`) |
 | **Git** | 2.40+ | Để clone & commit |
 | **Browser** | bất kỳ hiện | Thymeleaf website |
 
@@ -53,7 +52,6 @@ Override qua env: `DB_URL`, `DB_USER`, `DB_PASSWORD` (xem `application.yml`).
 ### Bước 2: Build server-spring
 
 ```bash
-mvn -f shared-protocol/pom.xml install              # nếu có thay đổi DTO
 mvn -f server-spring/pom.xml clean package -DskipTests
 ```
 
@@ -65,50 +63,31 @@ Output fat jar: `server-spring/target/tankzors-server-spring-1.0-SNAPSHOT.jar` (
 java -jar server-spring/target/tankzors-server-spring-1.0-SNAPSHOT.jar
 ```
 
-Log khi boot thành công:
+Log khi boot thành công sẽ có Spring Boot, Flyway và datasource; scheduler
+server-side được tắt mặc định vì campaign chạy trong LibGDX client.
 
 ```
 INFO  com.tankzors.TankzorsApplication  : Starting TankzorsApplication v1.0-SNAPSHOT
 INFO  o.f.c.i.s.JdbcTableSchemaHistory  : Schema history table "public"."flyway_schema_history" does not exist yet
 INFO  o.f.core.internal.command.DbMigrate: Migrating schema "public" to version "1 - init"
 INFO  o.f.core.internal.command.DbMigrate: Migrating schema "public" to version "2 - player progress"
-INFO  com.tankzors.engine.GameLoop       : [GameLoop] STARTED - Target: 30Hz (33ms/tick)
 INFO  com.tankzors.TankzorsApplication   : Started TankzorsApplication in 4.123 seconds
 ```
 
 Truy cập:
 
 - [http://localhost:8081/](http://localhost:8081/) — Home Thymeleaf
-- [http://localhost:8081/campaign](http://localhost:8081/campaign) — Chọn màn
-- [http://localhost:8081/play?levelId=campaign_1](http://localhost:8081/play?levelId=campaign_1) — Chơi (iframe React)
+- [http://localhost:8081/campaigns](http://localhost:8081/campaigns) — Chọn màn
+- [http://localhost:8081/play?levelId=campaign_1](http://localhost:8081/play?levelId=campaign_1) — Chơi LibGDX HTML5
 - [http://localhost:8081/leaderboard](http://localhost:8081/leaderboard) — Bảng xếp hạng
 - [http://localhost:8081/api/health](http://localhost:8081/api/health) — Health JSON
 
-### Bước 4 (optional): Build desktop client
+### Bước 4 (optional): Build lại HTML5 client
 
-LibGDX desktop launcher cho dev parity:
-
-```bash
-mvn -f game-client/pom.xml clean package -DskipTests
-java -jar game-client/target/tankzors-game-client-1.0-SNAPSHOT.jar
-# Cửa sổ 800x600, tự connect ws://localhost:8081/game
-```
-
-### Bước 5 (optional): Build React client thủ công
-
-Để rebuild React (sau khi sửa `client/src/...`):
-
-```bash
-cd client
-npm install     # một lần đầu
-npm run build   # output -> client/dist
-
-# Copy sang server-spring static
-Remove-Item -Recurse -Force ../server-spring/src/main/resources/static/play
-Copy-Item -Recurse client/dist ../server-spring/src/main/resources/static/play
-
-# Rebuild server-spring để pick HTML mới
-mvn -f server-spring/pom.xml clean package -DskipTests
+```powershell
+Set-Location game-client
+.\gradlew.bat html:copyToServer
+Set-Location ..
 ```
 
 ## 3. Test suite
@@ -117,14 +96,9 @@ mvn -f server-spring/pom.xml clean package -DskipTests
 # Full server-spring (141 tests, qua WSL bash nếu Maven chưa có)
 mvn -f server-spring/pom.xml test
 
-# Legacy server (112 tests, kept làm parity reference)
-mvn -f server/pom.xml test
-
-# Shared protocol (7 tests)
-mvn -f shared-protocol/pom.xml test
-
-# React client (62 tests, vitest)
-cd client && npm test
+# LibGDX client
+Set-Location game-client
+.\gradlew.bat test
 ```
 
 Test coverage (Phase 5):
@@ -140,9 +114,6 @@ Test coverage (Phase 5):
 | server-spring leaderboard/progress JPA | 3 | LeaderboardRepositoryTest |
 | server-spring web | 7 | LeaderboardController + ProgressController |
 | server-spring context | 3 | TankzorsApplicationContextTest |
-| server (legacy) | 112 | engine + ai + map + collision + e2e |
-| client (legacy React) | 62 | Renderer + E2E + CampaignProgression |
-| shared-protocol | 7 | PacketType + serialization |
 
 ## 4. Common operations
 
@@ -246,36 +217,24 @@ Hoặc cài Maven system-wide.
 
 ### Tank không di chuyển
 
-1. F12 browser, mở Network → WS tab. Check packet đang gửi.
-2. Phải có `MOVE_INPUT` payload `{"direction":"UP","moving":true}` (chứ không `{moving: "true"}` kiểu string).
-3. Server log: `[MessageHandler] << sessionId=... payload={"type":"MOVE_INPUT", ...}` 则 đang nhận.
-4. Tick rate log mỗi giây: `[GameLoop] Tick rate: 30/s | ... tanks: 1 | bullets: 0`.
+1. Click vào iframe game để chuyển focus.
+2. Mở browser console và kiểm tra lỗi GWT hoặc asset.
+3. Xác nhận bootstrap trả `200`: `/api/game/bootstrap?levelId=campaign_1`.
+4. Nếu vừa sửa client, chạy lại `game-client\\gradlew.bat html:copyToServer`.
 
 ### VICTORY nhưng leaderboard không có entry
 
-Score bị submit async (`@Async`). Đợi 1s sau VICTORY query lại. Nếu vẫn không có:
+Kết quả campaign được client gửi tới `POST /api/game/results`. Nếu chưa có:
 
-1. Server log check "MatchEndService" thấy INFO log với score + level.
+1. Browser Network kiểm tra request `/api/game/results`.
 2. DB trực tiếp: `SELECT * FROM leaderboard ORDER BY id DESC LIMIT 1;`.
 3. Logic: nếu score mới thấp hơn existing → không insert (best-score upsert).
 
-### React client trong iframe không connect WebSocket
+### LibGDX HTML5 không tải
 
-React build mặc định auto-detect URL từ `window.location`:
-
-```ts
-// client/src/shared/constants/game.ts
-return `${proto}//${window.location.host}/game`;
-```
-
-Trong iframe, `window.location` = URL của iframe (`http://localhost:8081/play/index.html`). Vẫn trỏ tới 8081 nên OK.
-
-Nếu chạy dev với `npm run dev` (Vite port 5173), phải override:
-
-```bash
-# .env.development
-VITE_WS_URL=ws://localhost:8081/game
-```
+1. Kiểm tra `server-spring/src/main/resources/static/game/libgdx/index.html`.
+2. Build lại bằng `game-client\\gradlew.bat html:copyToServer`.
+3. Mở browser console để xem lỗi GWT và kiểm tra asset trả HTTP 200.
 
 ## 6. Production deploy
 
@@ -304,15 +263,9 @@ Run:
 java -jar server-spring.jar --spring.profiles.active=prod
 ```
 
-## 7. Migration kế hoạch còn lại (Phase 3.5+)
+## 7. Trạng thái cutover
 
-Nếu muốn hoàn tất LibGDX HTML5 migration thay React:
-
-1. Convert `game-client/pom.xml` sang multi-module với GWT plugin Hoặc quay lại Gradle
-   (libgdx template dùng Gradle default).
-2. Implement WebSocket bridge cho browser qua `JsInterop` (browser native WebSocket, không phải Java-WebSocket).
-3. Build war với gwt-maven-plugin, deploy vào `server-spring/src/main/resources/static/play/`.
-4. Replace iframe src trong `templates/play.html` từ `index.html` sang `game-client/index.html`.
-5. Cutover: `git rm -r server/ client/`. Commit `chore(cutover): remove legacy React+Javalin`.
-
-Xem `.planning/ROADMAP.md` Phase 3.5 cho chi tiết.
+LibGDX HTML5 đã thay React trong luồng `/play`; các module React, Javalin và
+`shared-protocol` thử nghiệm đã được xóa. Công việc tiếp theo tập trung vào
+hoàn thiện co-op, reward/debriefing và loại endpoint compatibility `/game` khi
+không còn caller.
