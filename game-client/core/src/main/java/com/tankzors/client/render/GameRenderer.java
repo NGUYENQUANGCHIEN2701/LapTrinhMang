@@ -250,7 +250,7 @@ public class GameRenderer implements Disposable {
         shapes.rect(0, 0, width, height);
 
         float panelWidth = Math.min(520f, width - 48f);
-        float panelHeight = 220f;
+        float panelHeight = 282f;
         float panelX = (width - panelWidth) / 2f;
         float panelY = (height - panelHeight) / 2f;
         shapes.setColor(victory ? 0.10f : 0.16f, 0.14f, 0.12f, 0.98f);
@@ -259,17 +259,36 @@ public class GameRenderer implements Disposable {
         shapes.rect(panelX, panelY, panelWidth, 5f);
         shapes.end();
 
-        font.getData().setScale(2.2f);
+        float x = width / 2f;
+        font.getData().setScale(2.0f);
         font.setColor(victory ? 1f : 1f, victory ? 0.78f : 0.30f, 0.12f, 1f);
-        drawCentered(victory ? "CHIEN THANG!" : "THAT BAI", width / 2f, panelY + 58f);
+        drawCentered(victory ? "CHIEN THANG!" : "THAT BAI", x, panelY + 52f);
 
-        font.getData().setScale(1.25f);
-        font.setColor(1f, 1f, 1f, 1f);
-        drawCentered("DIEM SO: " + state.score, width / 2f, panelY + 108f);
+        // DIEM
+        font.getData().setScale(1.3f);
+        font.setColor(1f, 0.92f, 0.40f, 1f);
+        drawCentered("DIEM SO: " + state.score, x, panelY + 100f);
+
+        // HP / AI / TIME
+        font.getData().setScale(0.95f);
+        font.setColor(0.80f, 0.83f, 0.88f, 1f);
+        drawCentered("HP: " + Math.max(0, state.hpRemain)
+                        + "   AI: " + Math.max(0, state.aiKills)
+                        + "   TIME: " + Math.max(0, state.elapsedSeconds) + "s",
+                x, panelY + 132f);
+
+        // Reward (stars/coins) — chỉ khác 0 khi VICTORY.
+        font.getData().setScale(1.05f);
+        font.setColor(victory ? 1f : 0.55f, victory ? 0.85f : 0.55f, victory ? 0.30f : 0.58f, 1f);
+        drawCentered("SAO: " + Math.max(0, state.starsEarned)
+                        + "   VANG: " + Math.max(0, state.coinsEarned),
+                x, panelY + 165f);
+
+        // Hướng dẫn phím.
         font.getData().setScale(0.95f);
         font.setColor(0.75f, 0.78f, 0.82f, 1f);
-        drawCentered(victory ? "Nhan N de sang man tiep theo" : "Nhan R de choi lai", width / 2f, panelY + 155f);
-        drawCentered(victory ? "Nhan R de choi lai man nay" : "", width / 2f, panelY + 184f);
+        drawCentered(victory ? "Nhan N de sang man tiep theo" : "Nhan R de choi lai", x, panelY + 210f);
+        drawCentered(victory ? "Nhan R de choi lai man nay" : "", x, panelY + 236f);
 
         font.getData().setScale(1f);
         font.setColor(Color.WHITE);

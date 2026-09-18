@@ -37,7 +37,9 @@ public final class GwtAppBridge {
         sb.append("\"score\":").append(r.score).append(',');
         sb.append("\"hpRemain\":").append(r.hpRemain).append(',');
         sb.append("\"aiKills\":").append(r.aiKills).append(',');
-        sb.append("\"elapsedSeconds\":").append(r.elapsedSeconds);
+        sb.append("\"elapsedSeconds\":").append(r.elapsedSeconds).append(',');
+        sb.append("\"starsEarned\":").append(r.starsEarned).append(',');
+        sb.append("\"coinsEarned\":").append(r.coinsEarned);
         sb.append('}');
         return sb.toString();
     }
