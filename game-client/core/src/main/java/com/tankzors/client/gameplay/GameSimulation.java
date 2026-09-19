@@ -337,6 +337,8 @@ public class GameSimulation {
                 continue;
             }
             for (ITank tank : world.getAllTanks()) {
+                // Đạn AI xuyên qua đồng đội AI; chỉ player mới là mục tiêu của AI.
+                if (isAiFriendlyFire(bullet, tank)) continue;
                 if (coopMode && isFriendlyFire(bullet, tank)) continue;
                 if (Collision.checkBulletTankCollision(bullet, tank)) {
                     tank.takeDamage(bullet.getDamage());
@@ -358,6 +360,11 @@ public class GameSimulation {
             return world.getTank(bullet.getOwnerId()) instanceof PlayerTank;
         }
         return false;
+    }
+
+    private boolean isAiFriendlyFire(IBullet bullet, ITank tank) {
+        if (!(tank instanceof AITank) || bullet.getOwnerId() == null) return false;
+        return world.getTank(bullet.getOwnerId()) instanceof AITank;
     }
 
     private void cleanupDeadTanks() {

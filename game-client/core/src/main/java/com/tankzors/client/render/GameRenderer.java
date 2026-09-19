@@ -238,6 +238,16 @@ public class GameRenderer implements Disposable {
         else if (pct > 0.3f) shapes.setColor(Color.YELLOW);
         else shapes.setColor(Color.RED);
         shapes.rect(22, 24, 216 * pct, 14);
+        drawHealthTicks(22, 24, 216, 14, 5);
+    }
+
+    /** Vạch chia 5 mức (mỗi mức 20%) để thanh HP đọc nhanh hơn. */
+    private void drawHealthTicks(float x, float y, float width, float height, int segments) {
+        shapes.setColor(0f, 0f, 0f, 0.55f);
+        for (int i = 1; i < segments; i++) {
+            float tickX = x + width * i / segments;
+            shapes.rect(tickX - 0.5f, y, 1f, height);
+        }
     }
 
     private void drawResultOverlay(GameStateSnapshot state) {

@@ -4,11 +4,10 @@ import com.tankzors.client.gameplay.collision.Collision;
 import com.tankzors.client.gameplay.interfaces.IBullet;
 import com.tankzors.client.gameplay.interfaces.IMap;
 
-import java.util.EnumSet;
-
 /**
  * Xe tăng người chơi. Parity server entity.PlayerTank.
- * Speed 150, HP 100, 40x40, cooldown 0.5s. Diagonal = cardinal (normalized).
+ * Speed 150, HP 100, 40x40, cooldown 0.5s. Người chơi chỉ đi theo bốn
+ * hướng chính; phím được nhấn gần nhất xác định hướng hiện hành.
  * Substep ≤5px, wall-slide qua Collision.resolveCollision.
  */
 public class PlayerTank extends Tank {
@@ -22,7 +21,11 @@ public class PlayerTank extends Tank {
     private double shootCooldown = 0.5;
     private double timeSinceLastShot = 0.5; // được bắn ngay tick đầu
 
-    private final EnumSet<Direction> heldDirections = EnumSet.noneOf(Direction.class);
+    /** Hướng đang được giữ, bước kế tiếp và bước đang chạy; mỗi bước đúng một ô map. */
+    private Direction heldDirection;
+    private Direction requestedDirection;
+    private Direction movingDirection;
+    private double remainingTileDistance;
 
     /** Mỗi match cấp cho PlayerTank một idGenerator để tạo bullet id deterministic (thay UUID). */
     private transient BulletIdSource bulletIdSource;
@@ -39,36 +42,64 @@ public class PlayerTank extends Tank {
 
     public void setMoving(Direction direction, boolean moving) {
         if (direction == null) return;
-        if (moving) heldDirections.add(direction); else heldDirections.remove(direction);
-        double dx = horizontalInput(), dy = verticalInput();
-        if (dx != 0 || dy != 0) rotate((Math.toDegrees(Math.atan2(dy, dx)) + 450) % 360);
+        if (moving) {
+            heldDirection = direction;
+            // Nếu hai phím đến trong cùng một frame, lấy phím nhấn sau cùng.
+            // Khi đang hoàn tất một ô, bỏ qua input mới để không cắt ngang bước.
+            if (movingDirection == null) requestedDirection = direction;
+            rotate(rotationFor(direction));
+        } else if (direction == heldDirection) {
+            heldDirection = null;
+        }
     }
 
-    public void stopMoving() { heldDirections.clear(); }
-
-    private int horizontalInput() {
-        return (heldDirections.contains(Direction.RIGHT) ? 1 : 0) - (heldDirections.contains(Direction.LEFT) ? 1 : 0);
+    public void stopMoving() {
+        // Không hủy bước đã nhận: xe hoàn tất ô đang đi rồi dừng.
+        heldDirection = null;
     }
 
-    private int verticalInput() {
-        return (heldDirections.contains(Direction.DOWN) ? 1 : 0) - (heldDirections.contains(Direction.UP) ? 1 : 0);
+    private static double rotationFor(Direction direction) {
+        switch (direction) {
+            case UP: return 0;
+            case RIGHT: return 90;
+            case DOWN: return 180;
+            case LEFT: return 270;
+            default: throw new IllegalArgumentException("Unsupported direction: " + direction);
+        }
     }
 
     public void updateMovement(double dt, IMap map) {
         if (!isAlive() || !Double.isFinite(dt) || dt <= 0 || map == null) return;
-        double dx = horizontalInput(), dy = verticalInput();
-        double length = Math.hypot(dx, dy);
-        if (length == 0) return;
-        dx /= length; dy /= length;
-        double remaining = speed * dt;
-        while (remaining > 1e-9) {
-            double step = Math.min(5, remaining);
+        if (movingDirection == null && (requestedDirection != null || heldDirection != null)) {
+            movingDirection = requestedDirection != null ? requestedDirection : heldDirection;
+            requestedDirection = null;
+            remainingTileDistance = map.getTileSize();
+            rotate(rotationFor(movingDirection));
+        }
+        if (movingDirection == null) return;
+        double dx;
+        double dy;
+        switch (movingDirection) {
+            case UP: dx = 0; dy = -1; break;
+            case DOWN: dx = 0; dy = 1; break;
+            case LEFT: dx = -1; dy = 0; break;
+            case RIGHT: dx = 1; dy = 0; break;
+            default: return;
+        }
+        double travelBudget = Math.min(speed * dt, remainingTileDistance);
+        while (travelBudget > 1e-9) {
+            double step = Math.min(5, travelBudget);
             Position target = new Position(position.getX() + dx * step, position.getY() + dy * step);
             Position valid = Collision.resolveCollision(this, target, map);
-            if (valid.getX() == position.getX() && valid.getY() == position.getY()) break;
+            if (valid.getX() == position.getX() && valid.getY() == position.getY()) {
+                remainingTileDistance = 0;
+                break;
+            }
             position.setX(valid.getX()); position.setY(valid.getY());
-            remaining -= step;
+            travelBudget -= step;
+            remainingTileDistance -= step;
         }
+        if (remainingTileDistance <= 1e-9) movingDirection = null;
     }
 
     @Override
@@ -76,8 +107,14 @@ public class PlayerTank extends Tank {
         if (!isAlive() || timeSinceLastShot < shootCooldown) return null;
         timeSinceLastShot = 0;
         String bulletId = bulletIdSource != null ? bulletIdSource.nextId() : "b-0";
-        return new Bullet(bulletId, id, new Position(position.getX(), position.getY()), rotation,
+        return new Bullet(bulletId, id, new Position(position.getX(), position.getY()), cardinalRotation(rotation),
                 Bullet.DEFAULT_SPEED, Bullet.DEFAULT_DAMAGE, Bullet.DEFAULT_WIDTH, Bullet.DEFAULT_HEIGHT);
+    }
+
+    /** Làm tròn hướng để đạn người chơi luôn bay thẳng theo một trục. */
+    private static double cardinalRotation(double angle) {
+        double normalized = ((angle % 360) + 360) % 360;
+        return (Math.floor((normalized + 45) / 90) * 90) % 360;
     }
 
     public void updateCooldown(double deltaTime) {

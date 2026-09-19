@@ -152,6 +152,30 @@ class GameSimulationTest {
     }
 
     @Test
+    @DisplayName("Đạn AI xuyên qua AI khác và không làm đồng đội giảm máu")
+    void aiBullet_passesThroughOtherAi() {
+        GameSimulation sim = new GameSimulation(8L);
+        GameWorld world = sim.getWorld();
+        world.setCurrentMap(TestMaps.open());
+        world.setStatus(GameWorld.Status.PLAYING);
+        AITank shooter = new AITank("ai-shooter", 100, 100,
+                com.tankzors.client.gameplay.ai.DifficultyLevel.EASY);
+        AITank ally = new AITank("ai-ally", 200, 200,
+                com.tankzors.client.gameplay.ai.DifficultyLevel.EASY);
+        world.addTank(shooter);
+        world.addTank(ally);
+        world.addTank(new PlayerTank("player", 60, 60));
+        Bullet bullet = new Bullet("ai-shot", shooter.getId(), new Position(194, 200), 90,
+                180, 25, Bullet.DEFAULT_WIDTH, Bullet.DEFAULT_HEIGHT);
+        world.addBullet(bullet);
+
+        sim.step(GameplayConfig.STEP_SECONDS);
+
+        assertEquals(100, ally.getHP());
+        assertTrue(bullet.isActive(), "Đạn AI phải xuyên qua đồng đội thay vì bị hủy");
+    }
+
+    @Test
     @DisplayName("restart reset world + AI count về lại")
     void restart_resets() {
         GameSimulation sim = new GameSimulation(3L);

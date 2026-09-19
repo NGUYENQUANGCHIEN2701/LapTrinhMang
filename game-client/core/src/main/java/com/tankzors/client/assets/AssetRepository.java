@@ -46,17 +46,19 @@ public class AssetRepository implements Disposable {
         explosionBigSheet = new Texture(Gdx.files.internal("effects/explosion_big.png"));
 
         // Tanks: 16 frame × 24px (theo Renderer.ts)
-        playerTankFrames = split(playerTankSheet, 24, 24, 16);
-        enemyTankFrames = split(enemyTankSheet, 24, 24, 16);
+        // Camera renderer dùng y-down. Chỉ sprite tank có hướng cần đảo V để
+        // frame 0=UP, 90=RIGHT, 180=DOWN, 270=LEFT khớp với logic/đạn.
+        playerTankFrames = split(playerTankSheet, 24, 24, 16, true);
+        enemyTankFrames = split(enemyTankSheet, 24, 24, 16, true);
 
         // Ground: 5 frame × 20px
-        groundFrames = split(groundSheet, 20, 20, 5);
+        groundFrames = split(groundSheet, 20, 20, 5, false);
         // Wall: 6 frame × 20px
-        wallFrames = split(wallSheet, 20, 20, 6);
+        wallFrames = split(wallSheet, 20, 20, 6, false);
         // Spikes: 3 frame × 20px
-        spikesFrames = split(spikesSheet, 20, 20, 3);
+        spikesFrames = split(spikesSheet, 20, 20, 3, false);
         // Palms: 5 frame × 88px
-        palmsFrames = split(palmsSheet, 88, 88, 5);
+        palmsFrames = split(palmsSheet, 88, 88, 5, false);
     }
 
     public TextureRegion tankFrame(boolean isPlayer, float rotation) {
@@ -104,10 +106,11 @@ public class AssetRepository implements Disposable {
         if (explosionBigSheet != null) explosionBigSheet.dispose();
     }
 
-    private static TextureRegion[] split(Texture sheet, int tileW, int tileH, int frameCount) {
+    private static TextureRegion[] split(Texture sheet, int tileW, int tileH, int frameCount, boolean flipY) {
         TextureRegion[] frames = new TextureRegion[frameCount];
         for (int i = 0; i < frameCount; i++) {
             frames[i] = new TextureRegion(sheet, i * tileW, 0, tileW, tileH);
+            if (flipY) frames[i].flip(false, true);
         }
         return frames;
     }

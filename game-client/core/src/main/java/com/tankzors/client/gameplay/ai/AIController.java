@@ -96,6 +96,10 @@ public final class AIController {
                 chase.reset();
                 chase.setTarget(lastSeen, false);
                 behavior = chase;
+            } else if (behavior != patrol) {
+                // Chưa phát hiện player: tuần tra nhỏ quanh vị trí spawn thay vì đứng yên.
+                patrol.start(self.getPosition());
+                behavior = patrol;
             }
         }
 

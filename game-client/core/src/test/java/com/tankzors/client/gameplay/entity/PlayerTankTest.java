@@ -1,5 +1,7 @@
 package com.tankzors.client.gameplay.entity;
 
+import com.tankzors.client.gameplay.TestMaps;
+import com.tankzors.client.gameplay.interfaces.IBullet;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -84,5 +86,44 @@ class PlayerTankTest {
         assertEquals(40.0, tank.getWidth(), 0.001);
         assertEquals(40.0, tank.getHeight(), 0.001);
         assertEquals("player-1", tank.getId());
+    }
+
+    @Test
+    @DisplayName("Một lần nhấn đi đúng một ô theo hướng được nhấn gần nhất, không đi chéo")
+    void input_movesExactlyOneTileAlongOneCardinalDirection() {
+        tank.setMoving(Direction.RIGHT, true);
+        tank.setMoving(Direction.DOWN, true);
+
+        tank.updateMovement(1.0, TestMaps.open());
+
+        assertEquals(100.0, tank.getPosition().getX(), 0.001);
+        assertEquals(140.0, tank.getPosition().getY(), 0.001);
+        assertEquals(180.0, tank.getRotation(), 0.001);
+    }
+
+    @Test
+    @DisplayName("Giữ phím tiếp tục đi từng ô; nhả phím thì hoàn tất ô hiện tại rồi dừng")
+    void heldDirection_repeatsTilesUntilReleased() {
+        tank.setMoving(Direction.RIGHT, true);
+        tank.updateMovement(1.0, TestMaps.open());
+        tank.updateMovement(1.0, TestMaps.open());
+        assertEquals(180.0, tank.getPosition().getX(), 0.001);
+
+        tank.setMoving(Direction.RIGHT, false);
+        tank.updateMovement(1.0, TestMaps.open());
+        assertEquals(180.0, tank.getPosition().getX(), 0.001);
+    }
+
+    @Test
+    @DisplayName("Đạn người chơi được làm tròn về hướng chính và bay thẳng")
+    void shoot_isAlwaysCardinalAndStraight() {
+        tank.rotate(44.0);
+        IBullet bullet = tank.shoot();
+
+        assertNotNull(bullet);
+        assertEquals(0.0, bullet.getDirection(), 0.001);
+        bullet.update(0.1);
+        assertEquals(100.0, bullet.getPosition().getX(), 0.001);
+        assertEquals(70.0, bullet.getPosition().getY(), 0.001);
     }
 }

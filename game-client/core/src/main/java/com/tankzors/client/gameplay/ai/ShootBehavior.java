@@ -8,23 +8,24 @@ import com.tankzors.client.gameplay.entity.Position;
 import com.tankzors.client.gameplay.interfaces.IAIBehavior;
 
 import java.util.Comparator;
-import java.util.Random;
-
 /**
- * Bắn khi player trong tầm (<250px), đường ngắm rõ, hết cooldown.
+ * Bắn khi player trong tầm (<250px), đường ngắm rõ, hết cooldown. AI chỉ
+ * ngắm theo bốn hướng chính để đạn không bay chéo.
  * Parity server ai.ShootBehavior. Dùng java.util.Random seedable; bullet id
  * deterministic qua BulletIdSource (thay UUID).
  */
 public final class ShootBehavior implements IAIBehavior {
 
     public static final double SHOOT_RANGE = 250.0;
+    /** Đạn AI chậm hơn player để người chơi có thời gian né. */
+    public static final double AI_BULLET_SPEED = 180.0;
 
-    private final Random random;
     private double cooldownRemaining = 0.0;
     private BulletIdSource bulletIdSource;
 
-    public ShootBehavior() { this(new Random()); }
-    public ShootBehavior(Random random) { this.random = random != null ? random : new Random(); }
+    public ShootBehavior() { }
+    /** Giữ constructor cũ để tương thích call site; AI không còn dùng spread ngẫu nhiên. */
+    public ShootBehavior(java.util.Random ignored) { }
 
     public void setBulletIdSource(BulletIdSource source) { this.bulletIdSource = source; }
     public void reset() { cooldownRemaining = 0.0; }
@@ -55,19 +56,14 @@ public final class ShootBehavior implements IAIBehavior {
 
         double dx = target.getPosition().getX() - self.getPosition().getX();
         double dy = target.getPosition().getY() - self.getPosition().getY();
-        double baseAngle = Math.toDegrees(Math.atan2(dy, dx)) + 90.0;
-        baseAngle = (baseAngle % 360.0 + 360.0) % 360.0;
+        double baseAngle = cardinalAngle(dx, dy);
         self.rotate(baseAngle);
 
         if (cooldownRemaining <= 1e-9) {
-            double spread = self.getDifficulty().getAccuracySpread();
-            double offset = (random.nextDouble() * 2.0 - 1.0) * spread;
-            double bulletAngle = (baseAngle + offset) % 360.0;
-            if (bulletAngle < 0) bulletAngle += 360.0;
             String id = bulletIdSource != null ? bulletIdSource.nextId(self.getId()) : "b-0";
             Bullet bullet = new Bullet(id, self.getId(),
-                    new Position(self.getPosition().getX(), self.getPosition().getY()), bulletAngle,
-                    Bullet.DEFAULT_SPEED, Bullet.DEFAULT_DAMAGE, Bullet.DEFAULT_WIDTH, Bullet.DEFAULT_HEIGHT);
+                    new Position(self.getPosition().getX(), self.getPosition().getY()), baseAngle,
+                    AI_BULLET_SPEED, Bullet.DEFAULT_DAMAGE, Bullet.DEFAULT_WIDTH, Bullet.DEFAULT_HEIGHT);
             state.addBullet(bullet);
             cooldownRemaining = self.getDifficulty().getShootCooldown();
         }
@@ -75,6 +71,12 @@ public final class ShootBehavior implements IAIBehavior {
 
     private static double distance(Position a, Position b) {
         return Math.hypot(a.getX() - b.getX(), a.getY() - b.getY());
+    }
+
+    /** Chọn trục có sai lệch lớn hơn; tại 45° ưu tiên ngang để deterministic. */
+    private static double cardinalAngle(double dx, double dy) {
+        if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 90.0 : 270.0;
+        return dy >= 0 ? 180.0 : 0.0;
     }
 
     @Override public String getBehaviorName() { return "SHOOT"; }

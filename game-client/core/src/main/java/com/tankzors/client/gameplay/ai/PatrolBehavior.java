@@ -17,6 +17,7 @@ import java.util.Random;
  */
 public final class PatrolBehavior implements IAIBehavior {
     private static final int[][] DIRECTIONS = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
+    private static final int PATROL_RADIUS_TILES = 2;
     private final Random random;
     private final AINavigator navigator = new AINavigator();
     private Position anchor;
@@ -50,7 +51,8 @@ public final class PatrolBehavior implements IAIBehavior {
             for (int i = 0; i < DIRECTIONS.length; i++) {
                 GridPathfinder.Cell next = new GridPathfinder.Cell(current.col + DIRECTIONS[i][0],
                         current.row + DIRECTIONS[i][1]);
-                if (Math.abs(next.col - origin.col) <= 3 && Math.abs(next.row - origin.row) <= 3
+                if (Math.abs(next.col - origin.col) <= PATROL_RADIUS_TILES
+                        && Math.abs(next.row - origin.row) <= PATROL_RADIUS_TILES
                         && GridPathfinder.canOccupy(self, map, next)
                         && GridPathfinder.canTraverse(self, map, current.center(map), next.center(map))) {
                     choices.add(i);

@@ -5,9 +5,11 @@ package com.tankzors.client.gameplay.ai;
  * (speed px/s, visionRange px, reactionDelay s, shootCooldown s, accuracySpread deg)
  */
 public enum DifficultyLevel {
-    EASY(80, 200, 0.5, 2.0, 15.0),
-    MEDIUM(90, 240, 0.5, 2.5, 10.0),
-    HARD(105, 280, 0.3, 2.0, 6.0);
+    EASY(80, 200, 0.5, 3.5, 15.0),
+    // Campaign 2 và 3 giữ mức độ quan sát/độ chính xác riêng, nhưng nhịp
+    // di chuyển và bắn phải giống Màn 1 để không tạo cảm giác AI quá nhanh.
+    MEDIUM(80, 240, 0.5, 3.5, 10.0),
+    HARD(80, 280, 0.3, 3.5, 6.0);
 
     private final double speed;
     private final double visionRange;
