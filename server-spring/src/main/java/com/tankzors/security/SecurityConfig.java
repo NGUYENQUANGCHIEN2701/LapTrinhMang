@@ -36,7 +36,7 @@ public class SecurityConfig {
         http
             .authorizeHttpRequests(auth -> auth
                 // Static resources — public
-                .requestMatchers("/css/**", "/js/**", "/images/**", "/play/**",
+                .requestMatchers("/css/**", "/js/**", "/images/**", "/play/**", "/game/**",
                                  "/favicon.ico", "/webjars/**").permitAll()
                 // Public pages
                 .requestMatchers("/", "/menu", "/register", "/error/**").permitAll()
@@ -44,6 +44,9 @@ public class SecurityConfig {
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 // Everything else requires authentication
                 .anyRequest().authenticated()
+            )
+            .headers(headers -> headers
+                .frameOptions(frameOptions -> frameOptions.sameOrigin())
             )
             .formLogin(form -> form
                 .loginPage("/login")
@@ -61,7 +64,11 @@ public class SecurityConfig {
             )
             .csrf(csrf -> csrf
                 // WS handshake endpoints cần bỏ CSRF (WebSocket nguyên gốc không gửi CSRF token)
-                .ignoringRequestMatchers("/game", "/coop")
+                // Client LibGDX HTML5 gửi JSON trực tiếp từ iframe cùng origin.
+                // Nó không có cơ chế đọc/đính kèm CSRF token của form Thymeleaf;
+                // nếu chặn POST /api/game/results, chiến thắng không được ghi nhận
+                // và màn tiếp theo luôn bị bootstrap từ chối (403).
+                .ignoringRequestMatchers("/game", "/coop", "/api/game/**")
             );
 
         return http.build();
