@@ -1,103 +1,73 @@
-# Tankzors Pro
+# Tankzors
 
-## Mô tả dự án
+## What This Is
 
-Game hành động xe tăng PvE trên website cho môn "Lập trình mạng". Người chơi điều khiển xe tăng, chiến đấu với AI trên các bản đồ có chướng ngại vật. Code hiện tại dùng Java WebSocket server và React Canvas client; Spring Boot, Thymeleaf, LibGDX HTML5 và PostgreSQL là stack đích cho các phase sau. Lấy cảm hứng từ game Tankzors (GitHub - Tankzors/Builds).
+Tankzors là game xe tăng PvE chạy trên website cho đồ án Lập trình mạng. Website dùng Spring Boot và Thymeleaf; gameplay cùng phần render chạy bằng LibGDX HTML5; PostgreSQL lưu tài khoản, kết quả, tiến trình và bảng xếp hạng.
 
-## Giá trị cốt lõi
+Kiến trúc hiện tại là client-authoritative cho campaign và host-authoritative cho co-op. Spring quản lý web, API, persistence, identity, room và relay; Spring không chạy một gameplay engine thứ hai.
 
-Người chơi có thể chơi game xe tăng qua 2 chế độ (Campaign tuần tự + Online độc lập) với server Java xử lý toàn bộ logic, thể hiện kiến thức Lập trình mạng qua kiến trúc client-server WebSocket và nguyên tắc SOLID. Website có menu, settings, save/load, shop, research, debriefing và leaderboard.
+## Core Value
 
-## Yêu cầu
+Người chơi có thể mở game từ website, chơi campaign hoàn chỉnh trong trình duyệt và lưu kết quả bền vững bằng một kiến trúc mạng rõ ràng, dễ chạy và dễ giải thích.
 
-### Đã hoàn thành
+## Requirements
 
-- [x] Phase 0 baseline (13/09/2026): 112 server tests + 62 client tests + build pass.
-  Protocol-wire-format v1 chốt tại `docs/protocol-v1.md`; danh sách
-  behavior phải giữ tại `docs/parity-checklist.md`.
-- [x] Phase 1 target structure (13/09/2026): Tạo 4 module mới
-  (`shared-protocol/`, `server-spring/`, `game-client/`, `infra/`) +
-  `docs/migration-mapping.md` mapping class cũ → vị trí mới. Legacy
-  code (Javalin + React Canvas) chưa bị xóa, vẫn dùng làm parity
-  reference đến Phase 5.
-- [x] Phase 2 backend migration (13/09/2026): Copy engine/entity/map/ai/
-  protocol từ legacy sang `server-spring/`. Tách `StatePublisherPort`
-  interface. Refactor `GameLoop` chỉ phụ thuộc port. Wire Spring beans:
-  `EngineConfig`, `EngineLifecycle`, `GameSessionService`,
-  `GameWebSocketHandler`, `WebSocketStatePublisher`, `SessionRegistry`.
-  115 tests pass (112 copy + 3 context). Manual parity test với Node `ws`
-  client: CONNECT + JOIN_GAME + ACK + STATE (tanks=2, map, PLAYING) PASS.
-  Legacy server/ giữ nguyên làm rollback.
-- [x] Phase 3 desktop migration (13/09/2026): LibGDX 1.12.1 + LWJGL3.
-  game-client Maven single-module. 12 class Java. Boot → connect 8081 →
-  first STATE received = tanks:2. HTML5/GWT defer Phase 3.5.
-- [x] Phase 4 + 4.5 persistence + website (13/09/2026): Spring Data JPA +
-  Flyway migration V1 (leaderboard) + V2 (player_progress). REST API
-  `/api/leaderboard` upsert best score, `/api/progress` server-side
-  unlock per-session. Thymeleaf templates: home, campaign, play (iframe
-  React), leaderboard.
-- [x] Phase 5 verification (13/09/2026): 10/10 parity checklist PASS.
-  Server restart không mất leaderboard + progression. WebSocket flow
-  CONNECT/JOIN/MOVE/SHOOT/STATE parity verified bằng Node ws script.
-- [x] Phase 5+ score submission (13/09/2026): Server-side auto-submit
-  score khi VICTORY. ScoreCalculator (HP*10 + AI*200 + max(0,1000-t*10)).
-  MatchEndObserver port (async hook không block GameLoop).
-  Campaign progression persist qua PostgreSQL.
-- [x] Documentation tổng kết (13/09/2026): README root + architecture +
-  networking + runbook. 141 tests pass + 112 legacy pass.
+### Validated
 
-### Đang thực hiện
+- ✓ Gameplay PvE, AI, collision và render chạy trong `game-client/core`.
+- ✓ HTML5 bundle được Spring phục vụ tại `/game/libgdx/**`.
+- ✓ Campaign bootstrap và submit kết quả qua REST.
+- ✓ PostgreSQL, Flyway và JPA lưu user, result, progress và leaderboard.
+- ✓ Website có login/register, campaign, settings, leaderboard và admin.
+- ✓ Docker build đồng thời LibGDX HTML5, Spring JAR và chạy PostgreSQL.
+- ✓ Server không còn gameplay entity, AI, collision, game loop, React hoặc Javalin cũ.
 
-- [ ] Người chơi điều khiển xe tăng di chuyển và bắn trong thời gian thực
-- [ ] AI đối thủ di chuyển, bắn lại người chơi
-- [ ] Bản đồ có tường/chướng ngại vật chặn di chuyển và đạn
-- [ ] Xe tăng có máu (HP), bị bắn giảm máu, hết máu = thua
-- [ ] Chế độ Campaign: 3 màn chơi tuần tự (phải thắng màn trước mới mở màn sau)
-- [ ] Thắng màn = nhận 3 sao + tiền thưởng + vật phẩm (cộng dồn, có giới hạn tối đa)
-- [ ] Chế độ Online: 3 bản đồ chơi độc lập (không cần mở khóa, mỗi map có độ khó cố định)
-- [ ] Bảng xếp hạng lưu trên PostgreSQL, nhiều client xem được cùng lúc
+### Active
 
-### Ngoài phạm vi
+- [ ] Ghép lobby `/coop` với `HostGameSession` và `GuestGameSession` end-to-end.
+- [ ] Kiểm thử hai browser cho create, join, ready, start, input, state và result.
+- [ ] Hoàn thiện UX co-op khi disconnect, room close và reconnect.
+- [ ] Hoàn tất security/release verification cho milestone v2.0.
 
-- Chơi nhiều người PvP (quá phức tạp cho phạm vi hiện tại)
-- Nhiều hơn 3 màn chơi (phát triển sau)
-- Ứng dụng di động
-- Thoại/video chat
-- Hệ thống tài khoản phức tạp (JWT, OAuth)
-- Ghép trận theo trình độ
+### Out of Scope
 
-## Bối cảnh
+- Server-authoritative gameplay và WebSocket `/game` — kiến trúc này đã bị thay bằng client/host-authoritative.
+- React, Vite và Javalin — không thuộc stack hiện tại.
+- PvP cạnh tranh, rollback netcode và matchmaking theo trình độ — vượt phạm vi đồ án hiện tại.
+- Mobile app và voice/video chat — không phục vụ core value của milestone.
 
-- Đồ án môn Lập trình mạng, làm một mình
-- Lấy cảm hứng gameplay từ Tankzors (GitHub - Tankzors/Builds)
-- Mục tiêu: trình bày kiến thức Lập trình mạng + SOLID qua game hoàn chỉnh
-- Phạm vi nhỏ gọn: 3 màn chơi, 2 chế độ, đủ để chấm điểm
-- Phát triển thêm màn/tính năng sẽ ghi vào README cho kế hoạch tương lai
+## Context
 
-## Ràng buộc
+- Đây là đồ án môn Lập trình mạng, hiện được phát triển bởi một người.
+- Campaign có ba map, AI, collision, scoring, victory/defeat và progression.
+- Spring cung cấp auth, website, REST API, persistence, admin và WebSocket relay `/coop`.
+- Relay, room và client session co-op đã có nền tảng nhưng chưa được nối end-to-end từ lobby vào game frame.
+- Repository là brownfield; tài liệu OpenGSD phải mô tả code hiện tại, không giữ migration plan cũ như active work.
 
-- **Công nghệ hiện tại**: Java 21 + Maven + Javalin WebSocket + Gson + React + TypeScript + Vite + Canvas
-- **Công nghệ đích (chưa triển khai)**: Spring Boot + Thymeleaf + LibGDX HTML5 + WebSocket + PostgreSQL
-- **SOLID**: Backend Java phải tuân thủ nguyên tắc SOLID (yêu cầu môn học, card [G02])
-- **Phạm vi**: 3 màn cho mỗi chế độ, đủ demo — không làm quá
-- **Thời gian**: Vài tuần, làm một mình
-- **Mạng**: Phải thể hiện giao tiếp client-server qua WebSocket
+## Constraints
 
-## Quyết định chính
+- **Tech stack**: Spring dùng Java 21; GWT build dùng JDK 17 trong Docker — tránh phụ thuộc phiên bản Java trên máy host.
+- **Gameplay ownership**: Gameplay mới chỉ được thêm trong `game-client/core` — không tái tạo simulation trong Spring.
+- **Server boundary**: Spring chỉ giữ web, API, persistence, identity, room và relay — không chứa entity/AI/collision/game loop gameplay.
+- **Static namespace**: `/game/libgdx/**` là tài nguyên HTML5, không phải WebSocket gameplay.
+- **Build**: Docker multi-stage là workflow chuẩn — mọi thay đổi tích hợp phải được kiểm tra qua Docker.
+- **Generated output**: Không sửa trực tiếp JavaScript sinh ra trong `server-spring/src/main/resources/static/game/libgdx`.
 
-| Quyết định | Lý do | Kết quả |
-|------------|-------|---------|
-| PvE (đánh máy) thay vì PvP nhiều người | Giảm độ phức tạp đồng bộ trạng thái, tập trung vào SOLID + kiến trúc mạng | Đã xác nhận |
-| 3 màn mỗi chế độ | Đủ demo hệ thống tiến trình mà không quá nhiều nội dung | Đã xác nhận |
-| Server authoritative | Server xử lý logic, client chỉ gửi input và hiển thị — chống sai lệch trạng thái | Đã xác nhận |
-| Spring Boot + Thymeleaf | Stack đích để migration website Java sau khi refactor hiện tại ổn định | Để sau |
-| LibGDX HTML5 | Stack đích để migration gameplay client sau khi protocol ổn định | Để sau |
-| PostgreSQL | Stack đích cho save, progression và leaderboard | Để sau |
-| Campaign tuần tự + Online độc lập | 2 chế độ khác nhau từ cùng 3 bản đồ, tăng giá trị demo | Đã xác nhận |
+## Key Decisions
 
-## Lịch sử thay đổi
+| Decision | Rationale | Outcome |
+|----------|-----------|---------|
+| Client-authoritative campaign | Chỉ duy trì một gameplay engine trong LibGDX | ✓ Good |
+| REST cho campaign bootstrap/result | Hai thao tác không cần kết nối realtime | ✓ Good |
+| Host-authoritative co-op qua `/coop` relay | Có networking nhưng Spring không giữ world simulation | — Pending end-to-end validation |
+| Spring Boot + Thymeleaf + PostgreSQL | Một backend cho web, auth, API và persistence | ✓ Good |
+| Docker multi-stage là workflow chuẩn | Cố định JDK, Gradle và Maven giữa các máy | ✓ Good |
 
-Tài liệu này được cập nhật khi chuyển giai đoạn hoặc hoàn thành mốc quan trọng.
+## Evolution
+
+- Sau mỗi phase, chuyển requirement đã xác minh từ Active sang Validated và cập nhật quyết định mới.
+- Khi kiến trúc hoặc phạm vi đổi, cập nhật đồng thời `PROJECT.md`, `REQUIREMENTS.md`, `ROADMAP.md` và `STATE.md`.
+- Không đưa lại engine server-authoritative, React hoặc Javalin nếu chưa có quyết định kiến trúc mới được ghi rõ.
 
 ---
-*Cập nhật lần cuối: 13/09/2026 — khóa phạm vi refactor hiện tại; migration stack và tính năng PDF chuyển thành TODO*
+*Last updated: 2026-09-20 after client-authoritative cleanup and OpenGSD recovery*

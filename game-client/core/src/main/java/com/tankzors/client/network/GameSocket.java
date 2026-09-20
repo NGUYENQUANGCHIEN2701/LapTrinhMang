@@ -34,7 +34,7 @@ public interface GameSocket {
      */
     String poll();
 
-    /** URL endpoint (vd {@code ws://localhost:8081/game}). */
+    /** URL endpoint (for example {@code ws://localhost:8081/coop}). */
     String url();
 
     /** Đã mở kết nối vật lý chưa (CONNECT đều từ server). */

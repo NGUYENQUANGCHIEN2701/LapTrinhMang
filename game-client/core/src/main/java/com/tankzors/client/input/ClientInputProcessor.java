@@ -7,12 +7,12 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputProcessor;
 
 /**
- * Input handler LibGDX parity với {@code InputHandler.ts} React.
+ * Input handler dùng chung cho các LibGDX session.
  *
  * <p>Bàn phím (WASD hoặc mũi tên) cho di chuyển; Space/J cho shoot.</p>
  *
  * <p>Callback chỉ phát khi có transition (giữ phím không spam). Tương đương
- * React: chỉ gửi onMove/onShoot khi trạng thái pressed đổi.</p>
+ * Callback chỉ phát khi trạng thái phím thay đổi.</p>
  */
 public final class ClientInputProcessor implements InputProcessor {
 

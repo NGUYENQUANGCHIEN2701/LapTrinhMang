@@ -1,36 +1,26 @@
 package com.tankzors.map;
 
-import com.tankzors.entity.Position;
-import com.tankzors.entity.Wall;
-import com.tankzors.interfaces.IMap;
-
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
- * Triển khai cụ thể của {@link IMap} đại diện cho một bản đồ trong game.
+ * Data contract for a campaign map returned to the LibGDX client.
  *
- * <p>Bản đồ được biểu diễn dưới dạng ma trận ô 2 chiều (grid).
- * Tự động tạo danh sách các đối tượng {@link Wall} và các điểm spawn.</p>
+ * <p>The Spring server stores and validates map metadata only. Gameplay entities,
+ * collision data and simulation state are built inside {@code game-client}.</p>
  */
-public class GameMap implements IMap {
+public class GameMap {
 
     public static final int DEFAULT_TILE_SIZE = 40;
 
     private String name;
-    private String difficulty; // EASY, MEDIUM, HARD
-    private int width;      // Số cột (trục X)
-    private int height;     // Số hàng (trục Y)
-    private int tileSize;   // Kích thước mỗi ô (pixel)
-    private int[][] grid;   // Ma trận [row][col]
+    private String difficulty;
+    private int width;
+    private int height;
+    private int tileSize = DEFAULT_TILE_SIZE;
+    private int[][] grid;
     private List<EnemyConfig> enemies = new ArrayList<>();
     private RewardsConfig rewards;
-
-    private final List<Wall> walls = new ArrayList<>();
-    private final List<Position> spawnPoints = new ArrayList<>();
-    private Position playerSpawn;
-    private Position enemySpawn;
 
     public static class EnemyConfig {
         private String type = "AI";
@@ -39,13 +29,6 @@ public class GameMap implements IMap {
         private int spawnY;
 
         public EnemyConfig() {}
-
-        public EnemyConfig(String type, String difficulty, int spawnX, int spawnY) {
-            this.type = type;
-            this.difficulty = difficulty;
-            this.spawnX = spawnX;
-            this.spawnY = spawnY;
-        }
 
         public String getType() { return type; }
         public void setType(String type) { this.type = type; }
@@ -63,176 +46,30 @@ public class GameMap implements IMap {
 
         public RewardsConfig() {}
 
-        public RewardsConfig(int stars, int coins) {
-            this.stars = stars;
-            this.coins = coins;
-        }
-
         public int getStars() { return stars; }
         public void setStars(int stars) { this.stars = stars; }
         public int getCoins() { return coins; }
         public void setCoins(int coins) { this.coins = coins; }
     }
 
-    public GameMap() {
-        this.tileSize = DEFAULT_TILE_SIZE;
-    }
-
-    public GameMap(String name, int width, int height, int tileSize, int[][] grid) {
-        this.name = name;
-        this.width = width;
-        this.height = height;
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public String getDifficulty() { return difficulty; }
+    public void setDifficulty(String difficulty) { this.difficulty = difficulty; }
+    public int getWidth() { return width; }
+    public void setWidth(int width) { this.width = width; }
+    public int getHeight() { return height; }
+    public void setHeight(int height) { this.height = height; }
+    public int getTileSize() { return tileSize; }
+    public void setTileSize(int tileSize) {
         this.tileSize = tileSize > 0 ? tileSize : DEFAULT_TILE_SIZE;
-        this.grid = grid;
-        initializeMap();
     }
-
-    /**
-     * Khởi tạo và nạp danh sách tường, spawn points từ ma trận grid.
-     */
-    public void initializeMap() {
-        walls.clear();
-        spawnPoints.clear();
-        playerSpawn = null;
-        enemySpawn = null;
-
-        if (grid == null) return;
-
-        if (height <= 0) height = grid.length;
-        if (width <= 0 && grid.length > 0 && grid[0] != null) width = grid[0].length;
-        if (tileSize <= 0) tileSize = DEFAULT_TILE_SIZE;
-
-        for (int row = 0; row < height && row < grid.length; row++) {
-            if (grid[row] == null) continue;
-            for (int col = 0; col < width && col < grid[row].length; col++) {
-                int tileValue = grid[row][col];
-                TileType type = TileType.fromValue(tileValue);
-
-                double pixelX = col * tileSize;
-                double pixelY = row * tileSize;
-
-                if (type == TileType.WALL) {
-                    walls.add(new Wall(pixelX, pixelY, tileSize, tileSize));
-                } else if (type == TileType.SPAWN_PLAYER) {
-                    playerSpawn = new Position(pixelX + tileSize / 2.0, pixelY + tileSize / 2.0);
-                    spawnPoints.add(playerSpawn);
-                } else if (type == TileType.SPAWN_ENEMY) {
-                    enemySpawn = new Position(pixelX + tileSize / 2.0, pixelY + tileSize / 2.0);
-                    spawnPoints.add(enemySpawn);
-                }
-            }
-        }
-
-        if (enemies != null) {
-            for (EnemyConfig e : enemies) {
-                Position ep = new Position((e.getSpawnX() + 0.5) * tileSize, (e.getSpawnY() + 0.5) * tileSize);
-                if (enemySpawn == null) enemySpawn = ep;
-                boolean alreadyAdded = false;
-                for (Position p : spawnPoints) {
-                    if (Math.hypot(p.getX() - ep.getX(), p.getY() - ep.getY()) < 1e-3) {
-                        alreadyAdded = true;
-                        break;
-                    }
-                }
-                if (!alreadyAdded) {
-                    spawnPoints.add(ep);
-                }
-            }
-        }
-    }
-
-    public String getDifficulty() {
-        return difficulty;
-    }
-
-    public void setDifficulty(String difficulty) {
-        this.difficulty = difficulty;
-    }
-
-    public List<EnemyConfig> getEnemies() {
-        return enemies;
-    }
-
+    public int[][] getGrid() { return grid; }
+    public void setGrid(int[][] grid) { this.grid = grid; }
+    public List<EnemyConfig> getEnemies() { return enemies; }
     public void setEnemies(List<EnemyConfig> enemies) {
-        this.enemies = enemies;
+        this.enemies = enemies == null ? new ArrayList<>() : enemies;
     }
-
-    public RewardsConfig getRewards() {
-        return rewards;
-    }
-
-    public void setRewards(RewardsConfig rewards) {
-        this.rewards = rewards;
-    }
-
-    @Override
-    public int getWidth() {
-        return width;
-    }
-
-    @Override
-    public int getHeight() {
-        return height;
-    }
-
-    @Override
-    public int getTileSize() {
-        return tileSize;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public int getPixelWidth() {
-        return width * tileSize;
-    }
-
-    public int getPixelHeight() {
-        return height * tileSize;
-    }
-
-    @Override
-    public TileType getTileAt(int col, int row) {
-        if (col < 0 || col >= width || row < 0 || row >= height || grid == null || row >= grid.length || col >= grid[row].length) {
-            return TileType.WALL; // Ngoài biên coi như là tường
-        }
-        return TileType.fromValue(grid[row][col]);
-    }
-
-    @Override
-    public List<Wall> getWalls() {
-        return Collections.unmodifiableList(walls);
-    }
-
-    @Override
-    public List<Position> getSpawnPoints() {
-        return Collections.unmodifiableList(spawnPoints);
-    }
-
-    public Position getPlayerSpawn() {
-        return playerSpawn;
-    }
-
-    public Position getEnemySpawn() {
-        return enemySpawn;
-    }
-
-    @Override
-    public boolean isWalkable(int col, int row) {
-        if (col < 0 || col >= width || row < 0 || row >= height) {
-            return false;
-        }
-        TileType type = getTileAt(col, row);
-        return type != TileType.WALL && type != TileType.WATER;
-    }
-
-    public int[][] getGrid() {
-        return grid;
-    }
-
-    public void setGrid(int[][] grid) {
-        this.grid = grid;
-        initializeMap();
-    }
+    public RewardsConfig getRewards() { return rewards; }
+    public void setRewards(RewardsConfig rewards) { this.rewards = rewards; }
 }

@@ -1,65 +1,87 @@
 ---
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: phien_ban_1
-current_phase: 1
-current_phase_name: Lõi Game + Khung cơ bản
+gsd_state_version: '1.0'
+milestone: v2.0
+milestone_name: client_authoritative_hardening
+current_phase: 2
+current_phase_name: Co-op End-to-End
 status: planning
-stopped_at: Đã chuyển sang thiết kế PvE 2 chế độ
-last_updated: "2026-08-21"
-last_activity: 2026-08-21
-last_activity_desc: Cấu trúc lại dự án - PvE 2 chế độ, 3 màn, 3 giai đoạn
+next_action: discuss-phase
+next_phases: ['2']
+last_updated: '2026-09-20'
+last_activity: '2026-09-20'
+last_activity_desc: Restored OpenGSD planning artifacts for the current architecture
 progress:
   total_phases: 3
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  completed_phases: 1
+  total_plans: 3
+  completed_plans: 1
+  percent: 33
 ---
 
-# Trạng thái dự án
+# Project State
 
-## Tham chiếu
+## Project Reference
 
-Xem: .planning/PROJECT.md (cập nhật 21/08/2026)
+See: `.planning/PROJECT.md` (updated 2026-09-20)
 
-**Giá trị cốt lõi:** Game xe tăng PvE hoàn chỉnh với 2 chế độ chơi, thể hiện kiến thức Lập trình mạng (WebSocket client-server) và nguyên tắc SOLID trong Java backend.
-**Đang tập trung:** Giai đoạn 1 — Lõi Game + Khung cơ bản
+**Core value:** Người chơi mở game từ website, chơi campaign trong trình duyệt và lưu kết quả bằng một kiến trúc mạng rõ ràng, dễ chạy và dễ giải thích.
+**Current focus:** Phase 2 — Co-op End-to-End
 
-## Vị trí hiện tại
+## Current Position
 
-Giai đoạn: 1 / 3 (Lõi Game + Khung cơ bản)
-Kế hoạch: 0 / Chưa xác định
-Trạng thái: Sẵn sàng lập kế hoạch
-Hoạt động cuối: 21/08/2026 — Cấu trúc lại dự án (3 giai đoạn, 17/17 yêu cầu đã phân bổ)
+Phase: 2 of 3 (Co-op End-to-End)
+Plan: 0 of 1 in current phase
+Status: Ready to discuss
+Last activity: 2026-09-20 — Architectural cleanup and runtime verification completed; OpenGSD artifacts restored.
 
-Tiến độ: [░░░░░░░░░░] 0%
+Progress: [███░░░░░░░] 33%
 
-## Chỉ số hiệu suất
+## Performance Metrics
 
-**Tốc độ:**
+**Velocity:**
+- Total plans completed: 1
+- Average duration: Not tracked for recovered work
+- Total execution time: Not tracked for recovered work
 
-- Tổng kế hoạch đã hoàn thành: 0
-- Thời gian trung bình: —
-- Tổng thời gian thực hiện: 0.0 giờ
+**By Phase:**
 
-## Bối cảnh tích lũy
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| 1. Architectural Cleanup | 1 | Not tracked | Not tracked |
 
-### Các quyết định
+**Recent Trend:**
+- Last 5 plans: Not enough data
+- Trend: Stable
 
-- [Tái cấu trúc]: PvE (đánh máy) thay vì PvP nhiều người — giảm độ phức tạp
-- [Tái cấu trúc]: 3 màn mỗi chế độ — đủ demo, không làm quá
-- [Tái cấu trúc]: Campaign tuần tự + Online độc lập — 2 chế độ từ cùng bản đồ
-- [Khởi tạo]: Java WebSocket server quản lý logic + React Canvas frontend
-- [Khởi tạo]: Nguyên tắc SOLID bắt buộc cho Java backend (card [G02])
+## Accumulated Context
 
-### Vấn đề cần lưu ý
+### Decisions
 
-- Cần kế hoạch chi tiết Giai đoạn 1 trước khi viết code
-- Kiến trúc SOLID phải được thiết kế kỹ từ đầu (khó sửa sau)
-- Hành vi AI cần nghiên cứu trước Giai đoạn 2
+Decisions are logged in `PROJECT.md` Key Decisions table.
 
-## Phiên làm việc
+- [Phase 1]: Campaign is client-authoritative; Spring does not run gameplay simulation.
+- [Phase 1]: Co-op is host-authoritative over the `/coop` room/relay endpoint.
+- [Phase 1]: Docker multi-stage is the canonical build workflow.
 
-Phiên cuối: 21/08/2026
-Dừng tại: Đã cấu trúc lại dự án, sẵn sàng lập kế hoạch Giai đoạn 1
-Tiếp tục: Bắt đầu lập kế hoạch Giai đoạn 1 (Lõi Game)
+### Pending Todos
+
+None yet.
+
+### Blockers/Concerns
+
+- [Phase 2]: `HostGameSession` and `GuestGameSession` exist but lobby/launcher integration is incomplete.
+- [Phase 2]: Socket ownership between lobby and active game session needs an explicit decision.
+- [Phase 2]: Do not restore WebSocket `/game` as a shortcut.
+
+## Deferred Items
+
+| Category | Item | Status | Deferred At | Milestone |
+|----------|------|--------|-------------|-----------|
+| Networking | Competitive PvP and rollback | Deferred | Phase 1 | Future |
+
+## Session Continuity
+
+Last session: 2026-09-20
+Stopped at: Phase 1 implementation and verification complete; Phase 2 not discussed or planned.
+Resume file: None
+Next command: `$gsd-discuss-phase 2`

@@ -16,12 +16,7 @@ import com.tankzors.application.LeaderboardService;
 import com.tankzors.leaderboard.LeaderboardEntry;
 
 /**
- * REST endpoints cho leaderboard (Phase 4, mới — không trên wire v1).
- *
- * <p>Endpoint đặt tách rời /api/leaderboard để không phá wire protocol-v1
- * của WebSocket /game. Phía game-client LibGDX desktop chưa submit score;
- * React client cũ cũng chưa. Phase 5/3.5 sẽ gọi endpoint này từ client khi
- * match kết thúc.</p>
+ * REST endpoints cho leaderboard.
  */
 @RestController
 @RequestMapping("/api/leaderboard")

@@ -39,7 +39,7 @@ public class SecurityConfig {
                 .requestMatchers("/css/**", "/js/**", "/images/**", "/play/**", "/game/**",
                                  "/favicon.ico", "/webjars/**").permitAll()
                 // Public pages
-                .requestMatchers("/", "/menu", "/register", "/error/**").permitAll()
+                .requestMatchers("/", "/menu", "/register", "/api/health", "/error/**").permitAll()
                 // Admin-only
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 // Everything else requires authentication
@@ -68,7 +68,7 @@ public class SecurityConfig {
                 // Nó không có cơ chế đọc/đính kèm CSRF token của form Thymeleaf;
                 // nếu chặn POST /api/game/results, chiến thắng không được ghi nhận
                 // và màn tiếp theo luôn bị bootstrap từ chối (403).
-                .ignoringRequestMatchers("/game", "/coop", "/api/game/**")
+                .ignoringRequestMatchers("/coop", "/api/game/**")
             );
 
         return http.build();

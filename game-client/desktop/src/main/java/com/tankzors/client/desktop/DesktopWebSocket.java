@@ -17,7 +17,7 @@ import com.tankzors.client.network.GameSocket;
  * <p>Thread-safe: ws callback chạy trên ws thread, enqueue message vào queue;
  * {@link #poll()} chạy an toàn trên render thread.</p>
  *
- * <p>Hỗ trợ auto-reconnect 3 lần, cách nhau 2 giây (parity với React client).</p>
+ * <p>Hỗ trợ auto-reconnect 3 lần, cách nhau 2 giây.</p>
  */
 public class DesktopWebSocket implements GameSocket {
 

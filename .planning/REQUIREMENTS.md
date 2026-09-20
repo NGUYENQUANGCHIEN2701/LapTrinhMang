@@ -1,92 +1,112 @@
-# Yêu cầu: Tankzors Pro
+# Requirements: Tankzors
 
-**Ngày tạo:** 21/08/2026
-**Giá trị cốt lõi:** Game xe tăng PvE hoàn chỉnh trên website với 2 chế độ chơi, thể hiện kiến thức Lập trình mạng (WebSocket client-server) và nguyên tắc SOLID trong Java backend.
+**Defined:** 2026-09-20
+**Core Value:** Người chơi mở game từ website, chơi campaign trong trình duyệt và lưu kết quả bằng một kiến trúc mạng rõ ràng, dễ chạy và dễ giải thích.
 
-## Yêu cầu phiên bản 1
+## v2.0 Requirements
 
-Yêu cầu cho phiên bản chấm điểm. Mỗi yêu cầu tương ứng với một giai đoạn trong lộ trình.
+### Gameplay Client
 
-### Chiến đấu cơ bản
+- [x] **GAME-01**: Người chơi di chuyển và bắn bằng bàn phím trong LibGDX.
+- [x] **GAME-02**: AI di chuyển, ngắm và bắn theo độ khó của map.
+- [x] **GAME-03**: Collision tank, tường, đạn và HP chạy trong client simulation.
+- [x] **GAME-04**: Trận có trạng thái WAITING, PLAYING, VICTORY và DEFEAT.
+- [x] **GAME-05**: Renderer dùng snapshot và không sở hữu hoặc sửa world state.
 
-- [ ] **COMBAT-01**: Người chơi điều khiển xe tăng di chuyển (lên/xuống/trái/phải) mượt mà
-- [ ] **COMBAT-02**: Người chơi có thể bắn đạn; đạn di chuyển theo hướng xe tăng
-- [ ] **COMBAT-03**: AI đối thủ di chuyển, xoay, và bắn lại người chơi
-- [ ] **COMBAT-04**: Xe tăng có máu (HP); trúng đạn giảm máu; HP = 0 thì xe tăng bị phá hủy
-- [ ] **COMBAT-05**: Bản đồ có tường/chướng ngại vật chặn di chuyển và chặn đạn
+### Campaign
 
-### Chế độ Campaign (Chiến dịch)
+- [x] **CAMP-01**: Có ba màn campaign với map, enemy và reward riêng.
+- [x] **CAMP-02**: Client tải map và run metadata qua `GET /api/game/bootstrap`.
+- [x] **CAMP-03**: Client gửi kết quả idempotent qua `POST /api/game/results`.
+- [x] **CAMP-04**: Thắng màn mở khóa màn kế tiếp và cập nhật tổng thưởng.
 
-- [ ] **CAMP-01**: 3 màn chơi tuần tự (phải thắng màn N mới mở được màn N+1)
-- [ ] **CAMP-02**: Mỗi màn có bản đồ riêng với bố trí chướng ngại vật và AI đối thủ khác nhau
-- [ ] **CAMP-03**: Thắng màn = nhận 3 sao + tiền thưởng
-- [ ] **CAMP-04**: Vật phẩm thu được cộng dồn qua các màn (có giới hạn tối đa mỗi loại)
+### Website and Data
 
-### Chế độ Online (Trực tuyến)
+- [x] **WEB-01**: Người dùng đăng ký, đăng nhập và đăng xuất bằng Spring Security session.
+- [x] **WEB-02**: Website có menu, campaign, play, settings, leaderboard và admin.
+- [x] **DATA-01**: PostgreSQL schema được quản lý bằng Flyway.
+- [x] **DATA-02**: Match result chống ghi trùng theo run và cập nhật progress, totals và leaderboard.
 
-- [ ] **ONLINE-01**: 3 bản đồ chơi độc lập (không cần mở khóa, chọn map bất kỳ)
-- [ ] **ONLINE-02**: Mỗi bản đồ có độ khó cố định (không tăng dần như Campaign)
-- [ ] **ONLINE-03**: Kết quả (điểm/sao) được gửi lên server sau mỗi trận
+### Co-op Networking
 
-### Lập trình mạng
+- [x] **COOP-01**: Server cung cấp WebSocket `/coop` để quản lý room và relay packet v2.
+- [x] **COOP-02**: Host session chạy simulation và phát WORLD_STATE cùng MATCH_RESULT.
+- [x] **COOP-03**: Guest session gửi PLAYER_INPUT và render snapshot từ host.
+- [ ] **COOP-04**: Lobby truyền đúng room, player, role, run và map vào LibGDX host hoặc guest session.
+- [ ] **COOP-05**: Hai browser hoàn thành create, join, ready, start và chơi một trận end-to-end.
+- [ ] **COOP-06**: Disconnect, room close và reconnect có trạng thái UI rõ ràng và không để session treo.
 
-- [ ] **NET-01**: Client kết nối server qua WebSocket; server xử lý logic game (server quản lý trạng thái)
-- [ ] **NET-02**: Client gửi lệnh (di chuyển/bắn), server xử lý và gửi trạng thái game về client
-- [ ] **NET-03**: Bảng xếp hạng lưu trên server, nhiều client có thể xem đồng thời
+### Architecture and Operations
 
-### Kiến trúc phần mềm
+- [x] **ARCH-01**: Server không chứa gameplay entity, AI, collision hoặc game loop.
+- [x] **ARCH-02**: Không còn WebSocket `/game`, React client hoặc Javalin server.
+- [x] **OPS-01**: Một lệnh Docker Compose build và chạy client, server cùng database.
+- [x] **OPS-02**: Unit test client, test Spring, GWT build và Docker build đều thành công.
+- [x] **DOC-01**: README, docs và OpenGSD mô tả đúng kiến trúc hiện tại.
 
-- [ ] **ARCH-01**: Java backend thiết kế theo nguyên tắc SOLID (SRP, OCP, LSP, ISP, DIP)
-- [ ] **ARCH-02**: Tách biệt rõ ràng: Game Engine / Tầng Mạng / Logic AI / Dữ liệu Bản đồ
+### Quality
 
-## Yêu cầu phiên bản 2 (Phát triển sau - ghi vào README)
+- [x] **QUAL-01**: Campaign simulation dùng fixed-step để hành vi không phụ thuộc FPS.
+- [x] **QUAL-02**: Result submit idempotent và có giới hạn dữ liệu phía server.
+- [x] **QUAL-03**: Build toolchain được cố định trong Docker bằng JDK 17 và 21.
+- [ ] **QUAL-04**: Co-op có test tích hợp tự động cho quyền host, membership và packet direction.
+- [ ] **QUAL-05**: Không có finding mức high từ security review trước khi hoàn thành milestone.
 
-- Thêm nhiều màn chơi hơn (5-10 mỗi chế độ)
-- Thêm loại xe tăng khác nhau (xe nhanh, xe hạng nặng, xe trinh sát)
-- Thêm vũ khí đặc biệt (tên lửa, mìn, khiên)
-- Chế độ PvP nhiều người chơi
-- Hệ thống tài khoản đầy đủ
-- Âm thanh và hiệu ứng hình ảnh
-- Vật phẩm tăng sức mạnh trên bản đồ
+## Future Requirements
 
-## Ngoài phạm vi
+### Competitive Networking
 
-| Tính năng | Lý do |
-|-----------|-------|
-| PvP nhiều người chơi thời gian thực | Quá phức tạp; đồng bộ trạng thái cho 2+ người vượt quá thời gian cho phép |
-| Hệ thống tài khoản (JWT, OAuth) | Không cần thiết cho demo 3 màn; tập trung vào gameplay + mạng |
-| Thoại/Video chat | Hoàn toàn ngoài phạm vi môn học |
-| Ứng dụng di động | Ưu tiên web; mobile/touch chỉ là backlog sau MVP |
-| Hơn 3 màn chơi | Đủ demo; ghi vào kế hoạch phiên bản 2 |
-| Ghép trận theo trình độ | Không có PvP nên không cần |
-| Trình chỉnh sửa bản đồ | Phạm vi riêng biệt, dùng bản đồ cố định |
+- **NET-01**: PvP cạnh tranh có reconciliation hoặc rollback phù hợp.
+- **NET-02**: Matchmaking ghép người chơi theo tiêu chí xác định.
 
-## Bảng theo dõi yêu cầu
+## Out of Scope
 
-| Yêu cầu | Giai đoạn | Trạng thái |
-|----------|-----------|------------|
-| COMBAT-01 | Giai đoạn 1 | Chưa làm |
-| COMBAT-02 | Giai đoạn 1 | Chưa làm |
-| COMBAT-03 | Giai đoạn 2 | Chưa làm |
-| COMBAT-04 | Giai đoạn 1 | Chưa làm |
-| COMBAT-05 | Giai đoạn 1 | Chưa làm |
-| CAMP-01 | Giai đoạn 2 | Chưa làm |
-| CAMP-02 | Giai đoạn 2 | Chưa làm |
-| CAMP-03 | Giai đoạn 2 | Chưa làm |
-| CAMP-04 | Giai đoạn 2 | Chưa làm |
-| ONLINE-01 | Giai đoạn 3 | Chưa làm |
-| ONLINE-02 | Giai đoạn 3 | Chưa làm |
-| ONLINE-03 | Giai đoạn 3 | Chưa làm |
-| NET-01 | Giai đoạn 1 | Chưa làm |
-| NET-02 | Giai đoạn 1 | Chưa làm |
-| NET-03 | Giai đoạn 3 | Chưa làm |
-| ARCH-01 | Giai đoạn 1 | Chưa làm |
-| ARCH-02 | Giai đoạn 1 | Chưa làm |
+| Feature | Reason |
+|---------|--------|
+| Server-authoritative gameplay | Mâu thuẫn với kiến trúc hiện tại và tạo gameplay engine thứ hai |
+| React/Vite/Javalin stack | Đã được thay bằng Thymeleaf và Spring Boot |
+| Mobile application | Không phục vụ milestone v2.0 |
+| Voice/video chat | Không phục vụ core gameplay |
 
-**Tổng kết:**
-- Tổng yêu cầu v1: 17
-- Đã phân bổ vào giai đoạn: 17
-- Chưa phân bổ: 0
+## Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| GAME-01 | Phase 1 | Complete |
+| GAME-02 | Phase 1 | Complete |
+| GAME-03 | Phase 1 | Complete |
+| GAME-04 | Phase 1 | Complete |
+| GAME-05 | Phase 1 | Complete |
+| CAMP-01 | Phase 1 | Complete |
+| CAMP-02 | Phase 1 | Complete |
+| CAMP-03 | Phase 1 | Complete |
+| CAMP-04 | Phase 1 | Complete |
+| WEB-01 | Phase 1 | Complete |
+| WEB-02 | Phase 1 | Complete |
+| DATA-01 | Phase 1 | Complete |
+| DATA-02 | Phase 1 | Complete |
+| COOP-01 | Phase 1 | Complete |
+| COOP-02 | Phase 1 | Complete |
+| COOP-03 | Phase 1 | Complete |
+| COOP-04 | Phase 2 | Pending |
+| COOP-05 | Phase 2 | Pending |
+| COOP-06 | Phase 2 | Pending |
+| ARCH-01 | Phase 1 | Complete |
+| ARCH-02 | Phase 1 | Complete |
+| OPS-01 | Phase 1 | Complete |
+| OPS-02 | Phase 1 | Complete |
+| DOC-01 | Phase 1 | Complete |
+| QUAL-01 | Phase 1 | Complete |
+| QUAL-02 | Phase 1 | Complete |
+| QUAL-03 | Phase 1 | Complete |
+| QUAL-04 | Phase 2 | Pending |
+| QUAL-05 | Phase 3 | Pending |
+
+**Coverage:**
+- v2.0 requirements: 29 total
+- Mapped to phases: 29
+- Unmapped: 0
 
 ---
-*Ngày tạo yêu cầu: 21/08/2026*
+*Requirements defined: 2026-09-20*
+*Last updated: 2026-09-20 after OpenGSD recovery*

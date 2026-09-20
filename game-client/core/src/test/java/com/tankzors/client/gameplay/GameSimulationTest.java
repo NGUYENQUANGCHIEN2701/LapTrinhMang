@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Parity các luật terminal/AI/bullet gốc sang simulation client.
  * Tương đương server engine.EndToEndIntegrationTest + CampaignProgressionTest +
- * GameLoopRestartTest, nhưng gọi step trực tiếp (không scheduler).
+ * Test trực tiếp fixed-step simulation, không dùng scheduler.
  */
 class GameSimulationTest {
 
