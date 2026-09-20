@@ -1,13 +1,16 @@
-# Giảm Docker build context — bỏ thư mục không cần thiết
-game-client/
+# Giảm Docker build context — vẫn giữ game-client source vì Dockerfile tự
+# build HTML5/GWT client trước khi build Spring Boot.
 infra/
 docs/
 .planning/
 .idea/
 .claude/
+.git/
+client/
+server/
 **/target/
 **/build/
 **/.gradle/
 **/*.log
 **/.DS_Store
-gitignore
+.gitignore
