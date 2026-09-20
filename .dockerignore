@@ -2,12 +2,8 @@
 # build HTML5/GWT client trước khi build Spring Boot.
 infra/
 docs/
-.planning/
 .idea/
-.claude/
 .git/
-client/
-server/
 **/target/
 **/build/
 **/.gradle/

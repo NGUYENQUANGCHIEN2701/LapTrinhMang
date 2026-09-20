@@ -1,7 +1,9 @@
 package com.tankzors.web;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mock.web.MockHttpSession;
@@ -87,6 +89,9 @@ class PageControllerTest {
 
     @Test
     void libgdxBootstrapIsServedAsStaticResource() throws Exception {
+        Assumptions.assumeTrue(
+            new ClassPathResource("static/game/libgdx/tankzorshtml/tankzorshtml.nocache.js").exists(),
+            "LibGDX bundle chưa build; chạy html:copyToServer trước khi test");
         mvc.perform(get("/game/libgdx/tankzorshtml/tankzorshtml.nocache.js"))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("tankzorshtml")));

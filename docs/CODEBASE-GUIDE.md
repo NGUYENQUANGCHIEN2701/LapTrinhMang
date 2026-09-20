@@ -296,7 +296,7 @@ Set-Location D:\BTLLapTrinhMang\LapTrinhMang
 Build server:
 
 ```powershell
-.\mvnw.cmd -pl server-spring -am clean package
+mvn -f server-spring\pom.xml clean package
 ```
 
 Run server:

@@ -14,12 +14,8 @@ Hướng dẫn build, run, troubleshoot Tankzors Pro. Tài liệu chính của r
 
 ### Lưu ý đặc thù
 
-- **Maven wrapper**: Repo có `mvnw` (bash) ở root, nhưng `.mvn/install/apache-maven-3.9.9-bin.tar.gz` chưa được commit. Run:
-  ```bash
-  # Option 1: cài Maven system-wide (khuyến nghị)
-  # Option 2: chạy qua WSL + mvnw
-  sed 's/\r$//' mvnw > /tmp/mvnw_fixed && bash /tmp/mvnw_fixed -version
-  ```
+- **Maven**: Repo không kèm Maven wrapper. Cài Maven system-wide (3.9+) và
+  kiểm tra bằng `mvn -version`.
 
 - **Java**: kiểm tra `java -version`. Game-client yêu cầu Java 17 (do LibGDX 1.12.1), server-spring có thể chạy Java 21.
 
@@ -191,18 +187,6 @@ Có thể đã chỉnh schema manually. Reset hoặc dùng baseline:
 docker compose -f infra/docker-compose.yml down -v
 docker compose -f infra/docker-compose.yml up -d
 ```
-
-### Build fails với "mvnw has CRLF line endings"
-
-Repo có `mvnw` shell script với Windows line endings. Fix:
-
-```bash
-# WSL bash:
-sed 's/\r$//' mvnw > /tmp/mvnw_fixed
-bash /tmp/mvnw_fixed -f server-spring/pom.xml clean package
-```
-
-Hoặc cài Maven system-wide.
 
 ### WebSocket không connect
 

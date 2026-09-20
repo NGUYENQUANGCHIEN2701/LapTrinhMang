@@ -39,14 +39,12 @@ LapTrinhMang/
 ├── game-client/        # LibGDX core, HTML5 launcher, desktop launcher và assets
 ├── server-spring/      # Backend, Thymeleaf, REST API, Security, JPA và WebSocket
 ├── infra/              # Docker Compose cho ứng dụng và PostgreSQL
-├── docs/               # Kiến trúc, protocol, runbook và tài liệu migration
-├── client/             # Bundle frontend cũ, không được Docker hiện tại sử dụng
-├── server/             # Mã server cũ, không được Docker hiện tại sử dụng
-└── .planning/          # Kế hoạch và tài liệu theo dõi tính năng
+└── docs/               # Kiến trúc, codebase guide, networking, protocol và runbook
 ```
 
-Hai module đang chạy chính thức là `game-client` và `server-spring`. Docker bỏ
-qua `client` và `server` khi build.
+Hai module đang chạy chính thức là `game-client` và `server-spring`. Docker build
+từ hai module này; bundle HTML5 được tạo lại trong quá trình build nên không được
+commit vào git.
 
 ## Chạy toàn bộ dự án bằng Docker
 
@@ -317,6 +315,5 @@ docker compose -f infra\docker-compose.yml logs --tail 100 postgres
 - [Protocol](docs/protocol-v1.md)
 - [Runbook](docs/runbook.md)
 
-Một số tài liệu trong `docs/` ghi lại các giai đoạn migration trước đây. Khi có
-khác biệt về cách chạy, phần Docker trong README này và
+Khi có khác biệt về cách chạy, phần Docker trong README này và
 `infra/docker-compose.yml` là cấu hình hiện hành.
