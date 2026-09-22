@@ -4,6 +4,7 @@ import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.tankzors.client.assets.AssetRepository;
+import com.tankzors.client.audio.AudioManager;
 import com.tankzors.client.input.ClientInputProcessor;
 import com.tankzors.client.input.ClientInputProcessor.Direction;
 import com.tankzors.client.model.GameStateSnapshot;
@@ -12,6 +13,7 @@ import com.tankzors.client.network.PacketBuilder;
 import com.tankzors.client.network.StatePacketParser;
 import com.tankzors.client.render.GameRenderer;
 import com.tankzors.client.session.GameSession;
+import com.tankzors.client.session.LocalCampaignSession;
 
 /**
  * LibGDX entry point. Điều phối asset + render + input; delegate gameplay cho
@@ -38,6 +40,7 @@ public class GameClient implements ApplicationListener {
     private GameSession session;
 
     private AssetRepository assets;
+    private AudioManager audio;
     private GameRenderer renderer;
     private StatePacketParser parser;
     private ClientInputProcessor input;
@@ -61,6 +64,9 @@ public class GameClient implements ApplicationListener {
         this.session = session;
     }
 
+    public AudioManager getAudio() { return audio; }
+    public void setAudio(AudioManager audio) { this.audio = audio; }
+
     public String getLevelId() { return levelId; }
     public void setLevelId(String levelId) { this.levelId = levelId; }
 
@@ -70,6 +76,15 @@ public class GameClient implements ApplicationListener {
 
         assets = new AssetRepository();
         assets.loadAll();
+
+        if (audio == null) {
+            audio = new AudioManager();
+        }
+        audio.loadAll();
+
+        if (session instanceof LocalCampaignSession) {
+            ((LocalCampaignSession) session).setAudioManager(audio);
+        }
 
         renderer = new GameRenderer(assets);
         renderer.resize(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
@@ -101,12 +116,17 @@ public class GameClient implements ApplicationListener {
                 else socket.send(PacketBuilder.stop());
             }
             @Override public void onRestart() {
+                if (audio != null) audio.playUiClick();
                 if (session != null) session.restart();
                 else restartLevel();
             }
             @Override public void onNextLevel() {
+                if (audio != null) audio.playUiClick();
                 if (session != null) session.nextLevel();
                 else nextLevel();
+            }
+            @Override public void onToggleMute() {
+                if (audio != null) audio.toggleMute();
             }
         });
         Gdx.input.setInputProcessor(input);
@@ -129,7 +149,8 @@ public class GameClient implements ApplicationListener {
         int[] keys = {
                 Input.Keys.UP, Input.Keys.DOWN, Input.Keys.LEFT, Input.Keys.RIGHT,
                 Input.Keys.W, Input.Keys.A, Input.Keys.S, Input.Keys.D,
-                Input.Keys.SPACE, Input.Keys.J, Input.Keys.R, Input.Keys.N
+                Input.Keys.SPACE, Input.Keys.J, Input.Keys.R, Input.Keys.N,
+                Input.Keys.M
         };
         for (int key : keys) {
             Gdx.input.setCatchKey(key, true);
@@ -247,5 +268,6 @@ public class GameClient implements ApplicationListener {
         if (socket != null) socket.disconnect();
         if (renderer != null) renderer.dispose();
         if (assets != null) assets.dispose();
+        if (audio != null) audio.dispose();
     }
 }
