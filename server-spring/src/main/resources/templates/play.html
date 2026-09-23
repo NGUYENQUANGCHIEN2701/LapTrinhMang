@@ -18,10 +18,10 @@
     <div id="game-container"
          class="game-container"
          th:attr="data-level-id=${selectedLevelId}">
-        <!-- iframe load GWT build; truyen levelId qua query string. -->
+        <!-- iframe load GWT build; truyen levelId, soundVol, musicVol qua query string. -->
         <iframe id="game-frame"
                 class="game-frame"
-                th:src="@{/game/libgdx/index.html(levelId=${selectedLevelId})}"
+                th:src="@{/game/libgdx/index.html(levelId=${selectedLevelId},soundVol=${settings != null ? settings.soundVolume : 80},musicVol=${settings != null ? settings.musicVolume : 70})}"
                 title="Tankzors Game"
                 tabindex="0"
                 allow="autoplay; fullscreen; gamepad"
@@ -58,7 +58,8 @@
 
     <p class="controls-hint">
         <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / mũi tên: di chuyển &middot;
-        <kbd>Space</kbd> / <kbd>J</kbd>: bắn
+        <kbd>Space</kbd> / <kbd>J</kbd>: bắn &middot;
+        <kbd>M</kbd>: tắt/bật âm thanh
     </p>
 
     <div class="form-actions">

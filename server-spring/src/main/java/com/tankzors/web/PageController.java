@@ -165,6 +165,7 @@ public class PageController {
     public String play(
         @RequestParam(name = "levelId", defaultValue = DEFAULT_LEVEL) String levelId,
         Model model,
+        HttpServletRequest request,
         RedirectAttributes redirectAttributes
     ) {
         CampaignLevelView level = campaignQueryService.getLevel(levelId).orElse(null);
@@ -177,6 +178,7 @@ public class PageController {
         pageModelFactory.apply(model, "Play - " + level.getName(), "play");
         model.addAttribute("selectedLevelId", level.getId());
         model.addAttribute("levelName", level.getName());
+        model.addAttribute("settings", settingsService.load(request.getSession()));
         return "play";
     }
 
