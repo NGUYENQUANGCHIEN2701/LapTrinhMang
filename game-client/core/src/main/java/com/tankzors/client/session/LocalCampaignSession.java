@@ -1,6 +1,8 @@
 package com.tankzors.client.session;
 
 import com.tankzors.client.GameClient;
+import com.tankzors.client.audio.AudioManager;
+import com.tankzors.client.gameplay.GameEventListener;
 import com.tankzors.client.gameplay.GameSimulation;
 import com.tankzors.client.gameplay.GameWorld;
 import com.tankzors.client.gameplay.WorldSnapshotMapper;
@@ -34,6 +36,7 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
     private final String mode = "CAMPAIGN";
     private final ResultHandler resultHandler;
     private final MapSource mapSource;
+    private AudioManager audioManager;
 
     private GameSimulation sim;
     private String levelId;
@@ -74,14 +77,61 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
     /** Lazy variant: MapSource sẽ load trong ensureStarted() / requestLevel (Gdx đã init). */
     public LocalCampaignSession(String playerId, String levelId,
                                 MapSource mapSource, ResultHandler resultHandler) {
+        this(playerId, levelId, mapSource, resultHandler, null);
+    }
+
+    public LocalCampaignSession(String playerId, String levelId,
+                                MapSource mapSource, ResultHandler resultHandler,
+                                AudioManager audioManager) {
         this.playerId = playerId;
         this.levelId = levelId;
         this.runId = mapSource.newRunId(levelId);
         this.mapVersion = mapSource.mapVersion(levelId);
         this.resultHandler = resultHandler;
         this.mapSource = mapSource;
+        this.audioManager = audioManager;
         this.sim = new GameSimulation(seedFor(runId, levelId));
+        if (audioManager != null) {
+            this.sim.setEventListener(createAudioBridge());
+        }
         // Chưa start — sẽ load qua requestLevel (async) của launcher.
+    }
+
+    public void setAudioManager(AudioManager audioManager) {
+        this.audioManager = audioManager;
+        if (sim != null && audioManager != null) {
+            sim.setEventListener(createAudioBridge());
+        }
+    }
+
+    public AudioManager getAudioManager() {
+        return audioManager;
+    }
+
+    private GameEventListener createAudioBridge() {
+        return new GameEventListener() {
+            @Override public void onShoot(boolean isPlayer) {
+                if (audioManager != null) audioManager.playShoot(isPlayer);
+            }
+            @Override public void onHitWall() {
+                if (audioManager != null) audioManager.playHitWall();
+            }
+            @Override public void onHitTank(boolean isPlayer) {
+                if (audioManager != null) audioManager.playHitTank(isPlayer);
+            }
+            @Override public void onTankDestroyed(boolean isPlayer) {
+                if (audioManager != null) audioManager.playTankDestroyed(isPlayer);
+            }
+            @Override public void onMatchEnd(GameWorld.Status status) {
+                if (audioManager != null) {
+                    if (status == GameWorld.Status.VICTORY) {
+                        audioManager.playVictoryMusic();
+                    } else if (status == GameWorld.Status.DEFEAT) {
+                        audioManager.playDefeatMusic();
+                    }
+                }
+            }
+        };
     }
 
     /**
@@ -107,6 +157,10 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         currentRewardStars = rw[0];
         currentRewardCoins = rw[1];
         sim.setMatchEndHandler(this::onMatchEnd);
+        if (audioManager != null) {
+            sim.setEventListener(createAudioBridge());
+            audioManager.playBattleMusic(levelId);
+        }
         sim.startCampaignLevel(loadedMap, levelId, playerId);
         return true;
     }
@@ -262,6 +316,10 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         matchResult = null;
         matchResultFired = false;
         sim.setMatchEndHandler(this::onMatchEnd);
+        if (audioManager != null) {
+            sim.setEventListener(createAudioBridge());
+            audioManager.playBattleMusic(levelId);
+        }
         sim.startCampaignLevel(loadedMap, levelId, playerId);
         phase = Phase.PLAYING;
         inFlight = false;

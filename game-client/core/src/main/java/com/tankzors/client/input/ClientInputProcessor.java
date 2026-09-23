@@ -27,6 +27,8 @@ public final class ClientInputProcessor implements InputProcessor {
         void onRestart();
         /** Phase G: chuyển sang màn kế tiếp sau khi chiến thắng. */
         void onNextLevel();
+        /** Bật/tắt nhanh âm thanh (mute/unmute). */
+        void onToggleMute();
     }
 
     private final Callbacks callbacks;
@@ -79,6 +81,10 @@ public final class ClientInputProcessor implements InputProcessor {
 
     @Override
     public boolean keyDown(int keycode) {
+        if (keycode == Input.Keys.M) {
+            callbacks.onToggleMute();
+            return true;
+        }
         if (!enabled) {
             if (keycode == Input.Keys.R) {
                 callbacks.onRestart();
