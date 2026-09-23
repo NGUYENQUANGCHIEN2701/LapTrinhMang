@@ -27,14 +27,22 @@ public final class ClientInputProcessor implements InputProcessor {
         void onRestart();
         /** Phase G: chuyển sang màn kế tiếp sau khi chiến thắng. */
         void onNextLevel();
+        default void onToggleShop() {}
+        default void onCycleWeapon() {}
+        default void onSelectWeapon(int weaponId) {}
     }
 
     private final Callbacks callbacks;
     private final EnumSet<Direction> activeDirections = EnumSet.noneOf(Direction.class);
     private boolean enabled = true;
+    private com.tankzors.client.ui.ShopOverlay shopOverlay;
 
     public ClientInputProcessor(Callbacks callbacks) {
         this.callbacks = callbacks;
+    }
+
+    public void setShopOverlay(com.tankzors.client.ui.ShopOverlay shopOverlay) {
+        this.shopOverlay = shopOverlay;
     }
 
     public EnumSet<Direction> activeDirections() {
@@ -79,6 +87,15 @@ public final class ClientInputProcessor implements InputProcessor {
 
     @Override
     public boolean keyDown(int keycode) {
+        if (shopOverlay != null && shopOverlay.isVisible()) {
+            return shopOverlay.handleKeyDown(keycode);
+        }
+
+        if (keycode == Input.Keys.B) {
+            callbacks.onToggleShop();
+            return true;
+        }
+
         if (!enabled) {
             if (keycode == Input.Keys.R) {
                 callbacks.onRestart();
@@ -90,6 +107,36 @@ public final class ClientInputProcessor implements InputProcessor {
             }
             return true;
         }
+
+        if (keycode == Input.Keys.Q || keycode == Input.Keys.E) {
+            callbacks.onCycleWeapon();
+            return true;
+        }
+        if (keycode == Input.Keys.NUM_1) {
+            callbacks.onSelectWeapon(0);
+            return true;
+        }
+        if (keycode == Input.Keys.NUM_2) {
+            callbacks.onSelectWeapon(1);
+            return true;
+        }
+        if (keycode == Input.Keys.NUM_3) {
+            callbacks.onSelectWeapon(2);
+            return true;
+        }
+        if (keycode == Input.Keys.NUM_4) {
+            callbacks.onSelectWeapon(3);
+            return true;
+        }
+        if (keycode == Input.Keys.NUM_5) {
+            callbacks.onSelectWeapon(4);
+            return true;
+        }
+        if (keycode == Input.Keys.NUM_6) {
+            callbacks.onSelectWeapon(5);
+            return true;
+        }
+
         Direction direction = mapKeyToDirection(keycode);
         if (direction != null) {
             if (!activeDirections.contains(direction)) {
@@ -107,6 +154,9 @@ public final class ClientInputProcessor implements InputProcessor {
 
     @Override
     public boolean keyUp(int keycode) {
+        if (shopOverlay != null && shopOverlay.isVisible()) {
+            return true;
+        }
         if (!enabled) return true;
         Direction direction = mapKeyToDirection(keycode);
         if (direction != null) {
@@ -135,13 +185,39 @@ public final class ClientInputProcessor implements InputProcessor {
         }
     }
 
-    // ========== Unused InputProcessor methods ==========
+    // ========== InputProcessor touch/scroll methods ==========
 
     @Override public boolean keyTyped(char character) { return false; }
-    @Override public boolean touchDown(int screenX, int screenY, int pointer, int button) { return false; }
+
+    @Override
+    public boolean touchDown(int screenX, int screenY, int pointer, int button) {
+        if (shopOverlay != null && shopOverlay.isVisible()) {
+            return shopOverlay.handleTouchDown(screenX, screenY);
+        }
+        // HUD buttons check
+        // [B] WORKSHOP button at (260, 10, 130, 45)
+        if (screenX >= 260 && screenX <= 390 && screenY >= 10 && screenY <= 55) {
+            callbacks.onToggleShop();
+            return true;
+        }
+        // Weapon Slot at (400, 10, 80, 45)
+        if (screenX >= 400 && screenX <= 480 && screenY >= 10 && screenY <= 55) {
+            callbacks.onCycleWeapon();
+            return true;
+        }
+        return false;
+    }
+
     @Override public boolean touchUp(int screenX, int screenY, int pointer, int button) { return false; }
     @Override public boolean touchCancelled(int screenX, int screenY, int pointer, int button) { return false; }
     @Override public boolean touchDragged(int screenX, int screenY, int pointer) { return false; }
     @Override public boolean mouseMoved(int screenX, int screenY) { return false; }
-    @Override public boolean scrolled(float amountX, float amountY) { return false; }
+
+    @Override
+    public boolean scrolled(float amountX, float amountY) {
+        if (shopOverlay != null && shopOverlay.isVisible()) {
+            return shopOverlay.handleScrolled(amountY);
+        }
+        return false;
+    }
 }

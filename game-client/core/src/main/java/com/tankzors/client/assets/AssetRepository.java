@@ -27,6 +27,14 @@ public class AssetRepository implements Disposable {
     private Texture palmsSheet;
     private Texture explosionBigSheet;
 
+    // Shop GUI Textures
+    private Texture iconsSheet;
+    private Texture billetsTexture;
+    private Texture panelTexture;
+    private Texture statMoneyTexture;
+    private Texture statStarTexture;
+    private TextureRegion[] iconRegions;
+
     // SpriteRegions (chia theo frame)
     private TextureRegion[] playerTankFrames;
     private TextureRegion[] enemyTankFrames;
@@ -59,7 +67,46 @@ public class AssetRepository implements Disposable {
         spikesFrames = split(spikesSheet, 20, 20, 3, false);
         // Palms: 5 frame × 88px
         palmsFrames = split(palmsSheet, 88, 88, 5, false);
+
+        // Shop GUI
+        if (Gdx.files.internal("gui/icons.png").exists()) {
+            iconsSheet = new Texture(Gdx.files.internal("gui/icons.png"));
+            iconRegions = new TextureRegion[40];
+            for (int i = 0; i < 40; i++) {
+                int col = i % 20;
+                int row = i / 20;
+                iconRegions[i] = new TextureRegion(iconsSheet, col * 100, row * 100, 100, 100);
+                iconRegions[i].flip(false, true);
+            }
+        }
+        if (Gdx.files.internal("gui/billets.png").exists()) {
+            billetsTexture = new Texture(Gdx.files.internal("gui/billets.png"));
+        }
+        if (Gdx.files.internal("gui/panel.png").exists()) {
+            panelTexture = new Texture(Gdx.files.internal("gui/panel.png"));
+        }
+        if (Gdx.files.internal("gui/stat_money.png").exists()) {
+            statMoneyTexture = new Texture(Gdx.files.internal("gui/stat_money.png"));
+        }
+        if (Gdx.files.internal("gui/stat_star.png").exists()) {
+            statStarTexture = new Texture(Gdx.files.internal("gui/stat_star.png"));
+        }
     }
+
+    public TextureRegion getIcon(int id) {
+        if (iconRegions == null || iconRegions.length == 0) return null;
+        if (id >= 0 && id < iconRegions.length) {
+            return iconRegions[id];
+        }
+        if (id == -1) return iconRegions[17]; // ExChassis
+        if (id == -2) return iconRegions[19]; // Extra Life
+        return iconRegions[0];
+    }
+
+    public Texture getBillets() { return billetsTexture; }
+    public Texture getPanel() { return panelTexture; }
+    public Texture getStatMoney() { return statMoneyTexture; }
+    public Texture getStatStar() { return statStarTexture; }
 
     public TextureRegion tankFrame(boolean isPlayer, float rotation) {
         // Renderer.ts cũ: frameIndex = (Math.floor((rotation + 11.25) / 22.5) + 8) % 16
@@ -104,6 +151,11 @@ public class AssetRepository implements Disposable {
         if (spikesSheet != null) spikesSheet.dispose();
         if (palmsSheet != null) palmsSheet.dispose();
         if (explosionBigSheet != null) explosionBigSheet.dispose();
+        if (iconsSheet != null) iconsSheet.dispose();
+        if (billetsTexture != null) billetsTexture.dispose();
+        if (panelTexture != null) panelTexture.dispose();
+        if (statMoneyTexture != null) statMoneyTexture.dispose();
+        if (statStarTexture != null) statStarTexture.dispose();
     }
 
     private static TextureRegion[] split(Texture sheet, int tileW, int tileH, int frameCount, boolean flipY) {

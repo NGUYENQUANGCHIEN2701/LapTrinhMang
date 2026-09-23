@@ -47,4 +47,8 @@ public interface GameSession {
 
     /** Có cần WebSocket không (campaign local = false; host/guest = true). */
     boolean requiresSocket();
+
+    default com.tankzors.client.shop.PlayerShopState getShopState() { return null; }
+    default void cycleWeapon() {}
+    default void selectWeapon(int weaponId) {}
 }

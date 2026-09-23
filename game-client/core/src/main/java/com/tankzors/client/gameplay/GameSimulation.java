@@ -44,6 +44,7 @@ public class GameSimulation {
     private boolean coopMode = false;
 
     private MatchEndHandler matchEndHandler;
+    private com.tankzors.client.shop.PlayerShopState shopState;
 
     public GameSimulation(long matchSeed) {
         this.matchRng = new Random(matchSeed);
@@ -51,6 +52,8 @@ public class GameSimulation {
 
     // ========== SETUP ==========
     public void setLocalPlayerId(String id) { this.localPlayerId = id; }
+    public void setShopState(com.tankzors.client.shop.PlayerShopState shopState) { this.shopState = shopState; }
+    public com.tankzors.client.shop.PlayerShopState getShopState() { return shopState; }
 
     public void setMatchEndHandler(MatchEndHandler handler) { this.matchEndHandler = handler; }
 
@@ -162,8 +165,19 @@ public class GameSimulation {
     private void spawnPlayer(String playerId) {
         IMap map = world.getCurrentMap();
         Position spawn = findPlayerSpawn();
-        PlayerTank player = new PlayerTank(playerId, spawn.getX(), spawn.getY());
+        double speed = PlayerTank.DEFAULT_SPEED;
+        int hp = PlayerTank.DEFAULT_HP;
+        if (shopState != null) {
+            speed *= shopState.getSpeedMultiplier();
+            hp += shopState.getArmorHpBonus();
+        }
+        PlayerTank player = new PlayerTank(playerId, spawn.getX(), spawn.getY(), speed);
+        player.setMaxHp(hp);
+        player.setHp(hp);
         player.setBulletIdSource(() -> bulletIds.next("player"));
+        if (shopState != null) {
+            player.setActiveWeaponId(shopState.getActiveWeaponId());
+        }
         world.addTank(player);
     }
 
@@ -299,8 +313,25 @@ public class GameSimulation {
                     break;
                 case SHOOT:
                     if (world.isPlaying() && player.isAlive()) {
-                        IBullet b = player.shoot();
-                        if (b != null) world.addBullet(b);
+                        if (shopState != null) {
+                            int wid = shopState.getActiveWeaponId();
+                            int count = shopState.getItemCount(wid);
+                            if (wid != 0 && count <= 0) {
+                                wid = 0;
+                                shopState.setActiveWeaponId(0);
+                            }
+                            player.setActiveWeaponId(wid);
+                            IBullet b = player.shoot();
+                            if (b != null) {
+                                world.addBullet(b);
+                                if (wid != 0 && count > 0) {
+                                    shopState.setItemCount(wid, count - 1);
+                                }
+                            }
+                        } else {
+                            IBullet b = player.shoot();
+                            if (b != null) world.addBullet(b);
+                        }
                     }
                     break;
             }

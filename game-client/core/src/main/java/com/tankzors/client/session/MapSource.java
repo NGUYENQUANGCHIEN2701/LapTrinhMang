@@ -61,6 +61,11 @@ public interface MapSource {
          */
         void onLevelLoaded(String levelId, String mapJson, String runId, String mapVersion);
 
+        default void onLevelLoadedWithShop(String levelId, String mapJson, String runId, String mapVersion,
+                                           int totalCoins, int totalStars, String researchJson, String inventoryJson) {
+            onLevelLoaded(levelId, mapJson, runId, mapVersion);
+        }
+
         /** Gọi khi fetch/parse lỗi. Session giữ nguyên sim hiện tại, sang LOAD_ERROR. */
         void onLoadError(String reason);
     }

@@ -6,12 +6,15 @@ import com.badlogic.gdx.Input;
 import com.tankzors.client.assets.AssetRepository;
 import com.tankzors.client.input.ClientInputProcessor;
 import com.tankzors.client.input.ClientInputProcessor.Direction;
+import com.tankzors.client.audio.AudioManager;
 import com.tankzors.client.model.GameStateSnapshot;
 import com.tankzors.client.network.GameSocket;
 import com.tankzors.client.network.PacketBuilder;
 import com.tankzors.client.network.StatePacketParser;
 import com.tankzors.client.render.GameRenderer;
 import com.tankzors.client.session.GameSession;
+import com.tankzors.client.session.LocalCampaignSession;
+import com.tankzors.client.ui.ShopOverlay;
 
 /**
  * LibGDX entry point. Điều phối asset + render + input; delegate gameplay cho
@@ -38,7 +41,9 @@ public class GameClient implements ApplicationListener {
     private GameSession session;
 
     private AssetRepository assets;
+    private AudioManager audio;
     private GameRenderer renderer;
+    private ShopOverlay shopOverlay;
     private StatePacketParser parser;
     private ClientInputProcessor input;
 
@@ -71,8 +76,28 @@ public class GameClient implements ApplicationListener {
         assets = new AssetRepository();
         assets.loadAll();
 
+        audio = new AudioManager();
+        audio.loadAll();
+
         renderer = new GameRenderer(assets);
         renderer.resize(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+
+        if (session != null && session.getShopState() != null) {
+            shopOverlay = new ShopOverlay(assets, audio, session.getShopState(), new ShopOverlay.ShopListener() {
+                @Override
+                public void onShopClosed() {
+                    if (session instanceof LocalCampaignSession) {
+                        ((LocalCampaignSession) session).syncShopState();
+                    }
+                }
+                @Override
+                public void onShopStateChanged() {
+                    if (session instanceof LocalCampaignSession) {
+                        ((LocalCampaignSession) session).syncShopState();
+                    }
+                }
+            });
+        }
 
         parser = new StatePacketParser();
 
@@ -108,7 +133,25 @@ public class GameClient implements ApplicationListener {
                 if (session != null) session.nextLevel();
                 else nextLevel();
             }
+            @Override public void onToggleShop() {
+                if (shopOverlay != null) {
+                    shopOverlay.toggle();
+                }
+            }
+            @Override public void onCycleWeapon() {
+                if (session != null) {
+                    session.cycleWeapon();
+                    if (audio != null) audio.playUiWeapSwitch();
+                }
+            }
+            @Override public void onSelectWeapon(int weaponId) {
+                if (session != null) {
+                    session.selectWeapon(weaponId);
+                    if (audio != null) audio.playUiWeapSwitch();
+                }
+            }
         });
+        input.setShopOverlay(shopOverlay);
         Gdx.input.setInputProcessor(input);
         catchGameplayKeys();
 
@@ -129,7 +172,9 @@ public class GameClient implements ApplicationListener {
         int[] keys = {
                 Input.Keys.UP, Input.Keys.DOWN, Input.Keys.LEFT, Input.Keys.RIGHT,
                 Input.Keys.W, Input.Keys.A, Input.Keys.S, Input.Keys.D,
-                Input.Keys.SPACE, Input.Keys.J, Input.Keys.R, Input.Keys.N
+                Input.Keys.SPACE, Input.Keys.J, Input.Keys.R, Input.Keys.N,
+                Input.Keys.B, Input.Keys.Q, Input.Keys.E, Input.Keys.ESCAPE,
+                Input.Keys.NUM_1, Input.Keys.NUM_2, Input.Keys.NUM_3, Input.Keys.NUM_4, Input.Keys.NUM_5, Input.Keys.NUM_6
         };
         for (int key : keys) {
             Gdx.input.setCatchKey(key, true);
@@ -144,7 +189,10 @@ public class GameClient implements ApplicationListener {
             // ===== Session-driven (local / host / guest) =====
             session.update(dt);
             setEnabledByStatus(session.status());
-            if (renderer != null) renderer.render(session.snapshot());
+            if (renderer != null) {
+                renderer.render(session.snapshot());
+                renderer.renderShop(shopOverlay);
+            }
             return;
         }
 
@@ -166,7 +214,10 @@ public class GameClient implements ApplicationListener {
             }
         }
 
-        if (renderer != null) renderer.render(legacyState);
+        if (renderer != null) {
+            renderer.render(legacyState);
+            renderer.renderShop(shopOverlay);
+        }
     }
 
     private void setEnabledByStatus(String status) {
@@ -247,5 +298,6 @@ public class GameClient implements ApplicationListener {
         if (socket != null) socket.disconnect();
         if (renderer != null) renderer.dispose();
         if (assets != null) assets.dispose();
+        if (audio != null) audio.dispose();
     }
 }

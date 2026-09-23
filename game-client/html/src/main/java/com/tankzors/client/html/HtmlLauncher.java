@@ -46,6 +46,9 @@ public class HtmlLauncher extends GwtApplication {
             LocalCampaignSession session = new LocalCampaignSession(
                     browserPlayerId(), levelId, mapSource,
                     (MatchResult r) -> { GwtAppBridge.get().submitResult(r); return true; });
+            session.setShopSyncHandler((coins, stars, researchJson, inventoryJson) -> {
+                GwtAppBridge.get().syncShop(coins, stars, researchJson, inventoryJson);
+            });
             client.setSession(session);
             // start() (fetch bootstrap ban đầu) được GameClient.create() gọi.
             // Restart/nextLevel sau này cũng qua cùng requestLevel path.
@@ -108,7 +111,11 @@ public class HtmlLauncher extends GwtApplication {
                             var runId = resp.runId || ("local-" + resp.levelId);
                             var mapVersion = resp.mapVersion || "";
                             var levelId = resp.levelId;
-                            callback.@com.tankzors.client.session.MapSource$LevelCallback::onLevelLoaded(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)(levelId, mapJson, runId, mapVersion);
+                            var totalCoins = resp.totalCoins || 0;
+                            var totalStars = resp.totalStars || 0;
+                            var researchJson = resp.researchJson || "{}";
+                            var inventoryJson = resp.inventoryJson || "{}";
+                            callback.@com.tankzors.client.session.MapSource$LevelCallback::onLevelLoadedWithShop(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IILjava/lang/String;Ljava/lang/String;)(levelId, mapJson, runId, mapVersion, totalCoins, totalStars, researchJson, inventoryJson);
                         } catch (e) {
                             $wnd.console && $wnd.console.error("[bootstrap] parse failed", e);
                             callback.@com.tankzors.client.session.MapSource$LevelCallback::onLoadError(Ljava/lang/String;)("parse: " + e);

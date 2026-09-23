@@ -71,6 +71,54 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         boolean onResult(MatchResult result);
     }
 
+    private final com.tankzors.client.shop.PlayerShopState shopState = new com.tankzors.client.shop.PlayerShopState();
+    private ShopSyncHandler shopSyncHandler;
+
+    public interface ShopSyncHandler {
+        void onSyncShop(int coins, int stars, String researchJson, String inventoryJson);
+    }
+
+    public com.tankzors.client.shop.PlayerShopState getShopState() {
+        return shopState;
+    }
+
+    public void setShopSyncHandler(ShopSyncHandler handler) {
+        this.shopSyncHandler = handler;
+    }
+
+    public void syncShopState() {
+        if (shopSyncHandler != null) {
+            shopSyncHandler.onSyncShop(shopState.getCoins(), shopState.getStars(),
+                    shopState.serializeResearch(), shopState.serializeInventory());
+        }
+    }
+
+    @Override
+    public void cycleWeapon() {
+        if (shopState != null) {
+            shopState.cycleNextWeapon();
+            updateSimPlayerWeapon();
+        }
+    }
+
+    @Override
+    public void selectWeapon(int weaponId) {
+        if (shopState != null) {
+            shopState.selectWeapon(weaponId);
+            updateSimPlayerWeapon();
+        }
+    }
+
+    private void updateSimPlayerWeapon() {
+        if (sim != null && sim.getWorld() != null) {
+            for (com.tankzors.client.gameplay.interfaces.ITank t : sim.getWorld().getAllTanks()) {
+                if (t instanceof com.tankzors.client.gameplay.entity.PlayerTank) {
+                    ((com.tankzors.client.gameplay.entity.PlayerTank) t).setActiveWeaponId(shopState.getActiveWeaponId());
+                }
+            }
+        }
+    }
+
     /** Lazy variant: MapSource sẽ load trong ensureStarted() / requestLevel (Gdx đã init). */
     public LocalCampaignSession(String playerId, String levelId,
                                 MapSource mapSource, ResultHandler resultHandler) {
@@ -81,6 +129,7 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         this.resultHandler = resultHandler;
         this.mapSource = mapSource;
         this.sim = new GameSimulation(seedFor(runId, levelId));
+        this.sim.setShopState(this.shopState);
         // Chưa start — sẽ load qua requestLevel (async) của launcher.
     }
 
@@ -166,6 +215,12 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
             snap.starsEarned = matchResult.starsEarned;
             snap.coinsEarned = matchResult.coinsEarned;
         }
+        if (shopState != null) {
+            snap.playerCoins = shopState.getCoins();
+            snap.playerStars = shopState.getStars();
+            snap.activeWeaponId = shopState.getActiveWeaponId();
+            snap.activeWeaponAmmo = shopState.getItemCount(shopState.getActiveWeaponId());
+        }
         return snap;
     }
 
@@ -239,10 +294,18 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
 
     // ===== LevelCallback: mutation duy nhất của (level, sim, run) =====
     @Override
+    public void onLevelLoadedWithShop(String loadedLevelId, String mapJson, String newRunId, String newMapVersion,
+                                       int totalCoins, int totalStars, String researchJson, String inventoryJson) {
+        shopState.loadState(totalCoins, totalStars, researchJson, inventoryJson);
+        onLevelLoaded(loadedLevelId, mapJson, newRunId, newMapVersion);
+    }
+
+    @Override
     public void onLevelLoaded(String loadedLevelId, String mapJson, String newRunId, String newMapVersion) {
         // Parse vào simulation tạm — chỉ cam kết mutation khi map hợp lệ.
         GameSimulation next = new GameSimulation(seedFor(
                 newRunId != null ? newRunId : "local-" + loadedLevelId, loadedLevelId));
+        next.setShopState(shopState);
         MapDefinition nextMap = MapLoader.parse(mapJson);
         if (nextMap == null) {
             System.err.println("[LocalCampaignSession] map parse fail khi bootstrap '" + loadedLevelId + "'");
@@ -280,6 +343,7 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
     public void changeLevel(String newLevelId, String mapJson, String runId, String mapVersion) {
         GameSimulation next = new GameSimulation(seedFor(
                 runId != null ? runId : "local-" + newLevelId, newLevelId));
+        next.setShopState(shopState);
         MapDefinition nextMap = MapLoader.parse(mapJson);
         if (nextMap == null) {
             System.err.println("[LocalCampaignSession] changeLevel parse fail '" + newLevelId + "'");
@@ -310,6 +374,15 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         boolean victory = "VICTORY".equalsIgnoreCase(status);
         int stars = victory ? currentRewardStars : 0;
         int coins = victory ? currentRewardCoins : 0;
+        if (victory) {
+            int extraPercent = shopState.getExtraInterestPercent();
+            if (extraPercent > 0) {
+                coins += (coins * extraPercent / 100);
+            }
+            shopState.addCoins(coins);
+            shopState.addStars(stars);
+            syncShopState();
+        }
         matchResult = new MatchResult(runId, mode, lvl, mapVersion != null ? mapVersion : "",
                 status, score, hpRemain, aiKills, elapsedSeconds, stars, coins);
         if (resultHandler != null) {

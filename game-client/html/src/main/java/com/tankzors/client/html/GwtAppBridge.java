@@ -25,6 +25,19 @@ public final class GwtAppBridge {
         postJsonWithRetry(url, body, 0);
     }
 
+    /** Đồng bộ dữ liệu shop (coins, stars, research, inventory) lên server. */
+    public void syncShop(int coins, int stars, String researchJson, String inventoryJson) {
+        String url = "/api/game/shop/sync";
+        StringBuilder sb = new StringBuilder();
+        sb.append('{');
+        sb.append("\"totalCoins\":").append(coins).append(',');
+        sb.append("\"totalStars\":").append(stars).append(',');
+        sb.append("\"researchJson\":").append(quote(researchJson)).append(',');
+        sb.append("\"inventoryJson\":").append(quote(inventoryJson));
+        sb.append('}');
+        postJsonWithRetry(url, sb.toString(), 0);
+    }
+
     private String buildBody(MatchResult r) {
         // Hand-roll JSON (tránh String.format — GWT không emulate; tránh Gson — core).
         StringBuilder sb = new StringBuilder();

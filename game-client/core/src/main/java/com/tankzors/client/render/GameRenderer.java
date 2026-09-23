@@ -93,10 +93,8 @@ public class GameRenderer implements Disposable {
             return;
         }
 
-        // 5. HUD (player HP + status)
-        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        // 5. HUD (player HP + status + shop/weapon)
         drawHud(state);
-        shapes.end();
 
         if ("VICTORY".equalsIgnoreCase(state.gameStatus)
             || "DEFEAT".equalsIgnoreCase(state.gameStatus)) {
@@ -225,20 +223,79 @@ public class GameRenderer implements Disposable {
         int hp = player != null ? player.hp : 0;
         int maxHp = player != null ? player.maxHp : 100;
 
-        // Nền panel góc trên trái
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        // 1. Nền panel HP (10, 10, 240, 45)
         shapes.setColor(0, 0, 0, 0.65f);
         shapes.rect(10, 10, 240, 45);
 
         // Thanh HP
         shapes.setColor(Color.DARK_GRAY);
-        shapes.rect(22, 24, 216, 14);
+        shapes.rect(22, 26, 216, 14);
 
         float pct = MathUtils.clamp((float) hp / maxHp, 0, 1);
         if (pct > 0.6f) shapes.setColor(Color.GREEN);
         else if (pct > 0.3f) shapes.setColor(Color.YELLOW);
         else shapes.setColor(Color.RED);
-        shapes.rect(22, 24, 216 * pct, 14);
-        drawHealthTicks(22, 24, 216, 14, 5);
+        shapes.rect(22, 26, 216 * pct, 14);
+        drawHealthTicks(22, 26, 216, 14, 5);
+
+        // 2. Nút [B] WORKSHOP (260, 10, 130, 45)
+        shapes.setColor(0.12f, 0.16f, 0.22f, 0.85f);
+        shapes.rect(260, 10, 130, 45);
+        shapes.setColor(0.85f, 0.65f, 0.20f, 0.85f);
+        shapes.rect(260, 10, 130, 2);
+        shapes.rect(260, 53, 130, 2);
+        shapes.rect(260, 10, 2, 45);
+        shapes.rect(388, 10, 2, 45);
+
+        // 3. Khung Vũ Khí hiện tại (400, 10, 95, 45)
+        shapes.setColor(0.12f, 0.16f, 0.22f, 0.85f);
+        shapes.rect(400, 10, 95, 45);
+        shapes.setColor(0.30f, 0.45f, 0.65f, 0.85f);
+        shapes.rect(400, 10, 95, 2);
+        shapes.rect(400, 53, 95, 2);
+        shapes.rect(400, 10, 2, 45);
+        shapes.rect(493, 10, 2, 45);
+
+        // 4. Khung Tiền & Sao (505, 10, 175, 45)
+        shapes.setColor(0.10f, 0.12f, 0.15f, 0.85f);
+        shapes.rect(505, 10, 175, 45);
+        shapes.setColor(0.40f, 0.45f, 0.50f, 0.6f);
+        shapes.rect(505, 10, 175, 2);
+        shapes.rect(505, 53, 175, 2);
+        shapes.rect(505, 10, 2, 45);
+        shapes.rect(678, 10, 2, 45);
+        shapes.end();
+
+        // Vẽ Text & Icon trong batch
+        batch.begin();
+        // HP Label
+        font.setColor(Color.WHITE);
+        font.draw(batch, "HP: " + hp + "/" + maxHp, 22, 14);
+
+        // Workshop text
+        font.setColor(Color.GOLD);
+        font.draw(batch, "[B] SHOP", 290, 20);
+        font.setColor(Color.LIGHT_GRAY);
+        font.draw(batch, "Workshop", 290, 36);
+
+        // Weapon icon + ammo
+        com.badlogic.gdx.graphics.g2d.TextureRegion icon = assets.getIcon(state.activeWeaponId);
+        if (icon != null) {
+            batch.draw(icon, 405, 14, 36, 36);
+        }
+        font.setColor(Color.WHITE);
+        String ammoText = (state.activeWeaponId == 0) ? "inf" : ("x" + state.activeWeaponAmmo);
+        font.draw(batch, ammoText, 446, 20);
+        font.setColor(Color.GRAY);
+        font.draw(batch, "[Q/E]", 446, 36);
+
+        // Tiền & Sao
+        font.setColor(Color.GOLD);
+        font.draw(batch, "COINS: " + state.playerCoins, 515, 20);
+        font.setColor(Color.CYAN);
+        font.draw(batch, "STARS: " + state.playerStars, 515, 36);
+        batch.end();
     }
 
     /** Vạch chia 5 mức (mỗi mức 20%) để thanh HP đọc nhanh hơn. */
@@ -260,7 +317,7 @@ public class GameRenderer implements Disposable {
         shapes.rect(0, 0, width, height);
 
         float panelWidth = Math.min(520f, width - 48f);
-        float panelHeight = 282f;
+        float panelHeight = 310f;
         float panelX = (width - panelWidth) / 2f;
         float panelY = (height - panelHeight) / 2f;
         shapes.setColor(victory ? 0.10f : 0.16f, 0.14f, 0.12f, 0.98f);
@@ -297,11 +354,19 @@ public class GameRenderer implements Disposable {
         // Hướng dẫn phím.
         font.getData().setScale(0.95f);
         font.setColor(0.75f, 0.78f, 0.82f, 1f);
-        drawCentered(victory ? "Nhan N de sang man tiep theo" : "Nhan R de choi lai", x, panelY + 210f);
-        drawCentered(victory ? "Nhan R de choi lai man nay" : "", x, panelY + 236f);
+        drawCentered(victory ? "Nhan N de sang man tiep theo" : "Nhan R de choi lai", x, panelY + 205f);
+        drawCentered(victory ? "Nhan R de choi lai man nay" : "", x, panelY + 230f);
+        font.setColor(Color.GOLD);
+        drawCentered("Nhan B de vao Workshop / Cua Hang", x, panelY + 258f);
 
         font.getData().setScale(1f);
         font.setColor(Color.WHITE);
+    }
+
+    public void renderShop(com.tankzors.client.ui.ShopOverlay shopOverlay) {
+        if (shopOverlay != null && shopOverlay.isVisible()) {
+            shopOverlay.render(batch, shapes, font);
+        }
     }
 
     private void drawCentered(String text, float centerX, float baselineY) {
