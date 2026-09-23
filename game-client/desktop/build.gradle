@@ -28,7 +28,7 @@ application {
 
 run {
     workingDir = rootProject.projectDir
-    //,args = ['--ws', 'ws://localhost:8081/game', '--level', 'campaign_1']
+    // args = ['--level', 'campaign_1']
 }
 
 // Build fat jar desktop chạy độc lập.

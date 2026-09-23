@@ -23,7 +23,7 @@ import java.util.Random;
 
 /**
  * Mô phỏng gameplay client-authoritative, fixed-step 1/30s. Port logic
- * server engine.GameLoop.step(dt) — bỏ scheduler/concurrency, chạy single-thread
+ * deterministic fixed-step simulation chạy trên LibGDX client
  * từ render loop. Mọi giá trị parity server (xem MIGRATION-MAPPING mục 3-4).
  */
 public class GameSimulation {
@@ -260,7 +260,7 @@ public class GameSimulation {
 
     private double accumulator = 0;
 
-    // ========== CANONICAL step(dt) — parity server GameLoop.step ==========
+    // ========== Canonical fixed simulation step ==========
     public void step(double dt) {
         if (!Double.isFinite(dt) || dt <= 0) return;
         processCommands();

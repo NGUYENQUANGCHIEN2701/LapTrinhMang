@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.SessionAttribute;
 
 import com.tankzors.application.PlayerProgressService;
 
@@ -34,7 +33,7 @@ public class ProgressController {
 
     /**
      * Lấy danh sách màn đã unlock cho session hiện tại.
-     * Trả về dạng JSON để React/LibGDX client render.
+     * Trả về dạng JSON cho website hoặc LibGDX client.
      */
     @GetMapping
     public Map<String, Object> getProgress(HttpServletRequest request) {
@@ -57,8 +56,8 @@ public class ProgressController {
     }
 
     /**
-     * Lấy SID dùng để tracking. Ưu tiên header X-Player-Session để React
-     * client gửi WS sessionId (từ CONNECT packet), fallback HttpSession.
+     * Lấy SID dùng để tracking. Ưu tiên header X-Player-Session,
+     * fallback HttpSession.
      */
     private static String resolveSid(HttpServletRequest request) {
         String sid = request.getHeader("X-Player-Session");

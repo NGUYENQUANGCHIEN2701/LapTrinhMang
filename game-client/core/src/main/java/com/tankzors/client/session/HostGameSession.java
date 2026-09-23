@@ -78,6 +78,8 @@ public class HostGameSession implements GameSession {
         loadedMap = MapLoader.parse(mapJson);
     }
 
+    @Override public void start() { socket.connect(); }
+
     // ===== INPUT LOCAL (host tank) =====
     @Override public void onMove(ClientInputProcessor.Direction d, boolean moving) {
         Direction gd = convert(d);
@@ -255,7 +257,6 @@ public class HostGameSession implements GameSession {
     @Override public void restart() { /* host-only qua room state */ }
     @Override public void nextLevel() { /* host-only */ }
     @Override public MatchResult matchResult() { return matchResult; }
-    @Override public boolean requiresSocket() { return true; }
     @Override public void dispose() { socket.disconnect(); }
 
     public String getRunId() { return runId; }

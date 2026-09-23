@@ -11,14 +11,14 @@ spring:
   main:
     banner-mode: "off"
 
-  # ====== Thymeleaf (Phase 4.5 website shell) ======
+  # ====== Thymeleaf website shell ======
   # cache: false chỉ dùng cho development; production có thể bật lại.
   thymeleaf:
     cache: false
     prefix: classpath:/templates/
     suffix: .html
 
-  # ====== JPA / Datasource (Phase 4) ======
+  # ====== JPA / Datasource ======
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/tankzors}
     username: ${DB_USER:tankzors}

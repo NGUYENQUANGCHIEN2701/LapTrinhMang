@@ -12,12 +12,12 @@ import com.tankzors.leaderboard.LeaderboardEntry;
 import com.tankzors.leaderboard.LeaderboardRepository;
 
 /**
- * Service quản lý leaderboard (Phase 4 PostgreSQL).
+ * Service quản lý leaderboard trong PostgreSQL.
  *
  * <p>Upsert (theo cặp playerName+mapId): nếu player đã có entry trên map
  * và score mới lớn hơn -> override; ngược lại giữ nguyên.</p>
  *
- * <p>Tách khỏi {@code GameLoop} tick để không gọi DB mỗi tick (theo AI guide).</p>
+ * <p>Chỉ truy cập database khi xử lý request hoặc kết quả trận.</p>
  */
 @Service
 public class LeaderboardService {

@@ -378,7 +378,6 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
     }
 
     @Override public MatchResult matchResult() { return matchResult; }
-    @Override public boolean requiresSocket() { return false; }
     @Override public void dispose() {}
 
     public String getLevelId() { return levelId; }

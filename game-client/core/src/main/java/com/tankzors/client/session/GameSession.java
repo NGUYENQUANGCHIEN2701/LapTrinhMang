@@ -46,5 +46,4 @@ public interface GameSession {
     void dispose();
 
     /** Có cần WebSocket không (campaign local = false; host/guest = true). */
-    boolean requiresSocket();
 }

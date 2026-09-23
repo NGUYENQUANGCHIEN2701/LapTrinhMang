@@ -27,7 +27,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 
 /**
- * Thymeleaf page controller (Phase 4.5 - website shell).
+ * Thymeleaf page controller for the website shell.
  *
  * <p>Routes:</p>
  * <ul>
@@ -42,8 +42,7 @@ import jakarta.servlet.http.HttpSession;
  * </ul>
  *
  * <p>Controller chỉ đọc parameter, gọi application service và đưa dữ liệu
- * đơn giản vào Model. Không điều khiển GameLoop, không xử lý collision/AI,
- * không gửi WebSocket snapshot.</p>
+ * đơn giản vào Model. Gameplay, collision và AI chạy trong LibGDX client.</p>
  *
  * <p>REST endpoints ({@code /api/*}) nằm ở {@link HealthController},
  * {@link LeaderboardController}, {@link ProgressController}.</p>
