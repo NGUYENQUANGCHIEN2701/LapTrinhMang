@@ -8,62 +8,107 @@
 </head>
 <body>
 <section th:fragment="content" class="page-wide play-page">
-    <h2 class="page-title">Play</h2>
-    <p class="play-level">
-        Level: <strong th:text="${levelName}">Màn 1</strong>
-        &middot; <code th:text="${selectedLevelId}">campaign_1</code>
-    </p>
-
-    <!-- LibGDX HTML5 mount point (Phase 3.5). data-level-id duoc bootstrap doc. -->
-    <div id="game-container"
-         class="game-container"
-         th:attr="data-level-id=${selectedLevelId}">
-        <!-- iframe load GWT build; truyen levelId qua query string. -->
-        <iframe id="game-frame"
-                class="game-frame"
-                th:src="@{/game/libgdx/index.html(levelId=${selectedLevelId})}"
-                title="Tankzors Game"
-                tabindex="0"
-                allow="autoplay; fullscreen; gamepad"
-                allowfullscreen></iframe>
-        <noscript>
-            <div class="game-placeholder">
-                <p class="placeholder-title">JavaScript is required</p>
-                <p class="muted">Game LibGDX HTML5 cần JavaScript để chạy.</p>
-            </div>
-        </noscript>
+    <div class="play-header">
+        <h2 class="page-title">TANKZORS BATTLEFIELD</h2>
+        <div class="play-mission-badge">
+            <span class="badge-label">Mission:</span>
+            <strong th:text="${levelName}">Màn 1</strong>
+            <code th:text="${selectedLevelId}">campaign_1</code>
+        </div>
     </div>
 
+    <!-- LibGDX HTML5 mount point inside arcade cabinet frame -->
+    <div class="game-cabinet">
+        <div id="game-container"
+             class="game-container"
+             th:attr="data-level-id=${selectedLevelId}">
+            <!-- iframe load GWT build; truyen levelId qua query string. -->
+            <iframe id="game-frame"
+                    class="game-frame"
+                    th:src="@{/game/libgdx/index.html(levelId=${selectedLevelId})}"
+                    title="Tankzors Game"
+                    tabindex="0"
+                    allow="autoplay; fullscreen; gamepad"
+                    allowfullscreen></iframe>
+            <noscript>
+                <div class="game-placeholder">
+                    <p class="placeholder-title">JavaScript is required</p>
+                    <p class="muted">Game LibGDX HTML5 cần JavaScript để chạy.</p>
+                </div>
+            </noscript>
+        </div>
+    </div>
+
+    <div class="play-toolbar">
+        <div class="controls-hint">
+            <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / mũi tên: Di chuyển &middot;
+            <kbd>Space</kbd> / <kbd>J</kbd>: Bắn &middot;
+            <kbd>P</kbd>: Tạm dừng
+        </div>
+        <div class="play-actions">
+            <button type="button" class="btn btn-ghost" id="btn-fullscreen" title="Phóng to toàn màn hình">
+                ⛶ Toàn màn hình
+            </button>
+            <a class="btn btn-secondary" th:href="@{/campaigns}">
+                ← Chiến dịch
+            </a>
+        </div>
+    </div>
+
+    <audio id="audioBtnClick" th:src="@{/sounds/ui_button_down.ogg}" preload="auto"></audio>
+
     <script>
-        // Chuyển focus vào iframe sau khi LibGDX tải xong để các phím mũi tên
-        // đi tới game thay vì cuộn trang Thymeleaf bên ngoài.
         document.addEventListener('DOMContentLoaded', function () {
             var frame = document.getElementById('game-frame');
-            if (!frame) return;
+            var container = document.getElementById('game-container');
+            var fsBtn = document.getElementById('btn-fullscreen');
+            var clickAudio = document.getElementById('audioBtnClick');
 
-            var focusGame = function () {
-                frame.focus();
-                try {
-                    frame.contentWindow.focus();
-                } catch (ignored) {
-                    // Same-origin ở runtime; giữ fallback frame.focus().
+            var playClick = function () {
+                if (clickAudio) {
+                    clickAudio.currentTime = 0;
+                    clickAudio.play().catch(function () {});
                 }
             };
 
-            frame.addEventListener('load', focusGame);
-            frame.addEventListener('pointerdown', focusGame);
-            focusGame();
+            // Focus vào iframe để các phím bàn phím truyền tới LibGDX ngay lập tức
+            var focusGame = function () {
+                if (!frame) return;
+                frame.focus();
+                try {
+                    frame.contentWindow.focus();
+                } catch (ignored) {}
+            };
+
+            if (frame) {
+                frame.addEventListener('load', focusGame);
+                frame.addEventListener('pointerdown', focusGame);
+                focusGame();
+            }
+
+            // Fullscreen toggle
+            if (fsBtn && container) {
+                fsBtn.addEventListener('click', function () {
+                    playClick();
+                    if (!document.fullscreenElement) {
+                        if (container.requestFullscreen) {
+                            container.requestFullscreen();
+                        } else if (container.webkitRequestFullscreen) {
+                            container.webkitRequestFullscreen();
+                        }
+                    } else {
+                        if (document.exitFullscreen) {
+                            document.exitFullscreen();
+                        }
+                    }
+                });
+            }
+
+            document.querySelectorAll('.play-actions a').forEach(function (btn) {
+                btn.addEventListener('click', playClick);
+            });
         });
     </script>
-
-    <p class="controls-hint">
-        <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / mũi tên: di chuyển &middot;
-        <kbd>Space</kbd> / <kbd>J</kbd>: bắn
-    </p>
-
-    <div class="form-actions">
-        <a class="btn btn-ghost" th:href="@{/campaigns}">Back to Campaigns</a>
-    </div>
 </section>
 </body>
 </html>
