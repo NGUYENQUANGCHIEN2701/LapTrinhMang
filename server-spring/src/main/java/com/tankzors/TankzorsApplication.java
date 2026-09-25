@@ -3,14 +3,7 @@ package com.tankzors;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-/**
- * Entry point Spring Boot target (Phase 1: skeleton chỉ start context +
- * health endpoint, chưa đụng Javalin legacy).
- *
- * <p>Phase 2 sẽ thay bằng wiring WebSocket /game handler sang engine
- * domain. Phase 4 sẽ thêm JPA + Thymeleaf. Phase 5 mới cutover (xóa
- * {@code server/} Javalin implementation).</p>
- */
+/** Entry point for the web, persistence, campaign API and co-op relay server. */
 @SpringBootApplication
 public class TankzorsApplication {
 

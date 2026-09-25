@@ -37,7 +37,7 @@ public class GuestGameSession implements GameSession {
         this.resultHandler = handler;
     }
 
-    @Override public boolean requiresSocket() { return true; }
+    @Override public void start() { socket.connect(); }
 
     @Override public void onMove(Direction direction, boolean moving) {
         String payload = RelayPackets.playerInputPayload(

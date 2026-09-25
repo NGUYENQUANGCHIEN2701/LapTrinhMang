@@ -23,7 +23,7 @@ import java.util.Random;
 
 /**
  * Mô phỏng gameplay client-authoritative, fixed-step 1/30s. Port logic
- * server engine.GameLoop.step(dt) — bỏ scheduler/concurrency, chạy single-thread
+ * deterministic fixed-step simulation chạy trên LibGDX client
  * từ render loop. Mọi giá trị parity server (xem MIGRATION-MAPPING mục 3-4).
  */
 public class GameSimulation {
@@ -45,6 +45,7 @@ public class GameSimulation {
 
     private MatchEndHandler matchEndHandler;
     private com.tankzors.client.shop.PlayerShopState shopState;
+    private GameEventListener eventListener;
 
     public GameSimulation(long matchSeed) {
         this.matchRng = new Random(matchSeed);
@@ -56,6 +57,8 @@ public class GameSimulation {
     public com.tankzors.client.shop.PlayerShopState getShopState() { return shopState; }
 
     public void setMatchEndHandler(MatchEndHandler handler) { this.matchEndHandler = handler; }
+    public void setEventListener(GameEventListener listener) { this.eventListener = listener; }
+    public GameEventListener getEventListener() { return eventListener; }
 
     public GameWorld getWorld() { return world; }
     public String getCurrentLevelId() { return currentLevelId; }
@@ -271,7 +274,7 @@ public class GameSimulation {
 
     private double accumulator = 0;
 
-    // ========== CANONICAL step(dt) — parity server GameLoop.step ==========
+    // ========== Canonical fixed simulation step ==========
     public void step(double dt) {
         if (!Double.isFinite(dt) || dt <= 0) return;
         processCommands();
@@ -313,6 +316,7 @@ public class GameSimulation {
                     break;
                 case SHOOT:
                     if (world.isPlaying() && player.isAlive()) {
+                        IBullet b;
                         if (shopState != null) {
                             int wid = shopState.getActiveWeaponId();
                             int count = shopState.getItemCount(wid);
@@ -321,16 +325,20 @@ public class GameSimulation {
                                 shopState.setActiveWeaponId(0);
                             }
                             player.setActiveWeaponId(wid);
-                            IBullet b = player.shoot();
+                            b = player.shoot();
                             if (b != null) {
                                 world.addBullet(b);
                                 if (wid != 0 && count > 0) {
                                     shopState.setItemCount(wid, count - 1);
                                 }
+                                if (eventListener != null) eventListener.onShoot(true);
                             }
                         } else {
-                            IBullet b = player.shoot();
-                            if (b != null) world.addBullet(b);
+                            b = player.shoot();
+                            if (b != null) {
+                                world.addBullet(b);
+                                if (eventListener != null) eventListener.onShoot(true);
+                            }
                         }
                     }
                     break;
@@ -348,8 +356,12 @@ public class GameSimulation {
             }
         }
         // (b) AI
+        int bulletsBefore = world.getBulletCount();
         for (ITank tank : world.getAllTanks()) {
             if (tank instanceof AITank) ((AITank) tank).update(world, dt);
+        }
+        if (eventListener != null && world.getBulletCount() > bulletsBefore) {
+            eventListener.onShoot(false);
         }
         // (c) bullets
         for (IBullet bullet : world.getAllBullets()) {
@@ -365,6 +377,7 @@ public class GameSimulation {
             // Walls hấp thụ trước
             if (Collision.checkBulletWallCollision(bullet, world.getCurrentMap())) {
                 bullet.deactivate();
+                if (eventListener != null) eventListener.onHitWall();
                 continue;
             }
             for (ITank tank : world.getAllTanks()) {
@@ -374,7 +387,16 @@ public class GameSimulation {
                 if (Collision.checkBulletTankCollision(bullet, tank)) {
                     tank.takeDamage(bullet.getDamage());
                     bullet.deactivate();
-                    if (!tank.isAlive()) {
+                    boolean killed = !tank.isAlive();
+                    boolean isPlayer = tank instanceof PlayerTank;
+                    if (eventListener != null) {
+                        if (killed) {
+                            eventListener.onTankDestroyed(isPlayer);
+                        } else {
+                            eventListener.onHitTank(isPlayer);
+                        }
+                    }
+                    if (killed) {
                         world.addScore(100);
                         if (tank instanceof AITank) aiKilledThisMatch++;
                     }
@@ -429,6 +451,11 @@ public class GameSimulation {
     private void fireMatchEnd(GameWorld.Status status, int hpRemain) {
         if (matchEndFired) return;
         matchEndFired = true;
+        if (eventListener != null) {
+            try {
+                eventListener.onMatchEnd(status);
+            } catch (Exception ignored) {}
+        }
         if (matchEndHandler == null) return;
         int elapsedSeconds = (int) Math.max(0, matchElapsedSeconds);
         try {

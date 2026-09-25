@@ -7,12 +7,12 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputProcessor;
 
 /**
- * Input handler LibGDX parity với {@code InputHandler.ts} React.
+ * Input handler dùng chung cho các LibGDX session.
  *
  * <p>Bàn phím (WASD hoặc mũi tên) cho di chuyển; Space/J cho shoot.</p>
  *
  * <p>Callback chỉ phát khi có transition (giữ phím không spam). Tương đương
- * React: chỉ gửi onMove/onShoot khi trạng thái pressed đổi.</p>
+ * Callback chỉ phát khi trạng thái phím thay đổi.</p>
  */
 public final class ClientInputProcessor implements InputProcessor {
 
@@ -30,6 +30,8 @@ public final class ClientInputProcessor implements InputProcessor {
         default void onToggleShop() {}
         default void onCycleWeapon() {}
         default void onSelectWeapon(int weaponId) {}
+        /** Bật/tắt nhanh âm thanh (mute/unmute). */
+        default void onToggleMute() {}
     }
 
     private final Callbacks callbacks;
@@ -96,6 +98,10 @@ public final class ClientInputProcessor implements InputProcessor {
             return true;
         }
 
+        if (keycode == Input.Keys.M) {
+            callbacks.onToggleMute();
+            return true;
+        }
         if (!enabled) {
             if (keycode == Input.Keys.R) {
                 callbacks.onRestart();

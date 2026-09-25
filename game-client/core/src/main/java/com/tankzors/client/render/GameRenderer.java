@@ -16,11 +16,11 @@ import com.tankzors.client.model.MapSnapshot;
 import com.tankzors.client.model.TankSnapshot;
 
 /**
- * Render game snapshot parity với {@code Renderer.ts} của React Canvas.
+ * Render snapshot của session hiện tại.
  *
  * <p>Chiến lược:</p>
  * <ul>
- *   <li>Map vẽ thủ công từng tile (cùng sprite sheets với React).</li>
+ *   <li>Map vẽ thủ công từng tile.</li>
  *   <li>Tank/bullet vẽ bằng SpriteBatch từ AssetRepository.</li>
  *   <li>HP bar + HUD vẽ bằng ShapeRenderer (chưa cần bitmap font).</li>
  * </ul>
@@ -160,7 +160,7 @@ public class GameRenderer implements Disposable {
                     case 1: // WALL
                         batch.draw(assets.wallFrame(r, c), px, py, ts, ts);
                         break;
-                    case 2: // WATER/SPIKES (parity với React: spikes overlay lên ground)
+                    case 2: // WATER/SPIKES overlay lên ground
                         batch.draw(assets.groundFrame(r, c), px, py, ts, ts);
                         batch.draw(assets.spikesFrame(r, c), px, py, ts, ts);
                         break;

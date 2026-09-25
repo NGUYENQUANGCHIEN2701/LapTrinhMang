@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Trạng thái trận đấu (tanks, bullets, map). Port từ server engine.GameState —
+ * Trạng thái trận đấu client-authoritative (tanks, bullets, map).
  * bỏ tất cả concurrency (ConcurrentHashMap/CopyOnWriteArrayList/volatile) vì
  * client chạy single-thread trên render thread.
  */

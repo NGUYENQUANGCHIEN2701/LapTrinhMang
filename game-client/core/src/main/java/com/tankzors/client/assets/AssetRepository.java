@@ -8,10 +8,10 @@ import com.badlogic.gdx.utils.Disposable;
 /**
  * Load và cung cấp sprite cho {@code GameRenderer}.
  *
- * <p>Tương đương {@code SpriteManager.ts} của React client. Mỗi sprite
+ * <p>Mỗi sprite
  * được chia thành các frame riêng (vd tank có 16 frame góc 22.5°).</p>
  *
- * <p>Phase 3 chỉ load các sprite chính: player_tank, enemy_tank, bullet,
+ * <p>Load các sprite chính: player_tank, enemy_tank, bullet,
  * ground, wall, water (spikes), bush (palms), explosion. HUD vẽ thủ công
  * bằng ShapeRenderer.</p>
  */

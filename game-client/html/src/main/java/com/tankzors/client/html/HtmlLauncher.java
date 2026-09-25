@@ -6,6 +6,7 @@ import com.badlogic.gdx.backends.gwt.GwtApplicationConfiguration;
 import com.google.gwt.user.client.Window;
 
 import com.tankzors.client.GameClient;
+import com.tankzors.client.audio.AudioManager;
 import com.tankzors.client.network.GameSocket;
 import com.tankzors.client.session.LocalCampaignSession;
 import com.tankzors.client.session.MapSource;
@@ -36,9 +37,15 @@ public class HtmlLauncher extends GwtApplication {
         String levelId = readParam("levelId", GameClient.DEFAULT_LEVEL);
         String mode = readParam("mode", "campaign");
         String wsUrl = readParam("wsUrl", defaultWsUrl());
+        String soundVolStr = readParam("soundVol", "80");
+        String musicVolStr = readParam("musicVol", "70");
 
         GameSocket socket = new BrowserWebSocket(wsUrl);
         GameClient client = new GameClient(wsUrl, levelId, socket);
+
+        float soundVol = parseVolume(soundVolStr, 0.8f);
+        float musicVol = parseVolume(musicVolStr, 0.7f);
+        client.setAudio(new AudioManager(soundVol, musicVol));
 
         if ("campaign".equalsIgnoreCase(mode)) {
             BootstrapMapSource mapSource = new BootstrapMapSource();
@@ -56,6 +63,15 @@ public class HtmlLauncher extends GwtApplication {
         // else: legacy server-authoritative (chỉ tới khi Bước E tích hợp host/guest).
 
         return client;
+    }
+
+    private static float parseVolume(String s, float def) {
+        try {
+            int v = Integer.parseInt(s);
+            return Math.max(0f, Math.min(100f, (float) v)) / 100f;
+        } catch (Exception ignored) {
+            return def;
+        }
     }
 
     /** Player identity tạm ngữ phi đỡnigotに trình duyệt — Bước D resolve từ HTTP session. */

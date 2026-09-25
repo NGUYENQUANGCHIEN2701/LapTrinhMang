@@ -27,7 +27,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 
 /**
- * Thymeleaf page controller (Phase 4.5 - website shell).
+ * Thymeleaf page controller for the website shell.
  *
  * <p>Routes:</p>
  * <ul>
@@ -42,8 +42,7 @@ import jakarta.servlet.http.HttpSession;
  * </ul>
  *
  * <p>Controller chỉ đọc parameter, gọi application service và đưa dữ liệu
- * đơn giản vào Model. Không điều khiển GameLoop, không xử lý collision/AI,
- * không gửi WebSocket snapshot.</p>
+ * đơn giản vào Model. Gameplay, collision và AI chạy trong LibGDX client.</p>
  *
  * <p>REST endpoints ({@code /api/*}) nằm ở {@link HealthController},
  * {@link LeaderboardController}, {@link ProgressController}.</p>
@@ -165,6 +164,7 @@ public class PageController {
     public String play(
         @RequestParam(name = "levelId", defaultValue = DEFAULT_LEVEL) String levelId,
         Model model,
+        HttpServletRequest request,
         RedirectAttributes redirectAttributes
     ) {
         CampaignLevelView level = campaignQueryService.getLevel(levelId).orElse(null);
@@ -177,6 +177,7 @@ public class PageController {
         pageModelFactory.apply(model, "Play - " + level.getName(), "play");
         model.addAttribute("selectedLevelId", level.getId());
         model.addAttribute("levelName", level.getName());
+        model.addAttribute("settings", settingsService.load(request.getSession()));
         return "play";
     }
 

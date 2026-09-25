@@ -207,7 +207,6 @@ public class AudioManager implements Disposable {
             uiWeapSwitchSound.play(clamp01(soundVolume));
         } catch (Exception ignored) {}
     }
-
     public void stopMusic() {
         if (currentMusic != null) {
             try {
