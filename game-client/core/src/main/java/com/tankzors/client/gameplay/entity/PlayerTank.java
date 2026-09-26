@@ -38,6 +38,13 @@ public class PlayerTank extends Tank {
         super(id, x, y, speed, DEFAULT_HP, DEFAULT_MAX_HP, DEFAULT_WIDTH, DEFAULT_HEIGHT);
     }
 
+    public PlayerTank(String id, double x, double y, double speed, int hp, int maxHp) {
+        super(id, x, y, speed, hp, maxHp, DEFAULT_WIDTH, DEFAULT_HEIGHT);
+    }
+
+    public void setHp(int hp) { this.hp = hp; }
+    public void setMaxHp(int maxHp) { this.maxHp = maxHp; }
+
     public void setBulletIdSource(BulletIdSource source) { this.bulletIdSource = source; }
 
     public void setMoving(Direction direction, boolean moving) {
@@ -102,13 +109,41 @@ public class PlayerTank extends Tank {
         if (remainingTileDistance <= 1e-9) movingDirection = null;
     }
 
+    private int activeWeaponId = 0;
+
+    public int getActiveWeaponId() { return activeWeaponId; }
+    public void setActiveWeaponId(int id) { this.activeWeaponId = id; }
+
     @Override
     public IBullet shoot() {
         if (!isAlive() || timeSinceLastShot < shootCooldown) return null;
         timeSinceLastShot = 0;
         String bulletId = bulletIdSource != null ? bulletIdSource.nextId() : "b-0";
+
+        double speed = Bullet.DEFAULT_SPEED;
+        int damage = Bullet.DEFAULT_DAMAGE;
+        double width = Bullet.DEFAULT_WIDTH;
+        double height = Bullet.DEFAULT_HEIGHT;
+
+        if (activeWeaponId == 1) { // Plasma
+            speed = Bullet.DEFAULT_SPEED * 1.35;
+            damage = 35;
+            width = 10;
+            height = 10;
+        } else if (activeWeaponId == 2 || activeWeaponId == 3) { // Double Shell / Double Plasma
+            speed = Bullet.DEFAULT_SPEED * 1.1;
+            damage = 45;
+            width = 12;
+            height = 12;
+        } else if (activeWeaponId == 4 || activeWeaponId == 5) { // Armor Piercing
+            speed = Bullet.DEFAULT_SPEED * 1.2;
+            damage = 60;
+            width = 10;
+            height = 10;
+        }
+
         return new Bullet(bulletId, id, new Position(position.getX(), position.getY()), cardinalRotation(rotation),
-                Bullet.DEFAULT_SPEED, Bullet.DEFAULT_DAMAGE, Bullet.DEFAULT_WIDTH, Bullet.DEFAULT_HEIGHT);
+                speed, damage, width, height);
     }
 
     /** Làm tròn hướng để đạn người chơi luôn bay thẳng theo một trục. */

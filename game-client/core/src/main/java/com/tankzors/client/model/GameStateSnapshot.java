@@ -18,6 +18,12 @@ public final class GameStateSnapshot {
     public int starsEarned;
     public int coinsEarned;
 
+    // ===== Shop & Arsenal HUD fields =====
+    public int playerCoins;
+    public int playerStars;
+    public int activeWeaponId;
+    public int activeWeaponAmmo;
+
     public void clearEntities() {
         tanks.clear();
         bullets.clear();

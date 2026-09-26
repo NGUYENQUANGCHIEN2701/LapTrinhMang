@@ -27,6 +27,8 @@ public class AudioManager implements Disposable {
     private Sound explosionMediumSound;
     private Sound explosionLargeSound;
     private Sound uiClickSound;
+    private Sound uiWindowSound;
+    private Sound uiWeapSwitchSound;
 
     // Music
     private Music track1;
@@ -34,6 +36,7 @@ public class AudioManager implements Disposable {
     private Music track3;
     private Music victoryMusic;
     private Music defeatMusic;
+    private Music briefingMusic;
     private Music currentMusic;
 
     // Volumes (0.0f - 1.0f)
@@ -77,12 +80,15 @@ public class AudioManager implements Disposable {
             explosionMediumSound = loadSound("sounds/explosion_medium01.ogg");
             explosionLargeSound = loadSound("sounds/explosion_large.ogg");
             uiClickSound = loadSound("sounds/ui_button_down.ogg");
+            uiWindowSound = loadSound("sounds/ui_window.ogg");
+            uiWeapSwitchSound = loadSound("sounds/ui_weap_switch.ogg");
 
             track1 = loadMusic("music/track1.ogg");
             track2 = loadMusic("music/track2.ogg");
             track3 = loadMusic("music/track3.ogg");
             victoryMusic = loadMusic("music/victory.ogg");
             defeatMusic = loadMusic("music/defeat.ogg");
+            briefingMusic = loadMusic("music/briefing.ogg");
         } catch (Exception e) {
             error("Lỗi nạp audio: " + e.getMessage());
         }
@@ -184,6 +190,23 @@ public class AudioManager implements Disposable {
         switchMusic(defeatMusic, false);
     }
 
+    public void playBriefingMusic() {
+        switchMusic(briefingMusic, true);
+    }
+
+    public void playUiWindow() {
+        if (muted || uiWindowSound == null) return;
+        try {
+            uiWindowSound.play(clamp01(soundVolume));
+        } catch (Exception ignored) {}
+    }
+
+    public void playUiWeapSwitch() {
+        if (muted || uiWeapSwitchSound == null) return;
+        try {
+            uiWeapSwitchSound.play(clamp01(soundVolume));
+        } catch (Exception ignored) {}
+    }
     public void stopMusic() {
         if (currentMusic != null) {
             try {
@@ -261,12 +284,15 @@ public class AudioManager implements Disposable {
         if (explosionMediumSound != null) { explosionMediumSound.dispose(); explosionMediumSound = null; }
         if (explosionLargeSound != null) { explosionLargeSound.dispose(); explosionLargeSound = null; }
         if (uiClickSound != null) { uiClickSound.dispose(); uiClickSound = null; }
+        if (uiWindowSound != null) { uiWindowSound.dispose(); uiWindowSound = null; }
+        if (uiWeapSwitchSound != null) { uiWeapSwitchSound.dispose(); uiWeapSwitchSound = null; }
 
         if (track1 != null) { track1.dispose(); track1 = null; }
         if (track2 != null) { track2.dispose(); track2 = null; }
         if (track3 != null) { track3.dispose(); track3 = null; }
         if (victoryMusic != null) { victoryMusic.dispose(); victoryMusic = null; }
         if (defeatMusic != null) { defeatMusic.dispose(); defeatMusic = null; }
+        if (briefingMusic != null) { briefingMusic.dispose(); briefingMusic = null; }
     }
 }
 

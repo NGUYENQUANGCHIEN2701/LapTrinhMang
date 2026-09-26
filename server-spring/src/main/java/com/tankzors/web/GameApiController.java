@@ -42,13 +42,16 @@ public class GameApiController {
     private final PlayerIdentityResolver identity;
     private final PlayerProgressService progress;
     private final ResultService resultService;
+    private final com.tankzors.application.PlayerShopService shopService;
 
     public GameApiController(PlayerIdentityResolver identity,
-                              PlayerProgressService progress,
-                              ResultService resultService) {
+                             PlayerProgressService progress,
+                             ResultService resultService,
+                             com.tankzors.application.PlayerShopService shopService) {
         this.identity = identity;
         this.progress = progress;
         this.resultService = resultService;
+        this.shopService = shopService;
     }
 
     @GetMapping("/bootstrap")
@@ -110,6 +113,27 @@ public class GameApiController {
         body.put("settings", Map.of());
         body.put("unlockedLevels", progress.getUnlocked(playerId));
         body.put("runId", runId);
+
+        com.tankzors.application.PlayerShopService.ShopData shopData = shopService.getShopData(playerId);
+        body.put("totalCoins", shopData.totalCoins());
+        body.put("totalStars", shopData.totalStars());
+        body.put("researchJson", shopData.researchJson());
+        body.put("inventoryJson", shopData.inventoryJson());
+        return ResponseEntity.ok(body);
+    }
+
+    @PostMapping("/shop/sync")
+    public ResponseEntity<Map<String, Object>> syncShop(
+            @RequestBody com.tankzors.application.PlayerShopService.SyncRequest req,
+            HttpServletRequest request) {
+        String playerId = identity.resolve(request);
+        com.tankzors.application.PlayerShopService.ShopData updated = shopService.syncShopData(playerId, req);
+        Map<String, Object> body = new HashMap<>();
+        body.put("totalCoins", updated.totalCoins());
+        body.put("totalStars", updated.totalStars());
+        body.put("researchJson", updated.researchJson());
+        body.put("inventoryJson", updated.inventoryJson());
+        body.put("status", "OK");
         return ResponseEntity.ok(body);
     }
 
