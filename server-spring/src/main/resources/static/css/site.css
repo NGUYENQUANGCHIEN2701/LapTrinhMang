@@ -1,30 +1,39 @@
-/* ============================================================
-   Tankzors Pro - site.css (shared layout + design tokens)
-   Dark game UI, accent xanh lá/vàng, responsive.
-   ============================================================ */
+@font-face {
+    font-family: 'Roboto Condensed';
+    src: url('/fonts/RobotoCondensed-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Open Sans';
+    src: url('/fonts/OpenSans-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+}
 
 :root {
-    --color-bg: #0f0f1e;
-    --color-bg-alt: #1a1a2e;
-    --color-surface: rgba(255, 255, 255, 0.04);
-    --color-surface-hover: rgba(0, 230, 118, 0.08);
-    --color-border: #333;
-    --color-accent: #00e676;
-    --color-accent-dim: rgba(0, 230, 118, 0.1);
+    --color-bg: #120303;
+    --color-bg-alt: #220707;
+    --color-surface: rgba(45, 20, 20, 0.45);
+    --color-surface-hover: rgba(255, 184, 0, 0.12);
+    --color-border: #442222;
+    --color-accent: #ffb800;
+    --color-accent-dim: rgba(255, 184, 0, 0.15);
     --color-accent-alt: #ffd600;
     --color-text: #e0e0e0;
-    --color-text-secondary: #b0b0b0;
-    --color-text-muted: #707070;
+    --color-text-secondary: #b8b0b0;
+    --color-text-muted: #807070;
     --color-danger: #ef5350;
-    --color-success: #00e676;
+    --color-success: #ffb800;
     --color-warning: #ffd600;
     --color-info: #29b6f6;
 
-    --font-stack: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --font-stack: 'Roboto Condensed', 'Segoe UI', system-ui, -apple-system, sans-serif;
 
     --radius-sm: 6px;
-    --radius: 10px;
-    --radius-lg: 14px;
+    --radius: 12px;
+    --radius-lg: 16px;
 
     --container-max: 960px;
     --nav-height: 56px;
@@ -38,7 +47,13 @@
 
 body.site-body {
     font-family: var(--font-stack);
-    background: linear-gradient(135deg, var(--color-bg-alt) 0%, var(--color-bg) 100%);
+    background-color: #120303;
+    background-image:
+        url('/images/gui/menu_back_1.png'),
+        url('/images/gui/menu_back_2.png'),
+        radial-gradient(ellipse at 50% 25%, #2a0808 0%, #100202 85%);
+    background-repeat: repeat-x, repeat-x, no-repeat;
+    background-position: top center, bottom center, center center;
     background-attachment: fixed;
     color: var(--color-text);
     min-height: 100vh;
@@ -130,64 +145,92 @@ body.site-body {
     margin-bottom: 1.25rem;
 }
 
-/* ===== Buttons ===== */
+/* ===== Buttons (Tankzors Billet Style - Gold Theme) ===== */
 .btn {
     display: inline-flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.2rem;
-    padding: 0.7rem 1.5rem;
-    border-radius: var(--radius);
-    border: 1px solid var(--color-border);
-    background: var(--color-surface);
-    color: var(--color-text);
+    gap: 0.25rem;
+    padding: 0.75rem 1.6rem;
+    border-radius: 24px;
+    border: 2px solid rgba(220, 180, 100, 0.4);
+    background: linear-gradient(180deg, rgba(65, 50, 40, 0.85) 0%, rgba(26, 18, 14, 0.95) 50%, rgba(14, 10, 8, 0.98) 100%);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7), inset 0 1px 1px rgba(255, 235, 180, 0.35);
+    color: #e5e5e5;
     text-decoration: none;
-    font-size: 1rem;
+    font-size: 1.05rem;
     font-family: var(--font-stack);
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: 0.5px;
     cursor: pointer;
     text-align: center;
-    transition: all 0.15s ease;
-    min-width: 200px;
+    transition: all 0.2s ease;
+    min-width: 220px;
+    position: relative;
 }
 
 .btn:hover {
-    background: var(--color-surface-hover);
     border-color: var(--color-accent);
-    transform: translateY(-1px);
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(255, 184, 0, 0.4), inset 0 0 12px rgba(255, 184, 0, 0.2);
+}
+
+.btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), inset 0 2px 4px rgba(0, 0, 0, 0.4);
 }
 
 .btn-primary {
-    background: var(--color-accent);
-    border-color: var(--color-accent);
-    color: #000;
+    background: linear-gradient(180deg, #ffc837 0%, #f59e0b 50%, #d97706 100%);
+    border-color: #ffe082;
+    color: #1a0800;
+    font-weight: 800;
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.45), inset 0 1px 2px rgba(255, 255, 255, 0.6);
 }
 
 .btn-primary:hover {
-    background: #33eb91;
-    border-color: #33eb91;
+    background: linear-gradient(180deg, #ffd54f 0%, #fbbf24 50%, #ea580c 100%);
+    color: #000;
+    box-shadow: 0 6px 22px rgba(245, 158, 11, 0.65), inset 0 1px 3px rgba(255, 255, 255, 0.8);
+    border-color: #ffffff;
 }
 
 .btn-secondary {
-    border-color: var(--color-accent);
+    border-color: rgba(255, 184, 0, 0.6);
     color: var(--color-accent);
 }
 
+.btn-secondary:hover {
+    border-color: #ffe082;
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(255, 184, 0, 0.35);
+}
+
 .btn-ghost {
+    border-color: rgba(160, 140, 130, 0.3);
     color: var(--color-text-secondary);
 }
 
+.btn-ghost:hover {
+    border-color: rgba(255, 235, 180, 0.4);
+    color: #ffffff;
+}
+
 .btn-lg {
-    padding: 1rem 1.8rem;
-    font-size: 1.1rem;
-    min-width: 260px;
+    padding: 0.9rem 2rem;
+    font-size: 1.15rem;
+    min-width: 270px;
+    border-radius: 28px;
 }
 
 .btn.disabled {
-    opacity: 0.55;
+    opacity: 0.5;
     cursor: not-allowed;
     pointer-events: none;
+    border-color: rgba(100, 90, 80, 0.25);
+    background: rgba(30, 25, 25, 0.6);
 }
 
 .btn-hint {
@@ -390,13 +433,15 @@ code {
 
 .nav-register {
     background: var(--color-accent);
-    color: #000;
+    color: #1a0800;
+    font-weight: 700;
     border: 1px solid var(--color-accent);
 }
 
 .nav-register:hover {
-    background: #33eb91;
-    border-color: #33eb91;
+    background: #ffd54f;
+    border-color: #ffd54f;
+    color: #000;
 }
 
 .nav-logout {

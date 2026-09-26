@@ -8,6 +8,13 @@
 </head>
 <body>
 <section th:fragment="content" class="page-narrow">
+    <div class="tankzors-banner-wrap">
+        <div class="banner-top-strip">
+            <img th:src="@{/images/gui/menu_pict.png}" alt="Tankzors Banner" class="banner-tank-art" />
+        </div>
+        <div class="banner-fade-strip"></div>
+    </div>
+
     <h2 class="page-title">Game Menu</h2>
     <p class="page-subtitle">Chọn chế độ chơi</p>
 
@@ -37,6 +44,26 @@
             <span class="btn-hint">Về main menu</span>
         </a>
     </div>
+
+    <audio id="sfx-click" th:src="@{/sounds/ui_button_down.ogg}" preload="auto"></audio>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var sfx = document.getElementById('sfx-click');
+            if (!sfx) return;
+            var playClick = function () {
+                try {
+                    sfx.currentTime = 0;
+                    sfx.volume = 0.35;
+                    sfx.play();
+                } catch (ignored) {}
+            };
+            document.querySelectorAll('.btn, .site-nav a').forEach(function (btn) {
+                btn.addEventListener('click', playClick);
+            });
+        });
+    </script>
 </section>
+</body>
+</html>
 </body>
 </html>

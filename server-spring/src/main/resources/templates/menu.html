@@ -8,6 +8,13 @@
 </head>
 <body>
 <section th:fragment="content" class="menu-page">
+    <div class="tankzors-banner-wrap">
+        <div class="banner-top-strip">
+            <img th:src="@{/images/gui/menu_pict.png}" alt="Tankzors Banner" class="banner-tank-art" />
+        </div>
+        <div class="banner-fade-strip"></div>
+    </div>
+
     <div class="menu-hero">
         <h1 class="game-title">TANKZORS</h1>
         <p class="game-tagline">
@@ -15,6 +22,7 @@
             leaderboard lưu PostgreSQL.
         </p>
     </div>
+
     <div class="menu-actions">
         <a class="btn btn-primary btn-lg" th:href="@{/game-menu}">
             Game
@@ -28,11 +36,62 @@
             Leaderboard
             <span class="btn-hint">Bảng xếp hạng</span>
         </a>
-        <span class="btn btn-ghost btn-lg disabled" title="Coming soon">
+        <button type="button" class="btn btn-ghost btn-lg" id="btn-about-trigger">
             About
-            <span class="badge-soon">Coming soon</span>
-        </span>
+            <span class="btn-hint">Thông tin dự án</span>
+        </button>
     </div>
+
+    <!-- About Modal Dialog -->
+    <dialog id="about-dialog" class="card" style="margin: auto; max-width: 500px; padding: 2rem; border: 2px solid var(--color-accent); background: #1a0808; color: #eee; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.9);">
+        <div style="text-align: center; margin-bottom: 1.2rem;">
+            <img th:src="@{/images/gui/menu_pict.png}" alt="Tankzors" style="height: 60px; filter: drop-shadow(0 0 8px rgba(255,140,0,0.5));" />
+            <h3 style="color: var(--color-accent); margin-top: 0.5rem; letter-spacing: 2px;">TANKZORS LUX</h3>
+            <p style="font-size: 0.85rem; color: #aaa;">Đồ án Lập trình mạng &middot; Remake từ Base Tankzors Lux (Haxe/Kha)</p>
+        </div>
+        <div style="font-size: 0.95rem; line-height: 1.6; color: #ccc; margin-bottom: 1.5rem; text-align: left;">
+            <p><strong>Kiến trúc:</strong> Spring Boot 3 + LibGDX HTML5 + WebSocket + PostgreSQL.</p>
+            <p><strong>Tính năng:</strong> Chiến dịch PvE 3 màn chơi, AI định tuyến thời gian thực, Shop mua sắm vũ khí, Bảng xếp hạng và Lưu tiến độ.</p>
+            <p style="margin-top: 0.5rem; font-size: 0.85rem; color: #888;">Original game design & assets &copy; Tankzors Lux.</p>
+        </div>
+        <div style="text-align: center;">
+            <button type="button" class="btn btn-primary" id="btn-about-close" style="min-width: 140px; padding: 0.5rem 1.5rem;">Đóng</button>
+        </div>
+    </dialog>
+
+    <audio id="sfx-click" th:src="@{/sounds/ui_button_down.ogg}" preload="auto"></audio>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var sfx = document.getElementById('sfx-click');
+            var playClick = function () {
+                if (!sfx) return;
+                try {
+                    sfx.currentTime = 0;
+                    sfx.volume = 0.35;
+                    sfx.play();
+                } catch (ignored) {}
+            };
+
+            document.querySelectorAll('.btn, .site-nav a').forEach(function (btn) {
+                btn.addEventListener('click', playClick);
+            });
+
+            var aboutBtn = document.getElementById('btn-about-trigger');
+            var aboutModal = document.getElementById('about-dialog');
+            var aboutClose = document.getElementById('btn-about-close');
+
+            if (aboutBtn && aboutModal) {
+                aboutBtn.addEventListener('click', function () {
+                    aboutModal.showModal();
+                });
+            }
+            if (aboutClose && aboutModal) {
+                aboutClose.addEventListener('click', function () {
+                    aboutModal.close();
+                });
+            }
+        });
+    </script>
 </section>
 </body>
 </html>

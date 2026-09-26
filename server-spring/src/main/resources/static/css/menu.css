@@ -1,40 +1,81 @@
-/* Main menu (Thymeleaf shell) */
+/* Main menu (Tankzors Lux Theme - Gold) */
 
 .menu-page {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 1.5rem;
-    padding: 2rem 0;
+    padding: 1rem 0 3rem 0;
     text-align: center;
+    width: 100%;
+}
+
+/* Tankzors Header Banner */
+.tankzors-banner-wrap {
+    width: 100%;
+    max-width: 640px;
+    margin-bottom: 0.5rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(160, 50, 30, 0.4);
+}
+
+.banner-top-strip {
+    background: url('/images/gui/menu_back_1.png') repeat-x top center;
+    height: 75px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.banner-tank-art {
+    height: 75px;
+    width: auto;
+    display: block;
+    filter: drop-shadow(0 0 10px rgba(255, 140, 0, 0.5));
+}
+
+.banner-fade-strip {
+    background: url('/images/gui/menu_pict_fade.png') repeat-x center;
+    height: 16px;
+    width: 100%;
 }
 
 .menu-hero .game-title {
-    font-size: 3.2rem;
-    letter-spacing: 6px;
+    font-size: 3.4rem;
+    font-weight: 800;
+    letter-spacing: 8px;
     color: var(--color-accent);
-    text-shadow: 0 0 24px rgba(0, 230, 118, 0.35);
-    margin-bottom: 0.75rem;
+    text-shadow: 0 0 14px rgba(255, 184, 0, 0.65), 0 0 30px rgba(255, 184, 0, 0.35), 0 2px 4px rgba(0, 0, 0, 0.9);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
 }
 
 .menu-hero .game-tagline {
     color: var(--color-text-secondary);
-    font-size: 1.05rem;
-    line-height: 1.6;
-    max-width: 560px;
+    font-size: 1.1rem;
+    line-height: 1.5;
+    max-width: 580px;
+    margin: 0 auto;
+    letter-spacing: 0.5px;
 }
 
 .menu-actions {
     display: flex;
     flex-direction: column;
-    gap: 0.9rem;
+    gap: 1rem;
     width: 100%;
-    max-width: 320px;
+    max-width: 340px;
+    margin-top: 0.5rem;
 }
 
 @media (max-width: 600px) {
     .menu-hero .game-title {
-        font-size: 2.2rem;
-        letter-spacing: 3px;
+        font-size: 2.3rem;
+        letter-spacing: 4px;
+    }
+    .tankzors-banner-wrap {
+        border-radius: 0;
     }
 }
