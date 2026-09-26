@@ -8,7 +8,12 @@
 </head>
 <body>
 <section th:fragment="content" class="page-wide">
-    <h2 class="page-title">Chọn màn Campaign</h2>
+    <div style="text-align: center; margin-bottom: 1.5rem;">
+        <h2 class="page-title" style="font-size: 2.2rem; letter-spacing: 3px; font-weight: 800; text-transform: uppercase;">
+            CHIẾN DỊCH / CAMPAIGNS
+        </h2>
+        <p class="page-subtitle">Chọn màn chơi để tham gia chiến trường tiêu diệt AI xe tăng</p>
+    </div>
 
     <div class="campaign-grid">
         <div class="card level-card"
@@ -26,16 +31,31 @@
             </p>
             <a class="btn btn-primary level-play"
                th:if="${unlockedLevels.contains(lvl.id)}"
-               th:href="@{/play(levelId=${lvl.id})}">Play</a>
+               th:href="@{/play(levelId=${lvl.id})}">▶ BẮT ĐẦU</a>
             <span class="btn btn-ghost level-play disabled"
-                  th:unless="${unlockedLevels.contains(lvl.id)}"
-                  title="Hoàn thành màn trước để mở khóa">&#128274; Đã khóa</span>
+               th:unless="${unlockedLevels.contains(lvl.id)}"
+               title="Hoàn thành màn trước để mở khóa">&#128274; Đã khóa</span>
         </div>
     </div>
 
-    <div class="form-actions">
-        <a class="btn btn-ghost" th:href="@{/game-menu}">Back</a>
+    <div class="form-actions" style="justify-content: center; margin-top: 2rem;">
+        <a class="btn btn-ghost" th:href="@{/game-menu}">← Quay lại Menu Game</a>
     </div>
+
+    <audio id="audioBtnClick" th:src="@{/sounds/ui_button_down.ogg}" preload="auto"></audio>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var clickAudio = document.getElementById('audioBtnClick');
+            document.querySelectorAll('.btn:not(.disabled)').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    if (clickAudio) {
+                        clickAudio.currentTime = 0;
+                        clickAudio.play().catch(function () {});
+                    }
+                });
+            });
+        });
+    </script>
 </section>
 </body>
 </html>
