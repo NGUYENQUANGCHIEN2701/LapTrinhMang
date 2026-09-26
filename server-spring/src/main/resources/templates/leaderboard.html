@@ -51,24 +51,9 @@
         </tbody>
     </table>
 
-    <div class="form-actions" style="justify-content: center; margin-top: 1.5rem;">
-        <a class="btn btn-ghost" th:href="@{/}">← Về Trang Chủ</a>
+    <div class="form-actions">
+        <a class="btn btn-ghost" th:href="@{/menu}">Back</a>
     </div>
-
-    <audio id="audioBtnClick" th:src="@{/sounds/ui_button_down.ogg}" preload="auto"></audio>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            var clickAudio = document.getElementById('audioBtnClick');
-            document.querySelectorAll('.map-tabs a, .btn').forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    if (clickAudio) {
-                        clickAudio.currentTime = 0;
-                        clickAudio.play().catch(function () {});
-                    }
-                });
-            });
-        });
-    </script>
 </section>
 </body>
 </html>
