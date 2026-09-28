@@ -60,7 +60,39 @@ class GameSimulationTest {
             assertEquals(PlayerTank.DEFAULT_SPEED, level.getSpeed());
         }
         assertEquals(200.0, Bullet.DEFAULT_SPEED);
-        assertEquals(120.0, com.tankzors.client.gameplay.ai.ShootBehavior.AI_BULLET_SPEED);
+        assertEquals(Bullet.DEFAULT_SPEED,
+                com.tankzors.client.gameplay.ai.ShootBehavior.AI_BULLET_SPEED,
+                "Player and AI projectiles must use the same speed");
+    }
+
+    @Test
+    @DisplayName("Va chạm simulation phá tường xám sau 4 phát, bụi sau 1 phát, tường trắng không vỡ")
+    void projectilesApplyObstacleDurabilityThroughSimulation() {
+        int[][] grid = {
+                {0, 0, 0, 0, 0},
+                {0, 1, 5, 6, 0},
+                {0, 0, 0, 0, 0}
+        };
+        MapDefinition map = new MapDefinition("obstacles", 5, 3, 40, grid);
+        GameSimulation sim = new GameSimulation(11L);
+        sim.getWorld().setCurrentMap(map);
+        sim.getWorld().setStatus(GameWorld.Status.PLAYING);
+        sim.getWorld().addTank(new PlayerTank("player", 20, 20));
+        sim.getWorld().addTank(new AITank("ai", 180, 100,
+                com.tankzors.client.gameplay.ai.DifficultyLevel.EASY));
+
+        for (int hit = 1; hit <= 3; hit++) {
+            hitObstacle(sim, "brick-" + hit, 60, 60);
+            assertEquals(TileType.WALL, map.getTileAt(1, 1));
+        }
+        hitObstacle(sim, "brick-4", 60, 60);
+        assertEquals(TileType.GROUND, map.getTileAt(1, 1));
+
+        for (int hit = 1; hit <= 6; hit++) hitObstacle(sim, "white-" + hit, 100, 60);
+        assertEquals(TileType.WHITE_WALL, map.getTileAt(2, 1));
+
+        hitObstacle(sim, "bush-1", 140, 60);
+        assertEquals(TileType.GROUND, map.getTileAt(3, 1));
     }
 
     @Test
@@ -291,5 +323,12 @@ class GameSimulationTest {
                 if (g[r][c] == TileType.SPAWN_PLAYER.getValue()) g[r][c] = 0;
         g[row][col] = TileType.SPAWN_PLAYER.getValue();
         map.setGrid(g);
+    }
+
+    private static void hitObstacle(GameSimulation sim, String id, double x, double y) {
+        sim.getWorld().setStatus(GameWorld.Status.PLAYING);
+        sim.getWorld().addBullet(new Bullet(id, "player", new Position(x, y), 90,
+                1, Bullet.DEFAULT_DAMAGE, Bullet.DEFAULT_WIDTH, Bullet.DEFAULT_HEIGHT));
+        sim.step(GameplayConfig.STEP_SECONDS);
     }
 }

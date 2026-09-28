@@ -3,15 +3,15 @@ status: testing
 phase: 04-campaign-tactical-systems
 source: [04-VERIFICATION.md]
 started: 2026-09-28T11:05:00+07:00
-updated: 2026-09-28T11:05:00+07:00
+updated: 2026-09-28T11:36:00+07:00
 ---
 
 ## Current Test
 
-number: 1
-name: HUD and Q inventory menu
+number: 3
+name: AI facing, obstacle durability and interior placement retest
 expected: |
-  After login and opening campaign_1, the left HUD shows HP, ammo, Repair=3 and Speed=2. Q pauses the battle; Up/Down changes the highlight; Q/Escape do not close; Enter selects/uses and resumes.
+  AI turns in place before moving or firing, never strafes, and its bullet matches the rendered facing. Player/AI tanks both use 60 px/s and both projectile types use 200 px/s. Interior brick/white/bush obstacles are visually distinct and obey 4-hit/indestructible/1-hit durability.
 awaiting: user response
 
 ## Tests
@@ -26,17 +26,17 @@ result: pending
 
 ### 3. Obstacles, pickups and carry/restart
 expected: Brick takes 4 hits, white never breaks, bush takes 1; pickup counts and cross-level/restart inventory match the locked rules.
-result: pending
+result: issue_fixed_awaiting_retest
 
 ## Summary
 
 total: 3
 passed: 0
-issues: 0
-pending: 3
+issues: 1
+pending: 2
 skipped: 0
 blocked: 0
 
 ## Gaps
 
-None reported yet.
+- User found AI facing/projectile mismatch and unclear perimeter-heavy obstacle variants. Fixed with exclusive AI aim ticks, equal 200 px/s projectile speeds, corrected sprite ranges, and interior obstacle layouts; awaiting visual retest in authenticated campaign.

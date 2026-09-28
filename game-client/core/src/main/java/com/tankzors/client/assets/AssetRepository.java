@@ -144,11 +144,13 @@ public class AssetRepository implements Disposable {
     }
 
     public TextureRegion whiteWallFrame(int row, int col) {
-        return wallFrames[6 + (row + col) % 6];
+        // Sprite 6..10 là nhóm bê tông/kim loại sáng; frame 11 đã là cỏ.
+        return wallFrames[6 + (row + col) % 5];
     }
 
     public TextureRegion bushFrame(int row, int col) {
-        return wallFrames[12 + (row * 2 + col * 3) % 6];
+        // Sprite 11..17 là toàn bộ nhóm cây/cỏ xanh.
+        return wallFrames[11 + (row * 2 + col * 3) % 7];
     }
 
     public TextureRegion pickupFrame(boolean repair) {

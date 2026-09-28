@@ -104,9 +104,14 @@ public final class AIController {
         }
 
         hadSight = visible && reactionElapsed + 1e-9 >= self.getDifficulty().getReactionDelay();
-        // Ngắm/bắn trước, rồi movement chốt hướng render sau cùng. Khi AI đang
-        // chạy, sprite luôn nhìn theo đúng trục di chuyển thay vì trượt ngang.
+        // Ngắm/bắn có quyền giữ trọn một nhịp. Navigation chỉ chạy khi AI không
+        // đổi hướng ngắm hoặc khai hỏa, nên sprite, hướng đạn và hướng tiến không
+        // thể ghi đè nhau trong cùng một fixed-step.
         if (shootBehavior != null) shootBehavior.update(self, state, dt);
+        if (shootBehavior instanceof ShootBehavior
+                && ((ShootBehavior) shootBehavior).isReservingMovement()) {
+            return;
+        }
         behavior.update(self, state, dt);
         if (behavior == chase && chase.isSearchFinished()) {
             patrol.start(lastSeen);
