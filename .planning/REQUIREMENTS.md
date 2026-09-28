@@ -45,10 +45,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INV-01..05 | Phase 2 | Pending |
-| MAP-01..04 | Phase 2 | Pending |
-| VIS-01..02 | Phase 2 | Pending |
-| UI-01..02 | Phase 2 | Pending |
+| INV-01..05 | Phase 4 | Pending |
+| MAP-01..04 | Phase 4 | Pending |
+| VIS-01..02 | Phase 4 | Pending |
+| UI-01..02 | Phase 4 | Pending |
 | COOP-01 | Deferred | Deferred |
 | ITEM-01 | Deferred | Deferred |
 

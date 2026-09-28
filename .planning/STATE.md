@@ -5,14 +5,14 @@
 See: `.planning/PROJECT.md` (updated 2026-09-28)
 
 **Core value:** Campaign ba level chạy hoàn chỉnh với tài nguyên và gameplay nhất quán xuyên màn.  
-**Current focus:** Phase 2 — Persistent Arsenal, Battlefield Objects and Visibility
+**Current focus:** Phase 4 — Campaign Tactical Systems
 
 ## Current Position
 
-- Phase: 2
-- Status: Planning complete; implementation pending
+- Phase: 4
+- Status: Implementation complete; human UAT pending
 - Previous verified phase: Phase 1 Architectural Cleanup
-- Active plan: `.planning/phases/02-campaign-tactical-systems/02-01-PLAN.md`
+- Active plan: `.planning/phases/04-campaign-tactical-systems/04-01-PLAN.md`
 
 ## Decisions
 
@@ -29,10 +29,11 @@ See: `.planning/PROJECT.md` (updated 2026-09-28)
 - Current worktree contains uncommitted changes from the immediately preceding user-requested campaign fixes; preserve and integrate them.
 - Map JSON source must remain synchronized between `game-client/assets/maps` and `server-spring/src/main/resources/maps`.
 - Co-op support for new mechanics is explicitly deferred.
+- Authenticated canvas UAT must be completed by the user; automated browser session was intentionally not logged in.
 
 ## Next Action
 
-Execute `.planning/phases/02-campaign-tactical-systems/02-01-PLAN.md` sequentially with tests.
+Run the three checks in `.planning/phases/04-campaign-tactical-systems/04-UAT.md` on `http://localhost:8081`.
 
 ---
-*Last activity: 2026-09-28 — planning restored for campaign tactical systems*
+*Last activity: 2026-09-28 — implementation/build verification complete; awaiting gameplay UAT*
