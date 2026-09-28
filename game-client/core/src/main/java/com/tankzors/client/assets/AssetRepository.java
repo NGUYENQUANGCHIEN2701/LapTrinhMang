@@ -139,8 +139,19 @@ public class AssetRepository implements Disposable {
         return groundFrames[(row * 3 + col * 7) % groundFrames.length];
     }
 
-    public TextureRegion wallFrame(int row, int col) {
-        return wallFrames[(row + col) % 6];
+    public TextureRegion wallFrame(int hitPoints) {
+        return wallFrames[brownWallFrameIndex(hitPoints)];
+    }
+
+    /**
+     * wall.png chứa sáu frame gạch nâu theo thứ tự nguyên vẹn → đổ nát.
+     * Tường chịu bốn phát nên giữ bốn mốc rõ ràng, một mốc sau mỗi phát.
+     */
+    public static int brownWallFrameIndex(int hitPoints) {
+        if (hitPoints >= 4) return 0;
+        if (hitPoints == 3) return 2;
+        if (hitPoints == 2) return 4;
+        return 5;
     }
 
     public TextureRegion whiteWallFrame(int row, int col) {

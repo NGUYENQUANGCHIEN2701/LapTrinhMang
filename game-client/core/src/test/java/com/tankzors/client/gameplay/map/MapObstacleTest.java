@@ -1,11 +1,45 @@
 package com.tankzors.client.gameplay.map;
 
+import com.tankzors.client.gameplay.GameWorld;
+import com.tankzors.client.gameplay.WorldSnapshotMapper;
 import com.tankzors.client.gameplay.entity.Wall;
+import com.tankzors.client.model.GameStateSnapshot;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class MapObstacleTest {
+    @Test
+    void snapshotKeepsEverySurvivingBrownWallDamageStage() {
+        int[][] grid = {
+                {0, 0, 0},
+                {0, 1, 0},
+                {0, 0, 0}
+        };
+        MapDefinition map = new MapDefinition("damage-frames", 3, 3, 40, grid);
+        Wall wall = map.getWalls().get(0);
+        GameWorld world = new GameWorld();
+        world.setCurrentMap(map);
+
+        assertSnapshotWallHp(world, 4);
+        assertNull(map.hitWall(wall));
+        assertSnapshotWallHp(world, 3);
+        assertNull(map.hitWall(wall));
+        assertSnapshotWallHp(world, 2);
+        assertNull(map.hitWall(wall));
+        assertSnapshotWallHp(world, 1);
+        assertEquals(TileType.WALL, map.hitWall(wall));
+        GameStateSnapshot destroyed = WorldSnapshotMapper.snapshot(world, "player", 0, 0);
+        assertEquals(TileType.GROUND.getValue(), destroyed.map.grid[1][1]);
+        assertEquals(0, destroyed.map.wallHitPoints[1][1]);
+    }
+
+    private static void assertSnapshotWallHp(GameWorld world, int expectedHp) {
+        GameStateSnapshot snapshot = WorldSnapshotMapper.snapshot(world, "player", 0, 0);
+        assertNotNull(snapshot.map.wallHitPoints);
+        assertEquals(expectedHp, snapshot.map.wallHitPoints[1][1]);
+    }
+
     @Test
     void obstaclesHaveRequiredDurabilityAndPickupsAreConsumable() {
         int[][] grid = {

@@ -6,6 +6,7 @@ import com.tankzors.client.model.GameStateSnapshot;
 import com.tankzors.client.model.TankSnapshot;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -283,7 +284,11 @@ class LocalCampaignSessionTest {
 
         session.openInventoryMenu();
         assertTrue(session.isInventoryMenuOpen());
-        int elapsed = session.snapshot().elapsedSeconds;
+        GameStateSnapshot openMenu = session.snapshot();
+        assertArrayEquals(new int[]{0, 19, 17}, openMenu.inventoryItemIds,
+                "HUD Q phải liệt kê Round, Repair, Speed ngay trong túi hiện tại");
+        assertArrayEquals(new int[]{100, 3, 2}, openMenu.inventoryItemCounts);
+        int elapsed = openMenu.elapsedSeconds;
         session.update(5f);
         assertEquals(elapsed, session.snapshot().elapsedSeconds, "Menu Q phải pause simulation");
 

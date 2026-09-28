@@ -15,7 +15,6 @@ import com.tankzors.client.model.GameStateSnapshot;
 import com.tankzors.client.model.MapSnapshot;
 import com.tankzors.client.model.TankSnapshot;
 import com.tankzors.client.model.EffectSnapshot;
-import com.tankzors.client.shop.ShopItem;
 
 /**
  * Render snapshot của session hiện tại.
@@ -181,7 +180,7 @@ public class GameRenderer implements Disposable {
                         batch.draw(assets.groundFrame(r, c), px, py, ts, ts);
                         break;
                     case 1: // WALL
-                        batch.draw(assets.wallFrame(r, c), px, py, ts, ts);
+                        batch.draw(assets.wallFrame(wallHitPointsAt(map, r, c)), px, py, ts, ts);
                         break;
                     case 2: // WATER/SPIKES overlay lên ground
                         batch.draw(assets.groundFrame(r, c), px, py, ts, ts);
@@ -202,6 +201,16 @@ public class GameRenderer implements Disposable {
             }
         }
         batch.end();
+    }
+
+    private int wallHitPointsAt(MapSnapshot map, int row, int col) {
+        if (map.wallHitPoints == null || row < 0 || row >= map.wallHitPoints.length
+                || map.wallHitPoints[row] == null || col < 0 || col >= map.wallHitPoints[row].length
+                || map.wallHitPoints[row][col] <= 0) {
+            // Snapshot cũ từ guest không có trường này: giữ frame nguyên vẹn.
+            return 4;
+        }
+        return map.wallHitPoints[row][col];
     }
 
     private void drawTank(TankSnapshot tank) {
@@ -262,10 +271,13 @@ public class GameRenderer implements Disposable {
         int hp = player != null ? player.hp : 0;
         int maxHp = player != null ? player.maxHp : 100;
 
+        int inventoryCount = inventoryCount(state);
+        float panelHeight = state.inventoryMenuOpen ? 48 + inventoryCount * 34 : 82;
+
         shapes.begin(ShapeRenderer.ShapeType.Filled);
-        // HUD dọc gọn giống bản gốc: HP + đạn + Repair + Speed.
+        // Bình thường chỉ hiện HP và loại đang dùng; Q mở rộng ngay trong HUD này.
         shapes.setColor(0, 0, 0, 0.65f);
-        shapes.rect(8, 8, 158, 146);
+        shapes.rect(8, 8, 158, panelHeight);
 
         // Thanh HP
         shapes.setColor(Color.DARK_GRAY);
@@ -279,71 +291,49 @@ public class GameRenderer implements Disposable {
         drawHealthTicks(18, 30, 138, 12, 5);
         shapes.end();
 
-        // Vẽ Text & Icon trong batch
+        // Vẽ Text & Icon trong batch.
         batch.begin();
         // HP Label
         font.setColor(Color.WHITE);
         font.draw(batch, "HP " + hp + "/" + maxHp, 18, 14);
 
-        // Weapon icon + ammo
-        com.badlogic.gdx.graphics.g2d.TextureRegion icon = state.activeWeaponId == 0
-                ? assets.defaultBulletFrame() : assets.getIcon(state.activeWeaponId);
-        if (icon != null) {
-            batch.draw(icon, 18, 50, 30, 30);
+        if (!state.inventoryMenuOpen) {
+            drawInventoryItem(state.activeWeaponId, state.activeWeaponAmmo, 18, 50, false);
         }
-        font.setColor(Color.WHITE);
-        font.draw(batch, String.valueOf(state.activeWeaponAmmo), 57, 58);
-        batch.draw(assets.getIcon(ShopItem.REPAIR.getId()), 18, 84, 30, 30);
-        font.draw(batch, String.valueOf(state.repairCount), 57, 92);
-        batch.draw(assets.getIcon(ShopItem.SPEED_UP.getId()), 18, 118, 30, 30);
-        String speedText = String.valueOf(state.speedCount);
-        if (state.speedBoostSecondsRemaining > 0) speedText += "  " + (int) Math.ceil(state.speedBoostSecondsRemaining) + "s";
-        font.draw(batch, speedText, 57, 126);
         batch.end();
     }
 
     private void drawInventoryMenu(GameStateSnapshot state) {
-        float width = Gdx.graphics.getWidth();
-        float height = Gdx.graphics.getHeight();
-        int count = state.inventoryItemIds != null ? state.inventoryItemIds.length : 0;
-        float panelW = 360;
-        float panelH = Math.max(150, 74 + count * 42);
-        float x = (width - panelW) / 2f;
-        float y = (height - panelH) / 2f;
+        int count = inventoryCount(state);
 
         shapes.begin(ShapeRenderer.ShapeType.Filled);
-        shapes.setColor(0f, 0f, 0f, 0.82f);
-        shapes.rect(0, 0, width, height);
-        shapes.setColor(0.08f, 0.11f, 0.15f, 0.98f);
-        shapes.rect(x, y, panelW, panelH);
-        shapes.setColor(0.90f, 0.65f, 0.12f, 1f);
-        shapes.rect(x, y, panelW, 4);
         for (int i = 0; i < count; i++) {
             if (i == state.inventorySelectionIndex) {
-                shapes.setColor(0.25f, 0.38f, 0.52f, 0.9f);
-                shapes.rect(x + 16, y + 52 + i * 42, panelW - 32, 38);
+                shapes.setColor(0.42f, 0.42f, 0.42f, 0.95f);
+                shapes.rect(14, 48 + i * 34, 104, 32);
             }
         }
         shapes.end();
 
         batch.begin();
-        font.setColor(Color.GOLD);
-        font.draw(batch, "CHON TRANG BI", x + 18, y + 18);
         for (int i = 0; i < count; i++) {
-            int id = state.inventoryItemIds[i];
-            com.badlogic.gdx.graphics.g2d.TextureRegion icon = id == 0 ? assets.defaultBulletFrame() : assets.getIcon(id);
-            if (icon != null) batch.draw(icon, x + 24, y + 56 + i * 42, 30, 30);
-            font.setColor(i == state.inventorySelectionIndex ? Color.WHITE : Color.LIGHT_GRAY);
-            font.draw(batch, itemLabel(id) + "  x" + state.inventoryItemCounts[i], x + 66, y + 64 + i * 42);
+            drawInventoryItem(state.inventoryItemIds[i], state.inventoryItemCounts[i],
+                    18, 50 + i * 34, i == state.inventorySelectionIndex);
         }
-        font.setColor(Color.GRAY);
-        font.draw(batch, "UP/DOWN: chon    ENTER: dung", x + 18, y + panelH - 26);
         batch.end();
     }
 
-    private String itemLabel(int id) {
-        ShopItem item = ShopItem.findById(id);
-        return item != null ? item.getDisplayName() : "Item";
+    private int inventoryCount(GameStateSnapshot state) {
+        if (state.inventoryItemIds == null || state.inventoryItemCounts == null) return 0;
+        return Math.min(state.inventoryItemIds.length, state.inventoryItemCounts.length);
+    }
+
+    private void drawInventoryItem(int id, int count, float x, float y, boolean selected) {
+        com.badlogic.gdx.graphics.g2d.TextureRegion icon = id == 0
+                ? assets.defaultBulletFrame() : assets.getIcon(id);
+        if (icon != null) batch.draw(icon, x, y, 30, 30);
+        font.setColor(selected ? Color.WHITE : Color.LIGHT_GRAY);
+        font.draw(batch, String.valueOf(count), x + 39, y + 8);
     }
 
     /** Vạch chia 5 mức (mỗi mức 20%) để thanh HP đọc nhanh hơn. */

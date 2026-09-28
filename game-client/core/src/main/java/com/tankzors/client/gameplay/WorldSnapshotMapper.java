@@ -2,6 +2,7 @@ package com.tankzors.client.gameplay;
 
 import com.tankzors.client.gameplay.entity.AITank;
 import com.tankzors.client.gameplay.entity.PlayerTank;
+import com.tankzors.client.gameplay.entity.Wall;
 import com.tankzors.client.gameplay.interfaces.IBullet;
 import com.tankzors.client.gameplay.interfaces.IMap;
 import com.tankzors.client.gameplay.interfaces.ITank;
@@ -33,12 +34,22 @@ public final class WorldSnapshotMapper {
             ms.height = map.getHeight();
             ms.tileSize = map.getTileSize();
             int[][] grid = new int[map.getHeight()][map.getWidth()];
+            int[][] wallHitPoints = new int[map.getHeight()][map.getWidth()];
             for (int row = 0; row < grid.length; row++) {
                 for (int col = 0; col < grid[row].length; col++) {
                     grid[row][col] = map.getTileAt(col, row).getValue();
                 }
             }
+            for (Wall wall : map.getWalls()) {
+                int row = wall.getRow();
+                int col = wall.getCol();
+                if (row >= 0 && row < wallHitPoints.length
+                        && col >= 0 && col < wallHitPoints[row].length) {
+                    wallHitPoints[row][col] = wall.getHitPoints();
+                }
+            }
             ms.grid = grid;
+            ms.wallHitPoints = wallHitPoints;
             snap.map = ms;
         }
 
