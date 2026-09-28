@@ -23,17 +23,23 @@ See: `.planning/PROJECT.md` (updated 2026-09-28)
 - Adaptive light region covers at least 2/3 of map tiles; outside is fully black; enemies remain visible.
 - Fixed pickups: L1 R1, L2 R1/S1, L3 R2/S1.
 - Reference assets come from Tankzors Builds.
+- `campaign_1` is a capture-the-flag level: the player wins by reaching the flag; both sides respawn at their fixed spawn with full HP while inventory remains unchanged.
 
 ## Blockers/Concerns
 
-- Current worktree contains uncommitted changes from the immediately preceding user-requested campaign fixes; preserve and integrate them.
 - Map JSON source must remain synchronized between `game-client/assets/maps` and `server-spring/src/main/resources/maps`.
 - Co-op support for new mechanics is explicitly deferred.
 - Authenticated canvas UAT must be completed by the user; automated browser session was intentionally not logged in.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|---|---|---|---|
+| 260928-n9l | Thiết kế lại campaign_1 thành màn cướp cờ có hồi sinh tại spawn cố định | 2026-09-28 | 1441af2 | [260928-n9l-thi-t-k-l-i-campaign-1-th-nh-m-n-c-p-c-n](./quick/260928-n9l-thi-t-k-l-i-campaign-1-th-nh-m-n-c-p-c-n/) |
 
 ## Next Action
 
 Run the three checks in `.planning/phases/04-campaign-tactical-systems/04-UAT.md` on `http://localhost:8081`.
 
 ---
-*Last activity: 2026-09-28 — implementation/build verification complete; awaiting gameplay UAT*
+*Last activity: 2026-09-28 — campaign_1 capture-the-flag implementation verified and deployed; awaiting gameplay UAT*
