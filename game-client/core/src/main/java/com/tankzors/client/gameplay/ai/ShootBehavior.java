@@ -17,23 +17,26 @@ import java.util.Comparator;
 public final class ShootBehavior implements IAIBehavior {
 
     public static final double SHOOT_RANGE = 250.0;
-    /** Đạn AI chậm hơn player để người chơi có thời gian né. */
-    public static final double AI_BULLET_SPEED = 180.0;
+    /** Đạn AI và player dùng cùng tốc độ để nhịp chiến đấu nhất quán. */
+    public static final double AI_BULLET_SPEED = Bullet.DEFAULT_SPEED;
 
     private double cooldownRemaining = 0.0;
     private BulletIdSource bulletIdSource;
+    private boolean reservingMovement;
 
     public ShootBehavior() { }
     /** Giữ constructor cũ để tương thích call site; AI không còn dùng spread ngẫu nhiên. */
     public ShootBehavior(java.util.Random ignored) { }
 
     public void setBulletIdSource(BulletIdSource source) { this.bulletIdSource = source; }
-    public void reset() { cooldownRemaining = 0.0; }
+    public void reset() { cooldownRemaining = 0.0; reservingMovement = false; }
     public double getCooldownRemaining() { return cooldownRemaining; }
     public void setCooldownRemaining(double c) { this.cooldownRemaining = c; }
+    public boolean isReservingMovement() { return reservingMovement; }
 
     @Override
     public void update(AITank self, GameWorld state, double deltaTime) {
+        reservingMovement = false;
         if (self == null || !self.isAlive() || state == null || !state.isPlaying()
                 || state.getCurrentMap() == null || !Double.isFinite(deltaTime) || deltaTime <= 0) return;
 
@@ -57,9 +60,15 @@ public final class ShootBehavior implements IAIBehavior {
         double dx = target.getPosition().getX() - self.getPosition().getX();
         double dy = target.getPosition().getY() - self.getPosition().getY();
         double baseAngle = cardinalAngle(dx, dy);
-        self.rotate(baseAngle);
-
         if (cooldownRemaining <= 1e-9) {
+            // Một nhịp chỉ được có một chủ sở hữu hướng: nếu cần ngắm hướng mới,
+            // AI đứng yên để xoay; nhịp sau mới bắn. Navigation cũng phải đứng
+            // yên trong cả nhịp xoay và nhịp bắn để không tạo cảm giác trượt ngang.
+            reservingMovement = true;
+            if (normalizedRotation(self.getRotation()) != baseAngle) {
+                self.rotate(baseAngle);
+                return;
+            }
             String id = bulletIdSource != null ? bulletIdSource.nextId(self.getId()) : "b-0";
             Bullet bullet = new Bullet(id, self.getId(),
                     new Position(self.getPosition().getX(), self.getPosition().getY()), baseAngle,
@@ -71,6 +80,10 @@ public final class ShootBehavior implements IAIBehavior {
 
     private static double distance(Position a, Position b) {
         return Math.hypot(a.getX() - b.getX(), a.getY() - b.getY());
+    }
+
+    private static double normalizedRotation(double angle) {
+        return ((angle % 360) + 360) % 360;
     }
 
     /** Chọn trục có sai lệch lớn hơn; tại 45° ưu tiên ngang để deterministic. */

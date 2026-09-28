@@ -35,6 +35,7 @@ public class GameClient implements ApplicationListener {
     private GameRenderer renderer;
     private ShopOverlay shopOverlay;
     private ClientInputProcessor input;
+    private Runnable backToCampaignsHandler;
 
     public GameClient(GameSession session) {
         this(null, DEFAULT_LEVEL, null);
@@ -58,6 +59,7 @@ public class GameClient implements ApplicationListener {
 
     public String getLevelId() { return levelId; }
     public void setLevelId(String levelId) { this.levelId = levelId; }
+    public void setBackToCampaignsHandler(Runnable handler) { this.backToCampaignsHandler = handler; }
 
     @Override
     public void create() {
@@ -108,6 +110,9 @@ public class GameClient implements ApplicationListener {
             @Override public void onAllReleased() {
                 if (session != null) session.onAllReleased();
             }
+            @Override public void onReverse(boolean reversing) {
+                if (session != null) session.onReverse(reversing);
+            }
             @Override public void onRestart() {
                 if (audio != null) audio.playUiClick();
                 if (session != null) session.restart();
@@ -117,7 +122,7 @@ public class GameClient implements ApplicationListener {
                 if (session != null) session.nextLevel();
             }
             @Override public void onToggleShop() {
-                if (shopOverlay != null) {
+                if (shopOverlay != null && session != null && session.canOpenShop()) {
                     shopOverlay.toggle();
                 }
             }
@@ -133,8 +138,28 @@ public class GameClient implements ApplicationListener {
                     if (audio != null) audio.playUiWeapSwitch();
                 }
             }
+            @Override public boolean isInventoryMenuOpen() {
+                return session != null && session.isInventoryMenuOpen();
+            }
+            @Override public void onOpenInventoryMenu() {
+                if (session != null) session.openInventoryMenu();
+                if (audio != null) audio.playUiWindow();
+            }
+            @Override public void onMoveInventorySelection(int delta) {
+                if (session != null) session.moveInventorySelection(delta);
+                if (audio != null) audio.playUiWeapSwitch();
+            }
+            @Override public void onConfirmInventorySelection() {
+                if (session != null) session.confirmInventorySelection();
+                if (audio != null) audio.playUiClick();
+            }
             @Override public void onToggleMute() {
                 if (audio != null) audio.toggleMute();
+            }
+            @Override public void onBackToCampaigns() {
+                if (session != null && session.canOpenShop() && backToCampaignsHandler != null) {
+                    backToCampaignsHandler.run();
+                }
             }
         });
         input.setShopOverlay(shopOverlay);
@@ -148,8 +173,10 @@ public class GameClient implements ApplicationListener {
         int[] keys = {
                 Input.Keys.UP, Input.Keys.DOWN, Input.Keys.LEFT, Input.Keys.RIGHT,
                 Input.Keys.W, Input.Keys.A, Input.Keys.S, Input.Keys.D,
+                Input.Keys.X,
                 Input.Keys.SPACE, Input.Keys.J, Input.Keys.R, Input.Keys.N,
                 Input.Keys.B, Input.Keys.Q, Input.Keys.E, Input.Keys.ESCAPE,
+                Input.Keys.ENTER,
                 Input.Keys.M,
                 Input.Keys.NUM_1, Input.Keys.NUM_2, Input.Keys.NUM_3, Input.Keys.NUM_4, Input.Keys.NUM_5, Input.Keys.NUM_6
         };

@@ -18,25 +18,38 @@ public class PlayerShopStateTest {
     void testInitialState() {
         assertEquals(0, state.getCoins());
         assertEquals(0, state.getStars());
-        assertEquals(50, state.getItemCount(ShopItem.ROUND.getId()));
+        assertEquals(100, state.getItemCount(ShopItem.ROUND.getId()));
+        assertEquals(3, state.getItemCount(ShopItem.REPAIR.getId()));
+        assertEquals(2, state.getItemCount(ShopItem.SPEED_UP.getId()));
         assertEquals(0, state.getActiveWeaponId());
+    }
+
+    @Test
+    void inventoryCheckpointCanBeRestored() {
+        var checkpoint = state.snapshotInventory();
+        assertTrue(state.consumeItem(ShopItem.REPAIR.getId()));
+        assertTrue(state.consumeItem(ShopItem.SPEED_UP.getId()));
+        state.restoreInventory(checkpoint);
+        assertEquals(3, state.getItemCount(ShopItem.REPAIR.getId()));
+        assertEquals(2, state.getItemCount(ShopItem.SPEED_UP.getId()));
     }
 
     @Test
     void testBuyAndSellBasicAmmo() {
         state.setCoins(200);
+        state.setItemCount(ShopItem.ROUND.getId(), 90);
         assertTrue(state.canBuy(ShopItem.ROUND));
         assertTrue(state.buy(ShopItem.ROUND));
 
         // 10 pack, price 5
         assertEquals(195, state.getCoins());
-        assertEquals(60, state.getItemCount(ShopItem.ROUND.getId()));
+        assertEquals(100, state.getItemCount(ShopItem.ROUND.getId()));
 
         // Sell
         assertTrue(state.canSell(ShopItem.ROUND));
         assertTrue(state.sell(ShopItem.ROUND));
         assertEquals(200, state.getCoins());
-        assertEquals(50, state.getItemCount(ShopItem.ROUND.getId()));
+        assertEquals(90, state.getItemCount(ShopItem.ROUND.getId()));
     }
 
     @Test

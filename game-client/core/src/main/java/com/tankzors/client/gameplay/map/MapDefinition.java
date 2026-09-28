@@ -94,8 +94,8 @@ public class MapDefinition implements IMap {
                 double pixelX = col * tileSize;
                 double pixelY = row * tileSize;
 
-                if (type == TileType.WALL) {
-                    walls.add(new Wall(pixelX, pixelY, tileSize, tileSize));
+                if (type == TileType.WALL || type == TileType.WHITE_WALL || type == TileType.BUSH) {
+                    walls.add(new Wall(pixelX, pixelY, tileSize, tileSize, col, row, type));
                 } else if (type == TileType.SPAWN_PLAYER) {
                     playerSpawn = new Position(pixelX + tileSize / 2.0, pixelY + tileSize / 2.0);
                     spawnPoints.add(playerSpawn);
@@ -157,7 +157,39 @@ public class MapDefinition implements IMap {
     public boolean isWalkable(int col, int row) {
         if (col < 0 || col >= width || row < 0 || row >= height) return false;
         TileType type = getTileAt(col, row);
-        return type != TileType.WALL && type != TileType.WATER;
+        return type != TileType.WALL && type != TileType.WHITE_WALL
+                && type != TileType.BUSH && type != TileType.WATER;
+    }
+
+    /** Ghi một ô động (phá vật cản/nhặt vật phẩm) mà không reset HP các tường khác. */
+    public void setTileAt(int col, int row, TileType type) {
+        if (grid == null || row < 0 || row >= grid.length || col < 0 || col >= grid[row].length) return;
+        grid[row][col] = (type != null ? type : TileType.GROUND).getValue();
+    }
+
+    /** Áp đúng một hit lên vật cản; trả loại vừa bị phá hoặc null. */
+    public TileType hitWall(Wall wall) {
+        if (wall == null || !walls.contains(wall) || isBoundaryWall(wall) || !wall.hit()) return null;
+        TileType destroyed = wall.getTileType();
+        walls.remove(wall);
+        setTileAt(wall.getCol(), wall.getRow(), TileType.GROUND);
+        return destroyed;
+    }
+
+    /** Hàng/cột ngoài cùng là tường bao map: giữ nguyên sprite nhưng không thể phá. */
+    private boolean isBoundaryWall(Wall wall) {
+        return wall.getCol() == 0 || wall.getRow() == 0
+                || wall.getCol() == width - 1 || wall.getRow() == height - 1;
+    }
+
+    /** Nhặt vật phẩm tại tâm xe; trả loại pickup hoặc null. */
+    public TileType collectPickupAt(double pixelX, double pixelY) {
+        int col = (int) Math.floor(pixelX / tileSize);
+        int row = (int) Math.floor(pixelY / tileSize);
+        TileType type = getTileAt(col, row);
+        if (type != TileType.REPAIR_PICKUP && type != TileType.SPEED_PICKUP) return null;
+        setTileAt(col, row, TileType.GROUND);
+        return type;
     }
 
     public int[][] getGrid() { return grid; }

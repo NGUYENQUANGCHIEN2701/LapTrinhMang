@@ -49,6 +49,13 @@ final class AINavigator {
             boolean horizontal = Math.abs(dx) > 1e-6;
             double remaining = horizontal ? dx : dy;
             double step = Math.copySign(Math.min(5.0, Math.min(distance, Math.abs(remaining))), remaining);
+            double travelRotation = horizontal ? (step > 0 ? 90 : 270) : (step > 0 ? 180 : 0);
+            if (normalizedRotation(tank.getRotation()) != travelRotation) {
+                // AI phải dừng nguyên vị trí trong nhịp đổi hướng; nhịp sau
+                // mới được tiến thẳng theo hướng vừa quay.
+                tank.rotate(travelRotation);
+                return Result.MOVING;
+            }
             Position from = tank.getPosition();
             Position to = new Position(from.getX() + (horizontal ? step : 0), from.getY() + (horizontal ? 0 : step));
             if (!GridPathfinder.canTraverse(tank, currentMap, from, to)) {
@@ -60,9 +67,12 @@ final class AINavigator {
             Position valid = Collision.resolveCollision(tank, to, currentMap);
             tank.getPosition().setX(valid.getX());
             tank.getPosition().setY(valid.getY());
-            tank.rotate(horizontal ? (step > 0 ? 90 : 270) : (step > 0 ? 180 : 0));
             distance -= Math.abs(step);
         }
         return Result.REACHED;
+    }
+
+    private static double normalizedRotation(double angle) {
+        return ((angle % 360) + 360) % 360;
     }
 }

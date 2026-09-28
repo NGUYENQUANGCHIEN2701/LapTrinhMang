@@ -6,7 +6,7 @@ package com.tankzors.client.shop;
  */
 public enum ShopItem {
     // --- ĐẠN DƯỢC CƠ BẢN (Mua theo lốc 10 viên) ---
-    ROUND(0, "Shell", Category.BASIC_AMMO, 5, 10, 99, null, 0, "Dan tieu chuan co ban cua xe tang."),
+    ROUND(0, "Shell", Category.BASIC_AMMO, 5, 10, 100, null, 0, "Dan tieu chuan co ban cua xe tang."),
     PLASMA(1, "Plasma", Category.BASIC_AMMO, 15, 10, 99, "shellResearch", 1, "May tao tia plasma nang luong cao."),
     DOUBLE_ROUND(2, "Double Shell", Category.BASIC_AMMO, 30, 10, 40, "shellResearch", 2, "Ban cung luc 2 vien dan nong doi."),
     DOUBLE_PLASMA(3, "Double Plasma", Category.BASIC_AMMO, 55, 10, 40, "shellResearch", 3, "Ban cung luc 2 tia plasma cuc manh."),

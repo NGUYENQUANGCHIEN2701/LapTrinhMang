@@ -6,6 +6,9 @@ import com.tankzors.client.gameplay.entity.PlayerTank;
 import com.tankzors.client.gameplay.entity.Position;
 import com.tankzors.client.gameplay.map.MapDefinition;
 import com.tankzors.client.gameplay.map.TileType;
+import com.tankzors.client.shop.PlayerShopState;
+import com.tankzors.client.shop.ShopItem;
+import com.tankzors.client.model.GameStateSnapshot;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -20,6 +23,200 @@ import static org.junit.jupiter.api.Assertions.*;
  * Test trực tiếp fixed-step simulation, không dùng scheduler.
  */
 class GameSimulationTest {
+
+    @Test
+    @DisplayName("Màn cướp cờ hồi sinh hai phe tại spawn và chỉ thắng khi player chạm cờ")
+    void captureFlagRespawnsBothSidesAndWinsOnlyAtFlag() {
+        int[][] grid = {
+                {1, 1, 1, 1, 1, 1, 1},
+                {1, 3, 0, 9, 0, 4, 1},
+                {1, 1, 1, 1, 1, 1, 1}
+        };
+        MapDefinition map = new MapDefinition("capture-flag", 7, 3, 40, grid);
+        map.setEnemies(List.of(new MapDefinition.EnemyConfig("AI", "EASY", 5, 1)));
+        GameSimulation sim = new GameSimulation(123L);
+        PlayerShopState shop = new PlayerShopState();
+        shop.setItemCount(0, 73);
+        sim.setShopState(shop);
+        int[] terminalCount = {0};
+        sim.setMatchEndHandler((level, status, hp, kills, elapsed) -> terminalCount[0]++);
+        sim.startCampaignLevel(map, "campaign_1", "player");
+
+        PlayerTank firstPlayer = (PlayerTank) sim.getWorld().getTank("player");
+        AITank firstAi = (AITank) sim.getWorld().getTank("ai-5-1");
+        firstPlayer.takeDamage(firstPlayer.getMaxHP());
+        firstAi.takeDamage(firstAi.getMaxHP());
+        sim.step(GameplayConfig.STEP_SECONDS);
+
+        PlayerTank respawnedPlayer = (PlayerTank) sim.getWorld().getTank("player");
+        AITank respawnedAi = (AITank) sim.getWorld().getTank("ai-5-1");
+        assertNotSame(firstPlayer, respawnedPlayer);
+        assertNotSame(firstAi, respawnedAi);
+        assertEquals(respawnedPlayer.getMaxHP(), respawnedPlayer.getHP());
+        assertEquals(respawnedAi.getMaxHP(), respawnedAi.getHP());
+        assertEquals(60, respawnedPlayer.getPosition().getX(), 0.001);
+        assertEquals(60, respawnedPlayer.getPosition().getY(), 0.001);
+        assertEquals(220, respawnedAi.getPosition().getX(), 0.001);
+        assertEquals(60, respawnedAi.getPosition().getY(), 0.001);
+        assertEquals(73, shop.getItemCount(0), "Hồi sinh không được làm mới hoặc trừ kho đồ");
+        assertEquals(GameWorld.Status.PLAYING, sim.getWorld().getStatus());
+        assertEquals(0, terminalCount[0]);
+
+        respawnedPlayer.getPosition().setX(140);
+        respawnedPlayer.getPosition().setY(60);
+        sim.step(GameplayConfig.STEP_SECONDS);
+
+        assertEquals(GameWorld.Status.VICTORY, sim.getWorld().getStatus());
+        assertEquals(1, terminalCount[0]);
+        sim.step(GameplayConfig.STEP_SECONDS);
+        assertEquals(1, terminalCount[0], "Chạm cờ chỉ được kết thúc trận một lần");
+    }
+
+    @Test
+    @DisplayName("Repair hồi đầy HP và Speed tăng đúng 30% trong 20 giây")
+    void supportItemsApplyExactEffects() {
+        GameSimulation sim = new GameSimulation(99L);
+        PlayerShopState shop = new PlayerShopState();
+        sim.setShopState(shop);
+        MapDefinition map = TestMaps.open();
+        setPlayerSpawn(map, 2, 2);
+        sim.startCampaignLevel(map, "campaign_1", "player");
+        PlayerTank player = (PlayerTank) sim.getWorld().getTank("player");
+
+        player.takeDamage(70);
+        assertTrue(sim.useInventoryItem(ShopItem.REPAIR.getId()));
+        assertEquals(player.getMaxHP(), player.getHP());
+        assertEquals(2, shop.getItemCount(ShopItem.REPAIR.getId()));
+
+        double baseSpeed = player.getSpeed();
+        assertTrue(sim.useInventoryItem(ShopItem.SPEED_UP.getId()));
+        assertEquals(baseSpeed * 1.30, player.getSpeed(), 0.0001);
+        assertEquals(1, shop.getItemCount(ShopItem.SPEED_UP.getId()));
+        for (int i = 0; i < 601; i++) {
+            sim.getWorld().setStatus(GameWorld.Status.PLAYING);
+            sim.step(1.0 / 30.0);
+        }
+        assertEquals(0.0, sim.getSpeedBoostRemaining(), 0.0001);
+        assertEquals(baseSpeed, player.getSpeed(), 0.0001);
+    }
+
+    @Test
+    @DisplayName("Player và AI có cùng tốc độ cơ bản chậm 60 px/s")
+    void playerAndAiShareSlowerBaseSpeed() {
+        assertEquals(60.0, PlayerTank.DEFAULT_SPEED);
+        for (com.tankzors.client.gameplay.ai.DifficultyLevel level
+                : com.tankzors.client.gameplay.ai.DifficultyLevel.values()) {
+            assertEquals(PlayerTank.DEFAULT_SPEED, level.getSpeed());
+        }
+        assertEquals(200.0, Bullet.DEFAULT_SPEED);
+        assertEquals(Bullet.DEFAULT_SPEED,
+                com.tankzors.client.gameplay.ai.ShootBehavior.AI_BULLET_SPEED,
+                "Player and AI projectiles must use the same speed");
+    }
+
+    @Test
+    @DisplayName("Va chạm simulation phá tường xám sau 4 phát, bụi sau 1 phát, tường trắng không vỡ")
+    void projectilesApplyObstacleDurabilityThroughSimulation() {
+        int[][] grid = {
+                {0, 0, 0, 0, 0},
+                {0, 1, 5, 6, 0},
+                {0, 0, 0, 0, 0}
+        };
+        MapDefinition map = new MapDefinition("obstacles", 5, 3, 40, grid);
+        GameSimulation sim = new GameSimulation(11L);
+        sim.getWorld().setCurrentMap(map);
+        sim.getWorld().setStatus(GameWorld.Status.PLAYING);
+        sim.getWorld().addTank(new PlayerTank("player", 20, 20));
+        sim.getWorld().addTank(new AITank("ai", 180, 100,
+                com.tankzors.client.gameplay.ai.DifficultyLevel.EASY));
+
+        for (int hit = 1; hit <= 3; hit++) {
+            hitObstacle(sim, "brick-" + hit, 60, 60);
+            assertEquals(TileType.WALL, map.getTileAt(1, 1));
+        }
+        hitObstacle(sim, "brick-4", 60, 60);
+        assertEquals(TileType.GROUND, map.getTileAt(1, 1));
+
+        for (int hit = 1; hit <= 6; hit++) hitObstacle(sim, "white-" + hit, 100, 60);
+        assertEquals(TileType.WHITE_WALL, map.getTileAt(2, 1));
+
+        hitObstacle(sim, "bush-1", 140, 60);
+        assertEquals(TileType.GROUND, map.getTileAt(3, 1));
+    }
+
+    @Test
+    @DisplayName("Đạn được bắn thật từ xe người chơi phá tường nâu bên trong sau đúng 4 phát")
+    void playerFiredBulletsDestroyInteriorBrownWall() {
+        int[][] grid = {
+                {1, 1, 1, 1, 1, 1, 1, 1},
+                {1, 0, 0, 0, 0, 0, 0, 1},
+                {1, 0, 3, 0, 1, 0, 0, 1},
+                {1, 0, 0, 0, 0, 0, 0, 1},
+                {1, 1, 1, 1, 1, 1, 1, 1}
+        };
+        MapDefinition map = new MapDefinition("player-wall", 8, 5, 40, grid);
+        GameSimulation sim = new GameSimulation(12L);
+        PlayerShopState shop = new PlayerShopState();
+        sim.setShopState(shop);
+        sim.startCampaignLevel(map, "campaign_1", "player");
+        PlayerTank player = (PlayerTank) sim.getWorld().getTank("player");
+        player.rotate(90);
+        com.tankzors.client.gameplay.entity.Wall interior = map.getWalls().stream()
+                .filter(w -> w.getCol() == 4 && w.getRow() == 2)
+                .findFirst().orElseThrow();
+
+        for (int hit = 1; hit <= 3; hit++) {
+            firePlayerShotUntilImpact(sim);
+            assertEquals(TileType.WALL, map.getTileAt(4, 2), "Wall must remain through hit " + hit);
+            assertEquals(4 - hit, interior.getHitPoints(), "Player hit must reduce brown-wall durability");
+            GameStateSnapshot snapshot = new GameStateSnapshot();
+            sim.appendEffectsTo(snapshot);
+            assertTrue(snapshot.effects.stream().anyMatch(effect -> effect.impact),
+                    "A non-terminal wall hit must show a small impact effect");
+        }
+        firePlayerShotUntilImpact(sim);
+
+        assertEquals(TileType.GROUND, map.getTileAt(4, 2));
+        assertEquals(96, shop.getItemCount(0));
+    }
+
+    @Test
+    @DisplayName("Hai viên đạn gặp hoặc cắt qua nhau đều cùng bị triệt tiêu")
+    void opposingBulletsCancelEachOtherContinuously() {
+        GameSimulation sim = new GameSimulation(9L);
+        GameWorld world = sim.getWorld();
+        world.setCurrentMap(TestMaps.open());
+        world.setStatus(GameWorld.Status.PLAYING);
+
+        Bullet right = new Bullet("right", "player", new Position(192, 200), 90,
+                300, 25, Bullet.DEFAULT_WIDTH, Bullet.DEFAULT_HEIGHT);
+        Bullet left = new Bullet("left", "enemy", new Position(208, 200), 270,
+                300, 25, Bullet.DEFAULT_WIDTH, Bullet.DEFAULT_HEIGHT);
+        world.addBullet(right);
+        world.addBullet(left);
+
+        sim.step(GameplayConfig.STEP_SECONDS);
+
+        assertFalse(right.isActive());
+        assertFalse(left.isActive());
+    }
+
+    @Test
+    @DisplayName("Đạn mặc định hữu hạn và giảm sau mỗi phát bắn")
+    void defaultAmmoIsFiniteAndConsumed() {
+        GameSimulation sim = new GameSimulation(10L);
+        PlayerShopState shop = new PlayerShopState();
+        sim.setShopState(shop);
+        MapDefinition map = TestMaps.open();
+        setPlayerSpawn(map, 2, 2);
+        map.setEnemies(List.of(new MapDefinition.EnemyConfig("AI", "EASY", 15, 10)));
+        sim.startCampaignLevel(map, "campaign_1", "player");
+
+        sim.enqueueShoot();
+        sim.step(GameplayConfig.STEP_SECONDS);
+
+        assertEquals(99, shop.getItemCount(0));
+    }
 
     @Test
     @DisplayName("startCampaignLevel: nạp map, spawn 1 player + AI theo metadata")
@@ -211,5 +408,34 @@ class GameSimulationTest {
                 if (g[r][c] == TileType.SPAWN_PLAYER.getValue()) g[r][c] = 0;
         g[row][col] = TileType.SPAWN_PLAYER.getValue();
         map.setGrid(g);
+    }
+
+    private static void hitObstacle(GameSimulation sim, String id, double x, double y) {
+        sim.getWorld().setStatus(GameWorld.Status.PLAYING);
+        sim.getWorld().addBullet(new Bullet(id, "player", new Position(x, y), 90,
+                1, Bullet.DEFAULT_DAMAGE, Bullet.DEFAULT_WIDTH, Bullet.DEFAULT_HEIGHT));
+        sim.step(GameplayConfig.STEP_SECONDS);
+    }
+
+    private static void firePlayerShotUntilImpact(GameSimulation sim) {
+        PlayerTank player = (PlayerTank) sim.getWorld().getTank("player");
+        for (int frame = 0; frame < 30 && !player.canShoot(); frame++) {
+            sim.getWorld().setStatus(GameWorld.Status.PLAYING);
+            sim.step(GameplayConfig.STEP_SECONDS);
+        }
+        assertTrue(player.canShoot(), "Player cooldown must finish before the next test shot");
+        sim.getWorld().setStatus(GameWorld.Status.PLAYING);
+        sim.enqueueShoot();
+        boolean shotSeen = false;
+        for (int frame = 0; frame < 30; frame++) {
+            sim.getWorld().setStatus(GameWorld.Status.PLAYING);
+            sim.step(GameplayConfig.STEP_SECONDS);
+            if (sim.getWorld().getBulletCount() > 0) {
+                shotSeen = true;
+            } else if (shotSeen) {
+                return;
+            }
+        }
+        fail("Player bullet did not reach an obstacle within 30 fixed steps");
     }
 }

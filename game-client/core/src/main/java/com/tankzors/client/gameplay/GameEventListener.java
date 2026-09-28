@@ -18,5 +18,9 @@ public interface GameEventListener {
 
     /** Trận đấu kết thúc (VICTORY hoặc DEFEAT). */
     void onMatchEnd(GameWorld.Status status);
+
+    default void onPickup() {}
+    default void onUseRepair() {}
+    default void onUseSpeed() {}
 }
 

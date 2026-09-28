@@ -12,6 +12,11 @@ import com.tankzors.client.gameplay.result.MatchResult;
 import com.tankzors.client.gameplay.rules.ScoreCalculator;
 import com.tankzors.client.input.ClientInputProcessor.Direction;
 import com.tankzors.client.model.GameStateSnapshot;
+import com.tankzors.client.shop.ShopItem;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Session campaign local: chạy simulation hoàn toàn trên client, KHÔNG WebSocket.
@@ -76,6 +81,11 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
 
     private final com.tankzors.client.shop.PlayerShopState shopState = new com.tankzors.client.shop.PlayerShopState();
     private ShopSyncHandler shopSyncHandler;
+    private boolean shopStateLoaded;
+    private Map<Integer, Integer> levelStartInventory;
+    private int levelStartWeaponId;
+    private boolean inventoryMenuOpen;
+    private int inventorySelectionIndex;
 
     public interface ShopSyncHandler {
         void onSyncShop(int coins, int stars, String researchJson, String inventoryJson);
@@ -180,6 +190,9 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
                     }
                 }
             }
+            @Override public void onPickup() { if (audioManager != null) audioManager.playPickup(); }
+            @Override public void onUseRepair() { if (audioManager != null) audioManager.playRepair(); }
+            @Override public void onUseSpeed() { if (audioManager != null) audioManager.playSpeed(); }
         };
     }
 
@@ -216,16 +229,20 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
 
     // ===== INPUT =====
     @Override public void onMove(Direction direction, boolean moving) {
-        if (phase != Phase.PLAYING) return;
+        if (phase != Phase.PLAYING || inventoryMenuOpen) return;
         sim.enqueueMove(toGameplayDirection(direction), moving);
     }
     @Override public void onShoot() {
-        if (phase != Phase.PLAYING) return;
+        if (phase != Phase.PLAYING || inventoryMenuOpen) return;
         sim.enqueueShoot();
     }
     @Override public void onAllReleased() {
         if (phase != Phase.PLAYING) return;
         sim.enqueueStopAll();
+    }
+    @Override public void onReverse(boolean reversing) {
+        if (phase != Phase.PLAYING || inventoryMenuOpen) return;
+        sim.enqueueReverse(reversing);
     }
 
     private static com.tankzors.client.gameplay.entity.Direction toGameplayDirection(Direction d) {
@@ -241,7 +258,7 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
 
     // ===== UPDATE =====
     @Override public void update(float rawDeltaTime) {
-        if (phase == Phase.PLAYING) sim.advance(rawDeltaTime);
+        if (phase == Phase.PLAYING && !inventoryMenuOpen) sim.advance(rawDeltaTime);
     }
 
     @Override public GameStateSnapshot snapshot() {
@@ -274,8 +291,64 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
             snap.playerStars = shopState.getStars();
             snap.activeWeaponId = shopState.getActiveWeaponId();
             snap.activeWeaponAmmo = shopState.getItemCount(shopState.getActiveWeaponId());
+            snap.repairCount = shopState.getItemCount(ShopItem.REPAIR.getId());
+            snap.speedCount = shopState.getItemCount(ShopItem.SPEED_UP.getId());
+            List<Integer> ids = inventoryMenuItems();
+            snap.inventoryItemIds = new int[ids.size()];
+            snap.inventoryItemCounts = new int[ids.size()];
+            for (int i = 0; i < ids.size(); i++) {
+                snap.inventoryItemIds[i] = ids.get(i);
+                snap.inventoryItemCounts[i] = shopState.getItemCount(ids.get(i));
+            }
         }
+        sim.appendEffectsTo(snap);
+        snap.speedBoostSecondsRemaining = (float) sim.getSpeedBoostRemaining();
+        snap.inventoryMenuOpen = inventoryMenuOpen;
+        snap.inventorySelectionIndex = inventorySelectionIndex;
         return snap;
+    }
+
+    @Override public boolean isInventoryMenuOpen() { return inventoryMenuOpen; }
+
+    @Override public void openInventoryMenu() {
+        if (phase != Phase.PLAYING || !sim.getWorld().isPlaying()) return;
+        inventoryMenuOpen = true;
+        inventorySelectionIndex = 0;
+        sim.enqueueStopAll();
+    }
+
+    @Override public void moveInventorySelection(int delta) {
+        if (!inventoryMenuOpen) return;
+        int size = inventoryMenuItems().size();
+        if (size == 0) return;
+        inventorySelectionIndex = (inventorySelectionIndex + delta) % size;
+        if (inventorySelectionIndex < 0) inventorySelectionIndex += size;
+    }
+
+    @Override public void confirmInventorySelection() {
+        if (!inventoryMenuOpen) return;
+        List<Integer> items = inventoryMenuItems();
+        if (!items.isEmpty()) {
+            int index = Math.max(0, Math.min(inventorySelectionIndex, items.size() - 1));
+            int itemId = items.get(index);
+            if (itemId >= 0 && itemId <= 5) {
+                selectWeapon(itemId);
+            } else {
+                sim.useInventoryItem(itemId);
+            }
+        }
+        inventoryMenuOpen = false;
+        inventorySelectionIndex = 0;
+    }
+
+    private List<Integer> inventoryMenuItems() {
+        List<Integer> ids = new ArrayList<>();
+        for (int id = 0; id <= 5; id++) {
+            if (shopState.getItemCount(id) > 0) ids.add(id);
+        }
+        if (shopState.getItemCount(ShopItem.REPAIR.getId()) > 0) ids.add(ShopItem.REPAIR.getId());
+        if (shopState.getItemCount(ShopItem.SPEED_UP.getId()) > 0) ids.add(ShopItem.SPEED_UP.getId());
+        return ids;
     }
 
     @Override public String localPlayerId() { return playerId; }
@@ -293,6 +366,11 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
     public void restart() {
         matchResult = null;
         matchResultFired = false;
+        inventoryMenuOpen = false;
+        if (levelStartInventory != null) {
+            shopState.restoreInventory(levelStartInventory);
+            shopState.setActiveWeaponId(levelStartWeaponId);
+        }
         // Re-bootstrap để nhận runId + mapVersion mới (chống trùng idempotency).
         requestBootstrap(levelId);
     }
@@ -300,11 +378,11 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
     @Override
     public void nextLevel() {
         if (phase == Phase.LOADING_NEXT) return; // đang tải, bỏ qua
+        if (sim.getWorld().getStatus() != GameWorld.Status.VICTORY) return;
         String next = nextCampaignLevel(levelId);
         if (next == null) return;
-        // Chỉ cho転 màn kế khi vừa thắng (VICTORY). Nhưng caller (GameClient) đã chỉ
-        // forward onNextLevel khi input disabled (terminal). Nếu không terminal,
-        // vẫn cho phép progress để test desktop — không chặn thêm.
+        // Chỉ cho chuyển màn kế sau VICTORY; input và session cùng chặn để
+        // không thể bỏ qua một màn bằng cách gọi trực tiếp API session.
         matchResult = null;
         matchResultFired = false;
         requestBootstrap(next);
@@ -350,7 +428,12 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
     @Override
     public void onLevelLoadedWithShop(String loadedLevelId, String mapJson, String newRunId, String newMapVersion,
                                        int totalCoins, int totalStars, String researchJson, String inventoryJson) {
-        shopState.loadState(totalCoins, totalStars, researchJson, inventoryJson);
+        // Chỉ bootstrap inventory một lần. Cùng PlayerShopState sống xuyên suốt
+        // campaign để màn kế không nạp lại số đạn cũ từ một REST sync về chậm.
+        if (!shopStateLoaded) {
+            shopState.loadState(totalCoins, totalStars, researchJson, inventoryJson);
+            shopStateLoaded = true;
+        }
         onLevelLoaded(loadedLevelId, mapJson, newRunId, newMapVersion);
     }
 
@@ -384,6 +467,9 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
             audioManager.playBattleMusic(levelId);
         }
         sim.startCampaignLevel(loadedMap, levelId, playerId);
+        levelStartInventory = shopState.snapshotInventory();
+        levelStartWeaponId = shopState.getActiveWeaponId();
+        inventoryMenuOpen = false;
         phase = Phase.PLAYING;
         inFlight = false;
     }
@@ -420,6 +506,9 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         matchResultFired = false;
         sim.setMatchEndHandler(this::onMatchEnd);
         sim.startCampaignLevel(loadedMap, levelId, playerId);
+        levelStartInventory = shopState.snapshotInventory();
+        levelStartWeaponId = shopState.getActiveWeaponId();
+        inventoryMenuOpen = false;
         phase = Phase.PLAYING;
         inFlight = false;
     }
@@ -451,6 +540,9 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
     }
 
     @Override public MatchResult matchResult() { return matchResult; }
+    @Override public boolean canOpenShop() {
+        return sim != null && sim.getWorld().getStatus() == GameWorld.Status.VICTORY;
+    }
     @Override public void dispose() {}
 
     public String getLevelId() { return levelId; }

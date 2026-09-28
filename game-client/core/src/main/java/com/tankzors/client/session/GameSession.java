@@ -14,6 +14,7 @@ public interface GameSession {
     void onMove(Direction direction, boolean moving);
     void onShoot();
     void onAllReleased();
+    default void onReverse(boolean reversing) {}
 
     /** Tiêu th rawDeltaTime (giây) từ render loop. */
     void update(float rawDeltaTime);
@@ -51,4 +52,9 @@ public interface GameSession {
     default com.tankzors.client.shop.PlayerShopState getShopState() { return null; }
     default void cycleWeapon() {}
     default void selectWeapon(int weaponId) {}
+    default boolean isInventoryMenuOpen() { return false; }
+    default void openInventoryMenu() {}
+    default void moveInventorySelection(int delta) {}
+    default void confirmInventorySelection() {}
+    default boolean canOpenShop() { return false; }
 }

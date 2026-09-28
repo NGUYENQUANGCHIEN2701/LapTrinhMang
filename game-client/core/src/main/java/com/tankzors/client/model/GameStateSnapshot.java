@@ -11,6 +11,7 @@ public final class GameStateSnapshot {
     public MapSnapshot map;
     public final List<TankSnapshot> tanks = new ArrayList<>();
     public final List<BulletSnapshot> bullets = new ArrayList<>();
+    public final List<EffectSnapshot> effects = new ArrayList<>();
 
     public int hpRemain;
     public int aiKills;
@@ -23,9 +24,17 @@ public final class GameStateSnapshot {
     public int playerStars;
     public int activeWeaponId;
     public int activeWeaponAmmo;
+    public int repairCount;
+    public int speedCount;
+    public float speedBoostSecondsRemaining;
+    public boolean inventoryMenuOpen;
+    public int inventorySelectionIndex;
+    public int[] inventoryItemIds = new int[0];
+    public int[] inventoryItemCounts = new int[0];
 
     public void clearEntities() {
         tanks.clear();
         bullets.clear();
+        effects.clear();
     }
 }

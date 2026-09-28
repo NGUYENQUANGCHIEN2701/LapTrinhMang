@@ -21,6 +21,7 @@ public final class ClientInputProcessor implements InputProcessor {
     public interface Callbacks {
         void onMove(Direction direction, boolean moving);
         void onShoot();
+        default void onReverse(boolean reversing) {}
         /** Phase G: phát khi không còn phím di chuyển nào được giữ (gửi STOP). */
         void onAllReleased();
         /** Phase G: chơi lại màn hiện tại sau khi trận đấu kết thúc. */
@@ -30,12 +31,18 @@ public final class ClientInputProcessor implements InputProcessor {
         default void onToggleShop() {}
         default void onCycleWeapon() {}
         default void onSelectWeapon(int weaponId) {}
+        default boolean isInventoryMenuOpen() { return false; }
+        default void onOpenInventoryMenu() {}
+        default void onMoveInventorySelection(int delta) {}
+        default void onConfirmInventorySelection() {}
         /** Bật/tắt nhanh âm thanh (mute/unmute). */
         default void onToggleMute() {}
+        default void onBackToCampaigns() {}
     }
 
     private final Callbacks callbacks;
     private final EnumSet<Direction> activeDirections = EnumSet.noneOf(Direction.class);
+    private boolean reverseActive;
     private boolean enabled = true;
     private com.tankzors.client.ui.ShopOverlay shopOverlay;
 
@@ -93,6 +100,14 @@ public final class ClientInputProcessor implements InputProcessor {
             return shopOverlay.handleKeyDown(keycode);
         }
 
+        if (callbacks.isInventoryMenuOpen()) {
+            if (keycode == Input.Keys.UP) callbacks.onMoveInventorySelection(-1);
+            else if (keycode == Input.Keys.DOWN) callbacks.onMoveInventorySelection(1);
+            else if (keycode == Input.Keys.ENTER) callbacks.onConfirmInventorySelection();
+            // Theo hợp đồng UI: Q/Esc không đóng menu; mọi gameplay input đều bị chặn.
+            return true;
+        }
+
         if (keycode == Input.Keys.B) {
             callbacks.onToggleShop();
             return true;
@@ -111,11 +126,24 @@ public final class ClientInputProcessor implements InputProcessor {
                 callbacks.onNextLevel();
                 return true;
             }
+            if (keycode == Input.Keys.ESCAPE) {
+                callbacks.onBackToCampaigns();
+                return true;
+            }
             return true;
         }
 
-        if (keycode == Input.Keys.Q || keycode == Input.Keys.E) {
-            callbacks.onCycleWeapon();
+        if (keycode == Input.Keys.X) {
+            if (!reverseActive) {
+                reverseActive = true;
+                callbacks.onReverse(true);
+            }
+            return true;
+        }
+
+        if (keycode == Input.Keys.Q) {
+            releaseAll();
+            callbacks.onOpenInventoryMenu();
             return true;
         }
         if (keycode == Input.Keys.NUM_1) {
@@ -163,7 +191,15 @@ public final class ClientInputProcessor implements InputProcessor {
         if (shopOverlay != null && shopOverlay.isVisible()) {
             return true;
         }
+        if (callbacks.isInventoryMenuOpen()) return true;
         if (!enabled) return true;
+        if (keycode == Input.Keys.X) {
+            if (reverseActive) {
+                reverseActive = false;
+                callbacks.onReverse(false);
+            }
+            return true;
+        }
         Direction direction = mapKeyToDirection(keycode);
         if (direction != null) {
             if (activeDirections.contains(direction)) {
@@ -188,6 +224,10 @@ public final class ClientInputProcessor implements InputProcessor {
         }
         if (releasedAny) {
             callbacks.onAllReleased();
+        }
+        if (reverseActive) {
+            reverseActive = false;
+            callbacks.onReverse(false);
         }
     }
 
