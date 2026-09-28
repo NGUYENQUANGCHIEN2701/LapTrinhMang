@@ -6,7 +6,8 @@ package com.tankzors.client.model;
  * <p>Wire format:
  * {@code { width, height, tileSize, grid:[row][col] }}.</p>
  *
- * <p>Tile values: 0=GROUND, 1=WALL, 2=WATER, 3=SPAWN_PLAYER, 4=SPAWN_ENEMY.</p>
+ * <p>Tile values: 0=GROUND, 1=BRICK, 2=WATER, 3/4=SPAWN,
+ * 5=WHITE_WALL, 6=BUSH, 7=REPAIR, 8=SPEED.</p>
  */
 public final class MapSnapshot {
     public int width;

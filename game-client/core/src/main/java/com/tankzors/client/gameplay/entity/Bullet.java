@@ -7,11 +7,11 @@ import com.tankzors.client.gameplay.interfaces.ICollidable;
  * Viên đạn. Parity server entity.Bullet, nhưng:
  * - KHÔNG dùng UUID.randomUUID (GWT không emulate). ID do caller cung cấp.
  * - update(): dx=sin(rad), dy=-cos(rad) (0°=UP).
- * Mặc định: speed 300, damage 25, hitbox 8x8.
+ * Mặc định: speed 200, damage 25, hitbox 8x8.
  */
 public class Bullet implements IBullet, ICollidable {
 
-    public static final double DEFAULT_SPEED = 300.0;
+    public static final double DEFAULT_SPEED = 200.0;
     public static final int DEFAULT_DAMAGE = 25;
     public static final double DEFAULT_WIDTH = 8.0;
     public static final double DEFAULT_HEIGHT = 8.0;
@@ -19,6 +19,7 @@ public class Bullet implements IBullet, ICollidable {
     private final String id;
     private final String ownerId;
     private final Position position;
+    private final Position previousPosition;
     private double direction;
     private double speed;
     private int damage;
@@ -31,6 +32,7 @@ public class Bullet implements IBullet, ICollidable {
         this.id = id != null ? id : "b-0";
         this.ownerId = ownerId;
         this.position = position != null ? new Position(position.getX(), position.getY()) : new Position(0, 0);
+        this.previousPosition = new Position(this.position.getX(), this.position.getY());
         this.direction = direction;
         this.speed = speed > 0 ? speed : DEFAULT_SPEED;
         this.damage = damage >= 0 ? damage : DEFAULT_DAMAGE;
@@ -42,6 +44,8 @@ public class Bullet implements IBullet, ICollidable {
     @Override
     public void update(double deltaTime) {
         if (!active || deltaTime <= 0) return;
+        previousPosition.setX(position.getX());
+        previousPosition.setY(position.getY());
         double rad = Math.toRadians(direction);
         double dx = Math.sin(rad);
         double dy = -Math.cos(rad);
@@ -50,6 +54,7 @@ public class Bullet implements IBullet, ICollidable {
     }
 
     @Override public Position getPosition() { return position; }
+    public Position getPreviousPosition() { return previousPosition; }
     @Override public double getDirection() { return direction; }
     public void setDirection(double direction) { this.direction = direction; }
     @Override public int getDamage() { return damage; }

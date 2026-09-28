@@ -18,7 +18,7 @@ public final class ShootBehavior implements IAIBehavior {
 
     public static final double SHOOT_RANGE = 250.0;
     /** Đạn AI chậm hơn player để người chơi có thời gian né. */
-    public static final double AI_BULLET_SPEED = 180.0;
+    public static final double AI_BULLET_SPEED = 120.0;
 
     private double cooldownRemaining = 0.0;
     private BulletIdSource bulletIdSource;
@@ -57,9 +57,8 @@ public final class ShootBehavior implements IAIBehavior {
         double dx = target.getPosition().getX() - self.getPosition().getX();
         double dy = target.getPosition().getY() - self.getPosition().getY();
         double baseAngle = cardinalAngle(dx, dy);
-        self.rotate(baseAngle);
-
         if (cooldownRemaining <= 1e-9) {
+            self.rotate(baseAngle);
             String id = bulletIdSource != null ? bulletIdSource.nextId(self.getId()) : "b-0";
             Bullet bullet = new Bullet(id, self.getId(),
                     new Position(self.getPosition().getX(), self.getPosition().getY()), baseAngle,

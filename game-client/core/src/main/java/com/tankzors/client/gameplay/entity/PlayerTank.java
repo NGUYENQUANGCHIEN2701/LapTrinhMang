@@ -6,17 +6,19 @@ import com.tankzors.client.gameplay.interfaces.IMap;
 
 /**
  * Xe tăng người chơi. Parity server entity.PlayerTank.
- * Speed 150, HP 100, 40x40, cooldown 0.5s. Người chơi chỉ đi theo bốn
+ * Speed 60, HP 100, 40x40, cooldown 0.5s. Người chơi chỉ đi theo bốn
  * hướng chính; phím được nhấn gần nhất xác định hướng hiện hành.
  * Substep ≤5px, wall-slide qua Collision.resolveCollision.
  */
 public class PlayerTank extends Tank {
 
-    public static final double DEFAULT_SPEED = 150.0;
+    public static final double DEFAULT_SPEED = 60.0;
     public static final int DEFAULT_HP = 100;
     public static final int DEFAULT_MAX_HP = 100;
     public static final double DEFAULT_WIDTH = 40.0;
     public static final double DEFAULT_HEIGHT = 40.0;
+    /** Phân biệt một cú bấm đổi hướng với thao tác chủ ý giữ để chạy. */
+    static final double TURN_HOLD_DELAY_SECONDS = 0.20;
 
     private double shootCooldown = 0.5;
     private double timeSinceLastShot = 0.5; // được bắn ngay tick đầu
@@ -25,6 +27,10 @@ public class PlayerTank extends Tank {
     private Direction heldDirection;
     private Direction requestedDirection;
     private Direction movingDirection;
+    private Direction turnHoldDirection;
+    private double turnHoldElapsed;
+    private boolean reverseHeld;
+    private boolean requestedReverse;
     private double remainingTileDistance;
 
     /** Mỗi match cấp cho PlayerTank một idGenerator để tạo bullet id deterministic (thay UUID). */
@@ -54,15 +60,30 @@ public class PlayerTank extends Tank {
             // Nếu hai phím đến trong cùng một frame, lấy phím nhấn sau cùng.
             // Khi đang hoàn tất một ô, bỏ qua input mới để không cắt ngang bước.
             if (movingDirection == null) requestedDirection = direction;
-            rotate(rotationFor(direction));
         } else if (direction == heldDirection) {
             heldDirection = null;
+            if (direction == turnHoldDirection) {
+                turnHoldDirection = null;
+                turnHoldElapsed = 0;
+            }
         }
     }
 
     public void stopMoving() {
         // Không hủy bước đã nhận: xe hoàn tất ô đang đi rồi dừng.
         heldDirection = null;
+        requestedDirection = null;
+        turnHoldDirection = null;
+        turnHoldElapsed = 0;
+        reverseHeld = false;
+        requestedReverse = false;
+    }
+
+    /** Giữ X để lùi theo hướng ngược đầu xe mà không xoay sprite. */
+    public void setReversing(boolean reversing) {
+        reverseHeld = reversing;
+        if (reversing && movingDirection == null) requestedReverse = true;
+        if (!reversing) requestedReverse = false;
     }
 
     private static double rotationFor(Direction direction) {
@@ -77,11 +98,37 @@ public class PlayerTank extends Tank {
 
     public void updateMovement(double dt, IMap map) {
         if (!isAlive() || !Double.isFinite(dt) || dt <= 0 || map == null) return;
-        if (movingDirection == null && (requestedDirection != null || heldDirection != null)) {
-            movingDirection = requestedDirection != null ? requestedDirection : heldDirection;
-            requestedDirection = null;
+        if (movingDirection == null && (requestedDirection != null || heldDirection != null
+                || requestedReverse || reverseHeld)) {
+            if (requestedDirection != null || heldDirection != null) {
+                Direction nextDirection = requestedDirection != null ? requestedDirection : heldDirection;
+                requestedDirection = null;
+                double nextRotation = rotationFor(nextDirection);
+                if (cardinalRotation(rotation) != nextRotation) {
+                    // Một cú bấm hướng mới chỉ xoay tại chỗ. Chỉ khi phím vẫn
+                    // được giữ đủ lâu mới coi là ý định chạy liên tục.
+                    rotate(nextRotation);
+                    turnHoldDirection = heldDirection == nextDirection ? nextDirection : null;
+                    turnHoldElapsed = 0;
+                    return;
+                }
+                if (turnHoldDirection == nextDirection) {
+                    if (heldDirection != nextDirection) {
+                        turnHoldDirection = null;
+                        turnHoldElapsed = 0;
+                        return;
+                    }
+                    turnHoldElapsed += dt;
+                    if (turnHoldElapsed + 1e-9 < TURN_HOLD_DELAY_SECONDS) return;
+                    turnHoldDirection = null;
+                    turnHoldElapsed = 0;
+                }
+                movingDirection = nextDirection;
+            } else {
+                movingDirection = opposite(directionForRotation(rotation));
+                requestedReverse = false;
+            }
             remainingTileDistance = map.getTileSize();
-            rotate(rotationFor(movingDirection));
         }
         if (movingDirection == null) return;
         double dx;
@@ -106,7 +153,27 @@ public class PlayerTank extends Tank {
             travelBudget -= step;
             remainingTileDistance -= step;
         }
-        if (remainingTileDistance <= 1e-9) movingDirection = null;
+        if (remainingTileDistance <= 1e-9) {
+            movingDirection = null;
+        }
+    }
+
+    private static Direction directionForRotation(double angle) {
+        double cardinal = cardinalRotation(angle);
+        if (cardinal == 90) return Direction.RIGHT;
+        if (cardinal == 180) return Direction.DOWN;
+        if (cardinal == 270) return Direction.LEFT;
+        return Direction.UP;
+    }
+
+    private static Direction opposite(Direction direction) {
+        switch (direction) {
+            case UP: return Direction.DOWN;
+            case RIGHT: return Direction.LEFT;
+            case DOWN: return Direction.UP;
+            case LEFT: return Direction.RIGHT;
+            default: throw new IllegalArgumentException("Unsupported direction: " + direction);
+        }
     }
 
     private int activeWeaponId = 0;

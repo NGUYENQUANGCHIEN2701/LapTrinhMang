@@ -8,12 +8,16 @@ import com.tankzors.client.gameplay.entity.Bullet;
 import com.tankzors.client.gameplay.entity.Direction;
 import com.tankzors.client.gameplay.entity.PlayerTank;
 import com.tankzors.client.gameplay.entity.Position;
+import com.tankzors.client.gameplay.entity.Wall;
 import com.tankzors.client.gameplay.interfaces.IBullet;
 import com.tankzors.client.gameplay.interfaces.IAIBehavior;
 import com.tankzors.client.gameplay.interfaces.IMap;
 import com.tankzors.client.gameplay.interfaces.ITank;
 import com.tankzors.client.gameplay.map.MapDefinition;
 import com.tankzors.client.gameplay.map.TileType;
+import com.tankzors.client.model.EffectSnapshot;
+import com.tankzors.client.model.GameStateSnapshot;
+import com.tankzors.client.shop.ShopItem;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -46,6 +50,12 @@ public class GameSimulation {
     private MatchEndHandler matchEndHandler;
     private com.tankzors.client.shop.PlayerShopState shopState;
     private GameEventListener eventListener;
+    private double basePlayerSpeed = PlayerTank.DEFAULT_SPEED;
+    private double speedBoostRemaining;
+    private final List<WorldEffect> effects = new ArrayList<>();
+
+    public static final double SPEED_BOOST_MULTIPLIER = 1.30;
+    public static final double SPEED_BOOST_SECONDS = 20.0;
 
     public GameSimulation(long matchSeed) {
         this.matchRng = new Random(matchSeed);
@@ -78,6 +88,10 @@ public class GameSimulation {
 
     public void enqueueStop(Direction direction) {
         commandQueue.add(new Command(localPlayerId, Command.Type.STOP_DIR, direction, false));
+    }
+
+    public void enqueueReverse(boolean reversing) {
+        commandQueue.add(new Command(localPlayerId, Command.Type.REVERSE, null, reversing));
     }
 
     /** Input từ một player cụ thể (co-op: host áp input guest vào đúng tank). */
@@ -163,6 +177,8 @@ public class GameSimulation {
         aiKilledThisMatch = 0;
         matchEndFired = false;
         commandQueue.clear();
+        speedBoostRemaining = 0;
+        effects.clear();
     }
 
     private void spawnPlayer(String playerId) {
@@ -174,6 +190,7 @@ public class GameSimulation {
             speed *= shopState.getSpeedMultiplier();
             hp += shopState.getArmorHpBonus();
         }
+        basePlayerSpeed = speed;
         PlayerTank player = new PlayerTank(playerId, spawn.getX(), spawn.getY(), speed);
         player.setMaxHp(hp);
         player.setHp(hp);
@@ -314,23 +331,27 @@ public class GameSimulation {
                 case STOP_DIR:
                     if (world.isPlaying()) player.setMoving(c.direction, false);
                     break;
+                case REVERSE:
+                    if (world.isPlaying() && player.isAlive()) {
+                        player.setReversing(!Boolean.FALSE.equals(c.moving));
+                    }
+                    break;
                 case SHOOT:
                     if (world.isPlaying() && player.isAlive()) {
                         IBullet b;
                         if (shopState != null) {
                             int wid = shopState.getActiveWeaponId();
                             int count = shopState.getItemCount(wid);
-                            if (wid != 0 && count <= 0) {
-                                wid = 0;
-                                shopState.setActiveWeaponId(0);
+                            if (count <= 0) {
+                                wid = shopState.selectFirstAvailableWeapon();
+                                count = shopState.getItemCount(wid);
                             }
+                            if (count <= 0) break;
                             player.setActiveWeaponId(wid);
                             b = player.shoot();
                             if (b != null) {
                                 world.addBullet(b);
-                                if (wid != 0 && count > 0) {
-                                    shopState.setItemCount(wid, count - 1);
-                                }
+                                shopState.setItemCount(wid, count - 1);
                                 if (eventListener != null) eventListener.onShoot(true);
                             }
                         } else {
@@ -347,6 +368,7 @@ public class GameSimulation {
     }
 
     private void updateEntities(double dt) {
+        updateTimedEffects(dt);
         // (a) cooldown + movement player
         for (ITank tank : world.getAllTanks()) {
             if (tank instanceof PlayerTank && tank.isAlive()) {
@@ -355,6 +377,7 @@ public class GameSimulation {
                 player.updateMovement(dt, world.getCurrentMap());
             }
         }
+        collectLocalPickup();
         // (b) AI
         int bulletsBefore = world.getBulletCount();
         for (ITank tank : world.getAllTanks()) {
@@ -371,13 +394,54 @@ public class GameSimulation {
         world.removeInactiveBullets();
     }
 
+    private void updateTimedEffects(double dt) {
+        if (speedBoostRemaining > 0) {
+            speedBoostRemaining = Math.max(0, speedBoostRemaining - dt);
+            if (speedBoostRemaining == 0) {
+                PlayerTank player = localPlayer();
+                if (player != null) player.setSpeed(basePlayerSpeed);
+            }
+        }
+        for (Iterator<WorldEffect> it = effects.iterator(); it.hasNext();) {
+            WorldEffect effect = it.next();
+            effect.remaining -= dt;
+            if (effect.remaining <= 0) it.remove();
+        }
+    }
+
+    private void collectLocalPickup() {
+        if (!(world.getCurrentMap() instanceof MapDefinition) || shopState == null) return;
+        PlayerTank player = localPlayer();
+        if (player == null) return;
+        TileType pickup = ((MapDefinition) world.getCurrentMap()).collectPickupAt(
+                player.getPosition().getX(), player.getPosition().getY());
+        if (pickup == TileType.REPAIR_PICKUP) {
+            shopState.setItemCount(ShopItem.REPAIR.getId(), shopState.getItemCount(ShopItem.REPAIR.getId()) + 1);
+            if (eventListener != null) eventListener.onPickup();
+        } else if (pickup == TileType.SPEED_PICKUP) {
+            shopState.setItemCount(ShopItem.SPEED_UP.getId(), shopState.getItemCount(ShopItem.SPEED_UP.getId()) + 1);
+            if (eventListener != null) eventListener.onPickup();
+        }
+    }
+
     private void checkCollisions() {
+        checkBulletCollisions();
         for (IBullet bullet : world.getAllBullets()) {
             if (!bullet.isActive()) continue;
             // Walls hấp thụ trước
-            if (Collision.checkBulletWallCollision(bullet, world.getCurrentMap())) {
+            Wall hitWall = Collision.findBulletWallCollision(bullet, world.getCurrentMap());
+            if (hitWall != null || Collision.isBulletOutsideMap(bullet, world.getCurrentMap())) {
                 bullet.deactivate();
                 if (eventListener != null) eventListener.onHitWall();
+                if (hitWall != null && world.getCurrentMap() instanceof MapDefinition) {
+                    TileType destroyed = ((MapDefinition) world.getCurrentMap()).hitWall(hitWall);
+                    if (destroyed != null) {
+                        effects.add(new WorldEffect(
+                                hitWall.getPosition().getX() + hitWall.getWidth() / 2.0,
+                                hitWall.getPosition().getY() + hitWall.getHeight() / 2.0,
+                                destroyed == TileType.BUSH));
+                    }
+                }
                 continue;
             }
             for (ITank tank : world.getAllTanks()) {
@@ -404,6 +468,32 @@ public class GameSimulation {
                 }
             }
         }
+    }
+
+    private void checkBulletCollisions() {
+        List<IBullet> bullets = world.getAllBullets();
+        for (int i = 0; i < bullets.size(); i++) {
+            IBullet first = bullets.get(i);
+            if (!first.isActive()) continue;
+            for (int j = i + 1; j < bullets.size(); j++) {
+                IBullet second = bullets.get(j);
+                if (!second.isActive()) continue;
+                if (sameBulletTeam(first, second)) continue;
+                if (Collision.checkBulletBulletCollision(first, second)) {
+                    first.deactivate();
+                    second.deactivate();
+                    break;
+                }
+            }
+        }
+    }
+
+    private boolean sameBulletTeam(IBullet first, IBullet second) {
+        ITank firstOwner = world.getTank(first.getOwnerId());
+        ITank secondOwner = world.getTank(second.getOwnerId());
+        if (firstOwner == null || secondOwner == null) return false;
+        return (firstOwner instanceof AITank && secondOwner instanceof AITank)
+                || (firstOwner instanceof PlayerTank && secondOwner instanceof PlayerTank);
     }
 
     private boolean isFriendlyFire(IBullet bullet, ITank tank) {
@@ -474,9 +564,49 @@ public class GameSimulation {
         return t != null ? t.getPosition() : null;
     }
 
+    private PlayerTank localPlayer() {
+        ITank tank = world.getTank(localPlayerId);
+        return tank instanceof PlayerTank ? (PlayerTank) tank : null;
+    }
+
+    /** Dùng vật phẩm hỗ trợ đang có; chỉ trừ kho khi hiệu ứng thực sự áp dụng. */
+    public boolean useInventoryItem(int itemId) {
+        if (!world.isPlaying() || shopState == null) return false;
+        PlayerTank player = localPlayer();
+        if (player == null || !player.isAlive()) return false;
+        if (itemId == ShopItem.REPAIR.getId()) {
+            if (player.getHP() >= player.getMaxHP() || !shopState.consumeItem(itemId)) return false;
+            player.setHp(player.getMaxHP());
+            if (eventListener != null) eventListener.onUseRepair();
+            return true;
+        }
+        if (itemId == ShopItem.SPEED_UP.getId()) {
+            if (!shopState.consumeItem(itemId)) return false;
+            speedBoostRemaining = SPEED_BOOST_SECONDS;
+            player.setSpeed(basePlayerSpeed * SPEED_BOOST_MULTIPLIER);
+            if (eventListener != null) eventListener.onUseSpeed();
+            return true;
+        }
+        return false;
+    }
+
+    public double getSpeedBoostRemaining() { return speedBoostRemaining; }
+
+    public void appendEffectsTo(GameStateSnapshot snap) {
+        if (snap == null) return;
+        for (WorldEffect effect : effects) {
+            EffectSnapshot out = new EffectSnapshot();
+            out.x = (float) effect.x;
+            out.y = (float) effect.y;
+            out.progress = (float) (1.0 - effect.remaining / WorldEffect.DURATION);
+            out.bush = effect.bush;
+            snap.effects.add(out);
+        }
+    }
+
     // ========== INNER ==========
     private static final class Command {
-        enum Type { MOVE, STOP, STOP_DIR, SHOOT }
+        enum Type { MOVE, STOP, STOP_DIR, REVERSE, SHOOT }
         final String playerId;
         final Type type;
         final Direction direction;
@@ -491,6 +621,17 @@ public class GameSimulation {
     private static final class BulletIdCounter {
         private long n = 0;
         String next(String ownerId) { return "b-" + ownerId + "-" + (n++); }
+    }
+
+    private static final class WorldEffect {
+        static final double DURATION = 0.70;
+        final double x;
+        final double y;
+        final boolean bush;
+        double remaining = DURATION;
+        WorldEffect(double x, double y, boolean bush) {
+            this.x = x; this.y = y; this.bush = bush;
+        }
     }
 
     /** Callback khi trận kết thúc (VICTORY/DEFEAT) — client gọi ScoreCalculator + gửi REST. */

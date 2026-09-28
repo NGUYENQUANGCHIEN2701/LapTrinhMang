@@ -17,10 +17,10 @@ class PlayerTankTest {
     void setUp() { tank = new PlayerTank("player-1", 100, 100); }
 
     @Test
-    @DisplayName("move(RIGHT, 0.033) → x = 104.95")
+    @DisplayName("move(RIGHT, 0.033) dùng tốc độ chậm 60 px/s")
     void moveRight_correctPosition() {
         tank.move(Direction.RIGHT, 0.033);
-        assertEquals(104.95, tank.getPosition().getX(), 0.001);
+        assertEquals(101.98, tank.getPosition().getX(), 0.001);
         assertEquals(100.0, tank.getPosition().getY(), 0.001);
         assertEquals(90, tank.getRotation(), 0.001);
     }
@@ -29,7 +29,7 @@ class PlayerTankTest {
     @DisplayName("move(UP) → y giảm, rotation=0")
     void moveUp_yDecreases() {
         tank.move(Direction.UP, 0.033);
-        assertEquals(95.05, tank.getPosition().getY(), 0.001);
+        assertEquals(98.02, tank.getPosition().getY(), 0.001);
         assertEquals(0, tank.getRotation(), 0.001);
     }
 
@@ -37,11 +37,11 @@ class PlayerTankTest {
     @DisplayName("move(DOWN) → y tăng, rotation=180; move(LEFT) → rotation=270")
     void moveOtherDirections() {
         tank.move(Direction.DOWN, 0.033);
-        assertEquals(104.95, tank.getPosition().getY(), 0.001);
+        assertEquals(101.98, tank.getPosition().getY(), 0.001);
         assertEquals(180, tank.getRotation(), 0.001);
 
         tank.move(Direction.LEFT, 0.033);
-        assertEquals(95.05, tank.getPosition().getX(), 0.001);
+        assertEquals(98.02, tank.getPosition().getX(), 0.001);
         assertEquals(270, tank.getRotation(), 0.001);
     }
 
@@ -81,7 +81,7 @@ class PlayerTankTest {
     @Test
     @DisplayName("Thông số mặc định parity server")
     void defaultStats() {
-        assertEquals(150.0, tank.getSpeed(), 0.001);
+        assertEquals(60.0, tank.getSpeed(), 0.001);
         assertEquals(100, tank.getMaxHP());
         assertEquals(40.0, tank.getWidth(), 0.001);
         assertEquals(40.0, tank.getHeight(), 0.001);
@@ -89,11 +89,26 @@ class PlayerTankTest {
     }
 
     @Test
-    @DisplayName("Một lần nhấn đi đúng một ô theo hướng được nhấn gần nhất, không đi chéo")
-    void input_movesExactlyOneTileAlongOneCardinalDirection() {
-        tank.setMoving(Direction.RIGHT, true);
+    @DisplayName("Bấm nhanh hướng mới chỉ xoay tại chỗ; bấm lại mới đi")
+    void quickTapOnNewDirectionOnlyTurnsInPlace() {
         tank.setMoving(Direction.DOWN, true);
 
+        tank.updateMovement(0.05, TestMaps.open());
+
+        assertEquals(100.0, tank.getPosition().getX(), 0.001);
+        assertEquals(100.0, tank.getPosition().getY(), 0.001);
+        assertEquals(180.0, tank.getRotation(), 0.001);
+
+        // Một lần bấm bình thường kéo dài qua vài frame nhưng chưa phải giữ phím.
+        tank.updateMovement(0.05, TestMaps.open());
+        tank.updateMovement(0.05, TestMaps.open());
+        tank.updateMovement(0.05, TestMaps.open());
+        tank.setMoving(Direction.DOWN, false);
+
+        assertEquals(100.0, tank.getPosition().getX(), 0.001);
+        assertEquals(100.0, tank.getPosition().getY(), 0.001);
+
+        tank.setMoving(Direction.DOWN, true);
         tank.updateMovement(1.0, TestMaps.open());
 
         assertEquals(100.0, tank.getPosition().getX(), 0.001);
@@ -102,16 +117,28 @@ class PlayerTankTest {
     }
 
     @Test
-    @DisplayName("Giữ phím tiếp tục đi từng ô; nhả phím thì hoàn tất ô hiện tại rồi dừng")
-    void heldDirection_repeatsTilesUntilReleased() {
+    @DisplayName("Giữ hướng mới đủ lâu thì bắt đầu đi liên tục")
+    void heldNewDirection_startsContinuousMovementAfterHoldDelay() {
         tank.setMoving(Direction.RIGHT, true);
-        tank.updateMovement(1.0, TestMaps.open());
-        tank.updateMovement(1.0, TestMaps.open());
-        assertEquals(180.0, tank.getPosition().getX(), 0.001);
+        tank.updateMovement(0.05, TestMaps.open());
+        tank.updateMovement(0.05, TestMaps.open());
+        tank.updateMovement(0.05, TestMaps.open());
+        tank.updateMovement(0.05, TestMaps.open());
+        assertEquals(100.0, tank.getPosition().getX(), 0.001);
+
+        tank.updateMovement(0.10, TestMaps.open());
+        assertTrue(tank.getPosition().getX() > 100.0,
+                "Giữ phím phải bắt đầu di chuyển sau thời gian nhận biết giữ");
+
+        for (int i = 0; i < 20; i++) tank.updateMovement(0.05, TestMaps.open());
+        assertTrue(tank.getPosition().getX() > 140.0,
+                "Sau khi nhận biết giữ, xe phải tiếp tục đi qua nhiều ô");
 
         tank.setMoving(Direction.RIGHT, false);
+        double releasedAt = tank.getPosition().getX();
         tank.updateMovement(1.0, TestMaps.open());
-        assertEquals(180.0, tank.getPosition().getX(), 0.001);
+        assertTrue(tank.getPosition().getX() >= releasedAt,
+                "Nhả phím vẫn được hoàn tất ô đang đi nhưng không đảo hướng");
     }
 
     @Test
@@ -124,6 +151,6 @@ class PlayerTankTest {
         assertEquals(0.0, bullet.getDirection(), 0.001);
         bullet.update(0.1);
         assertEquals(100.0, bullet.getPosition().getX(), 0.001);
-        assertEquals(70.0, bullet.getPosition().getY(), 0.001);
+        assertEquals(80.0, bullet.getPosition().getY(), 0.001);
     }
 }

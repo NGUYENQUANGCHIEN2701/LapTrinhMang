@@ -21,6 +21,8 @@ class AIControllerTest {
         world.addTank(ai);
         world.addTank(player);
 
+        // Nhịp đầu có thể chỉ dùng để quay sang hướng tuần tra.
+        ai.update(world, 1.0);
         ai.update(world, 1.0);
 
         assertEquals("PATROL", ai.getController().getBehaviorName());

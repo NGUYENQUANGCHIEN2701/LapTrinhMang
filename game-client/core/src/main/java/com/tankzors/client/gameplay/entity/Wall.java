@@ -1,31 +1,56 @@
 package com.tankzors.client.gameplay.entity;
 
 import com.tankzors.client.gameplay.interfaces.ICollidable;
+import com.tankzors.client.gameplay.map.TileType;
 
-/** Tường — chặn di chuyển và chặn đạn. Immutable. Parity server. */
+/** Vật cản theo ô: gạch 4 hit, tường trắng bất tử, bụi cây 1 hit. */
 public class Wall implements ICollidable {
     private final Position position;
     private final double width;
     private final double height;
     private final Rectangle boundingBox;
+    private final int col;
+    private final int row;
+    private final TileType tileType;
+    private int hitPoints;
 
     public Wall(double x, double y, double width, double height) {
+        this(x, y, width, height, -1, -1, TileType.WALL);
+    }
+
+    public Wall(double x, double y, double width, double height,
+                int col, int row, TileType tileType) {
         this.position = new Position(x, y);
         this.width = width;
         this.height = height;
         this.boundingBox = new Rectangle(x, y, width, height);
+        this.col = col;
+        this.row = row;
+        this.tileType = tileType != null ? tileType : TileType.WALL;
+        this.hitPoints = this.tileType == TileType.BUSH ? 1
+                : this.tileType == TileType.WHITE_WALL ? Integer.MAX_VALUE : 4;
     }
 
     public Wall(Position position, double width, double height) {
-        this.position = position != null ? position : new Position(0, 0);
-        this.width = width;
-        this.height = height;
-        this.boundingBox = new Rectangle(this.position.getX(), this.position.getY(), width, height);
+        this(position != null ? position.getX() : 0, position != null ? position.getY() : 0,
+                width, height, -1, -1, TileType.WALL);
     }
 
     public Position getPosition() { return position; }
     public double getWidth() { return width; }
     public double getHeight() { return height; }
+    public int getCol() { return col; }
+    public int getRow() { return row; }
+    public TileType getTileType() { return tileType; }
+    public int getHitPoints() { return hitPoints; }
+    public boolean isDestructible() { return tileType != TileType.WHITE_WALL; }
+
+    /** @return true khi hit này phá hủy vật cản. */
+    public boolean hit() {
+        if (!isDestructible()) return false;
+        hitPoints = Math.max(0, hitPoints - 1);
+        return hitPoints == 0;
+    }
 
     @Override public Rectangle getBoundingBox() { return boundingBox; }
 

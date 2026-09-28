@@ -6,6 +6,8 @@ import com.tankzors.client.gameplay.entity.PlayerTank;
 import com.tankzors.client.gameplay.entity.Position;
 import com.tankzors.client.gameplay.map.MapDefinition;
 import com.tankzors.client.gameplay.map.TileType;
+import com.tankzors.client.shop.PlayerShopState;
+import com.tankzors.client.shop.ShopItem;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -20,6 +22,84 @@ import static org.junit.jupiter.api.Assertions.*;
  * Test trực tiếp fixed-step simulation, không dùng scheduler.
  */
 class GameSimulationTest {
+
+    @Test
+    @DisplayName("Repair hồi đầy HP và Speed tăng đúng 30% trong 20 giây")
+    void supportItemsApplyExactEffects() {
+        GameSimulation sim = new GameSimulation(99L);
+        PlayerShopState shop = new PlayerShopState();
+        sim.setShopState(shop);
+        MapDefinition map = TestMaps.open();
+        setPlayerSpawn(map, 2, 2);
+        sim.startCampaignLevel(map, "campaign_1", "player");
+        PlayerTank player = (PlayerTank) sim.getWorld().getTank("player");
+
+        player.takeDamage(70);
+        assertTrue(sim.useInventoryItem(ShopItem.REPAIR.getId()));
+        assertEquals(player.getMaxHP(), player.getHP());
+        assertEquals(2, shop.getItemCount(ShopItem.REPAIR.getId()));
+
+        double baseSpeed = player.getSpeed();
+        assertTrue(sim.useInventoryItem(ShopItem.SPEED_UP.getId()));
+        assertEquals(baseSpeed * 1.30, player.getSpeed(), 0.0001);
+        assertEquals(1, shop.getItemCount(ShopItem.SPEED_UP.getId()));
+        for (int i = 0; i < 601; i++) {
+            sim.getWorld().setStatus(GameWorld.Status.PLAYING);
+            sim.step(1.0 / 30.0);
+        }
+        assertEquals(0.0, sim.getSpeedBoostRemaining(), 0.0001);
+        assertEquals(baseSpeed, player.getSpeed(), 0.0001);
+    }
+
+    @Test
+    @DisplayName("Player và AI có cùng tốc độ cơ bản chậm 60 px/s")
+    void playerAndAiShareSlowerBaseSpeed() {
+        assertEquals(60.0, PlayerTank.DEFAULT_SPEED);
+        for (com.tankzors.client.gameplay.ai.DifficultyLevel level
+                : com.tankzors.client.gameplay.ai.DifficultyLevel.values()) {
+            assertEquals(PlayerTank.DEFAULT_SPEED, level.getSpeed());
+        }
+        assertEquals(200.0, Bullet.DEFAULT_SPEED);
+        assertEquals(120.0, com.tankzors.client.gameplay.ai.ShootBehavior.AI_BULLET_SPEED);
+    }
+
+    @Test
+    @DisplayName("Hai viên đạn gặp hoặc cắt qua nhau đều cùng bị triệt tiêu")
+    void opposingBulletsCancelEachOtherContinuously() {
+        GameSimulation sim = new GameSimulation(9L);
+        GameWorld world = sim.getWorld();
+        world.setCurrentMap(TestMaps.open());
+        world.setStatus(GameWorld.Status.PLAYING);
+
+        Bullet right = new Bullet("right", "player", new Position(192, 200), 90,
+                300, 25, Bullet.DEFAULT_WIDTH, Bullet.DEFAULT_HEIGHT);
+        Bullet left = new Bullet("left", "enemy", new Position(208, 200), 270,
+                300, 25, Bullet.DEFAULT_WIDTH, Bullet.DEFAULT_HEIGHT);
+        world.addBullet(right);
+        world.addBullet(left);
+
+        sim.step(GameplayConfig.STEP_SECONDS);
+
+        assertFalse(right.isActive());
+        assertFalse(left.isActive());
+    }
+
+    @Test
+    @DisplayName("Đạn mặc định hữu hạn và giảm sau mỗi phát bắn")
+    void defaultAmmoIsFiniteAndConsumed() {
+        GameSimulation sim = new GameSimulation(10L);
+        PlayerShopState shop = new PlayerShopState();
+        sim.setShopState(shop);
+        MapDefinition map = TestMaps.open();
+        setPlayerSpawn(map, 2, 2);
+        map.setEnemies(List.of(new MapDefinition.EnemyConfig("AI", "EASY", 15, 10)));
+        sim.startCampaignLevel(map, "campaign_1", "player");
+
+        sim.enqueueShoot();
+        sim.step(GameplayConfig.STEP_SECONDS);
+
+        assertEquals(99, shop.getItemCount(0));
+    }
 
     @Test
     @DisplayName("startCampaignLevel: nạp map, spawn 1 player + AI theo metadata")

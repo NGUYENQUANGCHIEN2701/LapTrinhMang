@@ -16,8 +16,10 @@ public class PlayerShopState {
     private int activeWeaponId = 0; // Mặc định là Round (0)
 
     public PlayerShopState() {
-        // Khởi tạo đạn mặc định
-        inventory.put(ShopItem.ROUND.getId(), 50);
+        // Trang bị khởi đầu của một campaign mới.
+        inventory.put(ShopItem.ROUND.getId(), 100);
+        inventory.put(ShopItem.REPAIR.getId(), 3);
+        inventory.put(ShopItem.SPEED_UP.getId(), 2);
     }
 
     public int getCoins() { return coins; }
@@ -32,14 +34,8 @@ public class PlayerShopState {
     public void setActiveWeaponId(int id) { this.activeWeaponId = id; }
 
     public void selectWeapon(int weaponId) {
-        if (weaponId == 0) {
-            this.activeWeaponId = 0;
-            return;
-        }
-        if (weaponId >= 1 && weaponId <= 5) {
-            if (getItemCount(weaponId) > 0) {
-                this.activeWeaponId = weaponId;
-            }
+        if (weaponId >= 0 && weaponId <= 5 && getItemCount(weaponId) > 0) {
+            this.activeWeaponId = weaponId;
         }
     }
 
@@ -54,12 +50,23 @@ public class PlayerShopState {
         }
         for (int step = 1; step <= weaponIds.length; step++) {
             int nextId = weaponIds[(currentIndex + step) % weaponIds.length];
-            if (nextId == 0 || getItemCount(nextId) > 0) {
+            if (getItemCount(nextId) > 0) {
                 this.activeWeaponId = nextId;
                 return;
             }
         }
-        this.activeWeaponId = 0;
+    }
+
+    /** Chọn loại đạn đầu tiên còn hàng; trả active hiện tại nếu tất cả đã hết. */
+    public int selectFirstAvailableWeapon() {
+        if (getItemCount(activeWeaponId) > 0) return activeWeaponId;
+        for (int weaponId = 0; weaponId <= 5; weaponId++) {
+            if (getItemCount(weaponId) > 0) {
+                activeWeaponId = weaponId;
+                return activeWeaponId;
+            }
+        }
+        return activeWeaponId;
     }
 
     public int getItemCount(int itemId) {
@@ -68,6 +75,26 @@ public class PlayerShopState {
 
     public void setItemCount(int itemId, int count) {
         inventory.put(itemId, Math.max(0, count));
+    }
+
+    public boolean consumeItem(int itemId) {
+        int count = getItemCount(itemId);
+        if (count <= 0) return false;
+        inventory.put(itemId, count - 1);
+        return true;
+    }
+
+    /** Bản sao túi đồ dùng làm checkpoint đầu màn. */
+    public Map<Integer, Integer> snapshotInventory() {
+        return new HashMap<>(inventory);
+    }
+
+    /** Khôi phục đúng túi đồ đầu màn khi chơi lại, không ảnh hưởng tiền/nghiên cứu. */
+    public void restoreInventory(Map<Integer, Integer> snapshot) {
+        if (snapshot == null) return;
+        inventory.clear();
+        inventory.putAll(snapshot);
+        selectFirstAvailableWeapon();
     }
 
     public int getResearchLevel(String techId) {

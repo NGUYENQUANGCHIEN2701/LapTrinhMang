@@ -111,6 +111,7 @@ class LocalCampaignSessionTest {
         session.update((float) GameplayConfig.STEP_SECONDS);
 
         assertEquals("VICTORY", session.status(), "Map không có AI → VICTORY ngay");
+        assertTrue(session.canOpenShop(), "Shop chỉ mở sau khi thắng");
         assertNotNull(session.matchResult());
         assertEquals(3, session.matchResult().starsEarned, "VICTORY nhận stars theo map");
         assertEquals(50, session.matchResult().coinsEarned, "VICTORY nhận coins theo map");
@@ -148,6 +149,7 @@ class LocalCampaignSessionTest {
         assertNull(session.matchResult(), "Restart phải xóa matchResult cũ (chống reward trùng)");
         source.pending.onLevelLoaded("campaign_1", MAP_JSON_REWARDS, "run-2", "v1");
         assertEquals("PLAYING", session.status());
+        assertFalse(session.canOpenShop(), "Không được mở shop khi màn mới đang chạy");
         assertNull(session.matchResult(), "Chưa kết thúc màn mới → chưa có matchResult");
     }
 
@@ -169,7 +171,8 @@ class LocalCampaignSessionTest {
         float initialX = player(session.snapshot()).x;
 
         session.onMove(Direction.RIGHT, true);
-        for (int i = 0; i < 5; i++) {
+        // Giữ qua ngưỡng phân biệt bấm nhanh/giữ để bắt đầu chạy sau khi xoay.
+        for (int i = 0; i < 10; i++) {
             session.update((float) GameplayConfig.STEP_SECONDS);
         }
 
@@ -201,8 +204,9 @@ class LocalCampaignSessionTest {
         LocalCampaignSession session = new LocalCampaignSession(
                 "player", "campaign_1", source, result -> true);
         session.start();
-        source.pending.onLevelLoaded("campaign_1", MAP_JSON, "run-1", "v1");
-        assertEquals("PLAYING", session.status());
+        source.pending.onLevelLoaded("campaign_1", MAP_JSON_VICTORY_REWARDS, "run-1", "v1");
+        session.update((float) GameplayConfig.STEP_SECONDS);
+        assertEquals("VICTORY", session.status());
 
         // Giả lập thắng → next level (N).
         session.nextLevel();
@@ -217,6 +221,40 @@ class LocalCampaignSessionTest {
         assertEquals("campaign_2", session.getLevelId());
         assertEquals("run-2", session.getRunId());
         assertNotNull(player(session.snapshot()), "Có player tank sau khi sang màn mới");
+    }
+
+    @Test
+    void nextLevelIsBlockedUntilVictory() {
+        FakeAsyncMapSource source = new FakeAsyncMapSource();
+        LocalCampaignSession session = new LocalCampaignSession(
+                "player", "campaign_1", source, result -> true);
+        session.start();
+        source.pending.onLevelLoaded("campaign_1", MAP_JSON, "run-1", "v1");
+
+        session.nextLevel();
+
+        assertEquals("PLAYING", session.status());
+        assertEquals("campaign_1", source.requestedLevel);
+    }
+
+    @Test
+    void remainingDefaultAmmoCarriesIntoNextLevelDespiteBootstrapInventory() {
+        FakeAsyncMapSource source = new FakeAsyncMapSource();
+        LocalCampaignSession session = new LocalCampaignSession(
+                "player", "campaign_1", source, result -> true);
+        session.start();
+        source.pending.onLevelLoadedWithShop("campaign_1", MAP_JSON_VICTORY_REWARDS,
+                "run-1", "v1", 0, 0, "{}", "{\"0\":100}");
+        session.getShopState().setItemCount(0, 73);
+        session.update((float) GameplayConfig.STEP_SECONDS);
+        assertEquals("VICTORY", session.status());
+
+        session.nextLevel();
+        source.pending.onLevelLoadedWithShop("campaign_2", MAP_JSON,
+                "run-2", "v2", 0, 0, "{}", "{\"0\":100}");
+
+        assertEquals(73, session.snapshot().activeWeaponAmmo,
+                "Bootstrap màn kế không được làm mới số đạn còn lại");
     }
 
     @Test
@@ -236,12 +274,41 @@ class LocalCampaignSessionTest {
     }
 
     @Test
-    void loadErrorKeepsOldWorldIntact() {
+    void inventoryMenuPausesAndRestartRestoresLevelStartInventory() {
         FakeAsyncMapSource source = new FakeAsyncMapSource();
         LocalCampaignSession session = new LocalCampaignSession(
                 "player", "campaign_1", source, result -> true);
         session.start();
         source.pending.onLevelLoaded("campaign_1", MAP_JSON, "run-1", "v1");
+
+        session.openInventoryMenu();
+        assertTrue(session.isInventoryMenuOpen());
+        int elapsed = session.snapshot().elapsedSeconds;
+        session.update(5f);
+        assertEquals(elapsed, session.snapshot().elapsedSeconds, "Menu Q phải pause simulation");
+
+        // Menu mặc định: Round, Repair, Speed.
+        session.moveInventorySelection(2);
+        session.confirmInventorySelection();
+        assertFalse(session.isInventoryMenuOpen());
+        assertEquals(1, session.snapshot().speedCount);
+        assertTrue(session.snapshot().speedBoostSecondsRemaining > 19f);
+
+        session.restart();
+        source.pending.onLevelLoaded("campaign_1", MAP_JSON, "run-2", "v1");
+        assertEquals(2, session.snapshot().speedCount,
+                "Chơi lại phải khôi phục túi đồ tại thời điểm bắt đầu màn");
+        assertEquals(0f, session.snapshot().speedBoostSecondsRemaining);
+    }
+
+    @Test
+    void loadErrorKeepsOldWorldIntact() {
+        FakeAsyncMapSource source = new FakeAsyncMapSource();
+        LocalCampaignSession session = new LocalCampaignSession(
+                "player", "campaign_1", source, result -> true);
+        session.start();
+        source.pending.onLevelLoaded("campaign_1", MAP_JSON_VICTORY_REWARDS, "run-1", "v1");
+        session.update((float) GameplayConfig.STEP_SECONDS);
         String prevRun = session.getRunId();
         assertNotNull(player(session.snapshot()));
 
@@ -261,7 +328,8 @@ class LocalCampaignSessionTest {
         LocalCampaignSession session = new LocalCampaignSession(
                 "player", "campaign_1", source, result -> true);
         session.start();
-        source.pending.onLevelLoaded("campaign_1", MAP_JSON, "run-1", "v1");
+        source.pending.onLevelLoaded("campaign_1", MAP_JSON_VICTORY_REWARDS, "run-1", "v1");
+        session.update((float) GameplayConfig.STEP_SECONDS);
 
         session.nextLevel();
         MapSource.LevelCallback firstCallback = source.pending;
@@ -282,8 +350,9 @@ class LocalCampaignSessionTest {
                 "player", "campaign_1", source, result -> true);
         session.start();
         MapSource.LevelCallback initialCallback = source.pending;
-        initialCallback.onLevelLoaded("campaign_1", MAP_JSON, "run-1", "v1");
-        assertEquals("PLAYING", session.status());
+        initialCallback.onLevelLoaded("campaign_1", MAP_JSON_VICTORY_REWARDS, "run-1", "v1");
+        session.update((float) GameplayConfig.STEP_SECONDS);
+        assertEquals("VICTORY", session.status());
 
         // User nextLevel sang campaign_2 rồi nextLevel nhanh sang campaign_3
         // (đơn giản: tưởng tượng 1 request cũ về muộn với token đã lỗi thời).

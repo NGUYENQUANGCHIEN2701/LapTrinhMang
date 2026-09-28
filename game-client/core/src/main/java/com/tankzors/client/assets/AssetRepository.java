@@ -26,6 +26,7 @@ public class AssetRepository implements Disposable {
     private Texture spikesSheet;
     private Texture palmsSheet;
     private Texture explosionBigSheet;
+    private Texture powerupsSheet;
 
     // Shop GUI Textures
     private Texture iconsSheet;
@@ -42,6 +43,9 @@ public class AssetRepository implements Disposable {
     private TextureRegion[] wallFrames;
     private TextureRegion[] spikesFrames;
     private TextureRegion[] palmsFrames;
+    private TextureRegion defaultBulletFrame;
+    private TextureRegion[] explosionFrames;
+    private TextureRegion[] powerupFrames;
 
     public void loadAll() {
         playerTankSheet = new Texture(Gdx.files.internal("tanks/player_tank.png"));
@@ -52,21 +56,27 @@ public class AssetRepository implements Disposable {
         spikesSheet = new Texture(Gdx.files.internal("map/spikes.png"));
         palmsSheet = new Texture(Gdx.files.internal("map/palms.png"));
         explosionBigSheet = new Texture(Gdx.files.internal("effects/explosion_big.png"));
+        powerupsSheet = new Texture(Gdx.files.internal("effects/powerups.png"));
 
         // Tanks: 16 frame × 24px (theo Renderer.ts)
         // Camera renderer dùng y-down. Chỉ sprite tank có hướng cần đảo V để
         // frame 0=UP, 90=RIGHT, 180=DOWN, 270=LEFT khớp với logic/đạn.
         playerTankFrames = split(playerTankSheet, 24, 24, 16, true);
         enemyTankFrames = split(enemyTankSheet, 24, 24, 16, true);
+        // Fallback nếu bộ icon shop bị thiếu.
+        defaultBulletFrame = new TextureRegion(bulletSheet, 24, 0, 24, 24);
+        defaultBulletFrame.flip(false, true);
 
         // Ground: 5 frame × 20px
         groundFrames = split(groundSheet, 20, 20, 5, false);
-        // Wall: 6 frame × 20px
-        wallFrames = split(wallSheet, 20, 20, 6, false);
+        // Wall sheet gốc: gạch, bê tông trắng và cây/bụi.
+        wallFrames = split(wallSheet, 20, 20, 18, false);
         // Spikes: 3 frame × 20px
         spikesFrames = split(spikesSheet, 20, 20, 3, false);
         // Palms: 5 frame × 88px
         palmsFrames = split(palmsSheet, 88, 88, 5, false);
+        explosionFrames = split(explosionBigSheet, 35, 35, 28, false);
+        powerupFrames = split(powerupsSheet, 20, 20, 20, false);
 
         // Shop GUI
         if (Gdx.files.internal("gui/icons.png").exists()) {
@@ -78,6 +88,8 @@ public class AssetRepository implements Disposable {
                 iconRegions[i] = new TextureRegion(iconsSheet, col * 100, row * 100, 100, 100);
                 iconRegions[i].flip(false, true);
             }
+            // Icon 0 là viên đạn cam có quầng sáng đúng với mẫu HUD/default.
+            defaultBulletFrame = iconRegions[0];
         }
         if (Gdx.files.internal("gui/billets.png").exists()) {
             billetsTexture = new Texture(Gdx.files.internal("gui/billets.png"));
@@ -121,12 +133,33 @@ public class AssetRepository implements Disposable {
         return bulletSheet;
     }
 
+    public TextureRegion defaultBulletFrame() { return defaultBulletFrame; }
+
     public TextureRegion groundFrame(int row, int col) {
         return groundFrames[(row * 3 + col * 7) % groundFrames.length];
     }
 
     public TextureRegion wallFrame(int row, int col) {
-        return wallFrames[(row + col) % wallFrames.length];
+        return wallFrames[(row + col) % 6];
+    }
+
+    public TextureRegion whiteWallFrame(int row, int col) {
+        return wallFrames[6 + (row + col) % 6];
+    }
+
+    public TextureRegion bushFrame(int row, int col) {
+        return wallFrames[12 + (row * 2 + col * 3) % 6];
+    }
+
+    public TextureRegion pickupFrame(boolean repair) {
+        return powerupFrames[repair ? 10 : 0];
+    }
+
+    public TextureRegion explosionFrame(float progress) {
+        if (explosionFrames == null || explosionFrames.length == 0) return null;
+        int index = Math.max(0, Math.min(explosionFrames.length - 1,
+                (int) (progress * explosionFrames.length)));
+        return explosionFrames[index];
     }
 
     public TextureRegion spikesFrame(int row, int col) {
@@ -151,6 +184,7 @@ public class AssetRepository implements Disposable {
         if (spikesSheet != null) spikesSheet.dispose();
         if (palmsSheet != null) palmsSheet.dispose();
         if (explosionBigSheet != null) explosionBigSheet.dispose();
+        if (powerupsSheet != null) powerupsSheet.dispose();
         if (iconsSheet != null) iconsSheet.dispose();
         if (billetsTexture != null) billetsTexture.dispose();
         if (panelTexture != null) panelTexture.dispose();

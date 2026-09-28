@@ -42,6 +42,7 @@ public class HtmlLauncher extends GwtApplication {
 
         GameSocket socket = new BrowserWebSocket(wsUrl);
         GameClient client = new GameClient(wsUrl, levelId, socket);
+        client.setBackToCampaignsHandler(() -> navigateTop("/campaigns"));
 
         float soundVol = parseVolume(soundVolStr, 0.8f);
         float musicVol = parseVolume(musicVolStr, 0.7f);
@@ -64,6 +65,19 @@ public class HtmlLauncher extends GwtApplication {
 
         return client;
     }
+
+    /** Thoát hẳn khỏi iframe game để trở về trang chọn màn campaign. */
+    private static native void navigateTop(String path) /*-{
+        try {
+            if ($wnd.top && $wnd.top !== $wnd) {
+                $wnd.top.location.assign(path);
+            } else {
+                $wnd.location.assign(path);
+            }
+        } catch (e) {
+            $wnd.location.assign(path);
+        }
+    }-*/;
 
     private static float parseVolume(String s, float def) {
         try {

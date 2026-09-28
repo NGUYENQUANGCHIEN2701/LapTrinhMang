@@ -29,6 +29,9 @@ public class AudioManager implements Disposable {
     private Sound uiClickSound;
     private Sound uiWindowSound;
     private Sound uiWeapSwitchSound;
+    private Sound pickupSound;
+    private Sound repairSound;
+    private Sound speedSound;
 
     // Music
     private Music track1;
@@ -82,6 +85,9 @@ public class AudioManager implements Disposable {
             uiClickSound = loadSound("sounds/ui_button_down.ogg");
             uiWindowSound = loadSound("sounds/ui_window.ogg");
             uiWeapSwitchSound = loadSound("sounds/ui_weap_switch.ogg");
+            pickupSound = loadSound("sounds/fx_powerup_pickup.ogg");
+            repairSound = loadSound("sounds/fx_powerup_use_repair.ogg");
+            speedSound = loadSound("sounds/fx_powerup_use_speed.ogg");
 
             track1 = loadMusic("music/track1.ogg");
             track2 = loadMusic("music/track2.ogg");
@@ -207,6 +213,15 @@ public class AudioManager implements Disposable {
             uiWeapSwitchSound.play(clamp01(soundVolume));
         } catch (Exception ignored) {}
     }
+
+    public void playPickup() { playSound(pickupSound); }
+    public void playRepair() { playSound(repairSound); }
+    public void playSpeed() { playSound(speedSound); }
+
+    private void playSound(Sound sound) {
+        if (muted || sound == null) return;
+        try { sound.play(clamp01(soundVolume)); } catch (Exception ignored) {}
+    }
     public void stopMusic() {
         if (currentMusic != null) {
             try {
@@ -286,6 +301,9 @@ public class AudioManager implements Disposable {
         if (uiClickSound != null) { uiClickSound.dispose(); uiClickSound = null; }
         if (uiWindowSound != null) { uiWindowSound.dispose(); uiWindowSound = null; }
         if (uiWeapSwitchSound != null) { uiWeapSwitchSound.dispose(); uiWeapSwitchSound = null; }
+        if (pickupSound != null) { pickupSound.dispose(); pickupSound = null; }
+        if (repairSound != null) { repairSound.dispose(); repairSound = null; }
+        if (speedSound != null) { speedSound.dispose(); speedSound = null; }
 
         if (track1 != null) { track1.dispose(); track1 = null; }
         if (track2 != null) { track2.dispose(); track2 = null; }

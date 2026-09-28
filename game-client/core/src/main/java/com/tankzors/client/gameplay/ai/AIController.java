@@ -104,12 +104,14 @@ public final class AIController {
         }
 
         hadSight = visible && reactionElapsed + 1e-9 >= self.getDifficulty().getReactionDelay();
+        // Ngắm/bắn trước, rồi movement chốt hướng render sau cùng. Khi AI đang
+        // chạy, sprite luôn nhìn theo đúng trục di chuyển thay vì trượt ngang.
+        if (shootBehavior != null) shootBehavior.update(self, state, dt);
         behavior.update(self, state, dt);
         if (behavior == chase && chase.isSearchFinished()) {
             patrol.start(lastSeen);
             behavior = patrol;
         }
-        if (shootBehavior != null) shootBehavior.update(self, state, dt);
     }
 
     private static double distance(Position a, Position b) {
