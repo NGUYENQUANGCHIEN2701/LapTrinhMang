@@ -228,7 +228,9 @@ public class GameRenderer implements Disposable {
 
     private void drawEffect(EffectSnapshot effect) {
         com.badlogic.gdx.graphics.g2d.TextureRegion frame = assets.explosionFrame(effect.progress);
-        if (frame != null) batch.draw(frame, effect.x - 28, effect.y - 28, 56, 56);
+        if (frame == null) return;
+        float size = effect.impact ? 26f : 56f;
+        batch.draw(frame, effect.x - size / 2f, effect.y - size / 2f, size, size);
     }
 
     private void drawHealthBar(TankSnapshot tank) {

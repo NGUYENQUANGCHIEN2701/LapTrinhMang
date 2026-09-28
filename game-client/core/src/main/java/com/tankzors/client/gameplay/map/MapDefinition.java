@@ -169,11 +169,17 @@ public class MapDefinition implements IMap {
 
     /** Áp đúng một hit lên vật cản; trả loại vừa bị phá hoặc null. */
     public TileType hitWall(Wall wall) {
-        if (wall == null || !walls.contains(wall) || !wall.hit()) return null;
+        if (wall == null || !walls.contains(wall) || isBoundaryWall(wall) || !wall.hit()) return null;
         TileType destroyed = wall.getTileType();
         walls.remove(wall);
         setTileAt(wall.getCol(), wall.getRow(), TileType.GROUND);
         return destroyed;
+    }
+
+    /** Hàng/cột ngoài cùng là tường bao map: giữ nguyên sprite nhưng không thể phá. */
+    private boolean isBoundaryWall(Wall wall) {
+        return wall.getCol() == 0 || wall.getRow() == 0
+                || wall.getCol() == width - 1 || wall.getRow() == height - 1;
     }
 
     /** Nhặt vật phẩm tại tâm xe; trả loại pickup hoặc null. */

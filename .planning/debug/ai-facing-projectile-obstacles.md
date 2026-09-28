@@ -7,10 +7,10 @@ updated: 2026-09-28
 
 ## Current Focus
 
-hypothesis: Confirmed and fixed: aiming/navigation rotation conflict, split projectile speeds, incorrect obstacle frame grouping, and perimeter-heavy map placement.
-test: Focused regressions, full core/Spring suites, GWT compile, map sync/connectivity checks, Docker build/deploy, and HTTP smoke test.
-expecting: Automated verification is green; authenticated canvas UAT should show no AI strafing, equal projectile speed, and clearly distributed/durable obstacle classes.
-next_action: Ask the user to hard-refresh the deployed game and verify AI facing plus obstacle destruction visually.
+hypothesis: Confirmed: player-fired bullets already damaged interior walls correctly, but perimeter and interior brown walls shared the same durability rule; lack of visible feedback on non-terminal hits made damage difficult to observe.
+test: Real PlayerTank.shoot integration test, boundary-vs-interior durability regression, full core suite, GWT compile, Docker build/deploy and startup-log check.
+expecting: Four player shots destroy one interior brown wall, border brown walls never lose HP, and each non-terminal collision produces a small visible impact effect.
+next_action: Ask the user to hard-refresh and visually retest one interior wall and one perimeter wall.
 bug_class: bohrbug
 reasoning_checkpoint:
   hypothesis: Two systems mutate AI rotation in the same tick; AI projectile speed is hard-coded separately; obstacle types are visually ambiguous and concentrated at the perimeter.
@@ -21,10 +21,10 @@ reasoning_checkpoint:
   candidate_causes: [rotation ownership conflict, split projectile speed constants, incorrect sprite frame range, perimeter-heavy map data]
   and_gate: All four causes are independently evidenced and jointly explain the reported behavior and screenshot.
 tdd_checkpoint:
-  test_file: ShootBehaviorTest, AIControllerMovementTest, GameSimulationTest
-  name: AI facing/speed and obstacle durability regressions
+  test_file: GameSimulationTest, MapObstacleTest
+  name: Player-owned projectile damages interior brown wall while brown boundary remains indestructible
   status: green
-  failure_output: Initial compile failed because the new isReservingMovement contract did not exist; focused and full suites pass after implementation.
+  failure_output: Boundary regression initially failed because all TileType.WALL instances were destructible; 79 core tests pass after the position-aware fix.
 
 ## Symptoms
 
@@ -35,6 +35,10 @@ reproduction: Play campaign level 1, watch an AI change between chase movement a
 started: Regression observed after the previous campaign tactical-system implementation.
 
 ## Eliminated
+
+- hypothesis: Only AI-owned bullets can damage brown walls.
+  evidence: A regression using enqueueShoot and the real PlayerTank.shoot path reduced one interior wall from 4 HP to 0 and consumed exactly four player rounds before any production change to owner handling.
+  timestamp: 2026-09-28
 
 ## Evidence
 
@@ -68,10 +72,20 @@ started: Regression observed after the previous campaign tactical-system impleme
   found: 77 core tests and 54 Spring tests pass; GWT and Docker builds succeed; recreated app is running and returns HTTP 200.
   implication: The fix is integrated and ready for authenticated visual UAT.
 
+- timestamp: 2026-09-28
+  checked: Real player shooting path and brown boundary durability.
+  found: PlayerTank.shoot already damages interior walls, while the new boundary regression failed because MapDefinition.hitWall did not distinguish edge coordinates.
+  implication: The reported owner difference was visual ambiguity; the confirmed logic defect was destructible perimeter walls.
+
+- timestamp: 2026-09-28
+  checked: Boundary fix and hit feedback integration.
+  found: Interior brown wall HP changes 4→3→2→1→destroyed from real player shots; edge-wall HP remains 4 after ten hits; 79 core tests, GWT and Docker build pass and the container starts cleanly.
+  implication: Owner parity and border invariants are now enforced and observable.
+
 ## Resolution
 
-root_cause: ShootBehavior and AINavigator both changed AI rotation during one fixed-step; AI bullets used 120 px/s while player bullets used 200 px/s; the white-wall frame range included vegetation and almost all white walls were placed on the perimeter.
-fix: Aiming and firing now reserve a movement-free tick, AI projectile speed delegates to Bullet.DEFAULT_SPEED, obstacle sprite ranges no longer overlap, and all three campaign grids distribute white walls and bushes through their interiors while preserving pickups and reachable routes.
-verification: Focused AI and obstacle regressions pass; full core suite 77/77 and Spring suite 54/54 pass; GWT compile and Docker multi-stage build pass; map schema/sync/connectivity validation passes; deployed app responds HTTP 200. Awaiting authenticated visual confirmation.
+root_cause: ShootBehavior and AINavigator both changed AI rotation during one fixed-step; AI bullets used 120 px/s while player bullets used 200 px/s; obstacle frames/placement were unclear; perimeter and interior brown walls shared one destructible TileType.WALL rule; non-terminal wall hits had no visible effect.
+fix: Aiming/firing reserve a movement-free tick, projectile speeds are unified, obstacle frames/layouts are separated, edge-coordinate walls are indestructible, interior brown walls retain four HP for either owner, and all wall collisions show a small repo-asset impact effect before the full destruction effect.
+verification: Real player-shot and boundary regressions pass; full core suite 79/79 passes; Spring suite remains 54/54; GWT and Docker multi-stage builds pass; deployed container starts cleanly. Awaiting authenticated visual confirmation.
 oracle_type: specified
-files_changed: [AIController.java, ShootBehavior.java, AssetRepository.java, GameSimulationTest.java, AIControllerMovementTest.java, ShootBehaviorTest.java, campaign_1.json client/server, campaign_2.json client/server, campaign_3.json client/server]
+files_changed: [AIController.java, ShootBehavior.java, AssetRepository.java, MapDefinition.java, GameSimulation.java, EffectSnapshot.java, GameRenderer.java, GameSimulationTest.java, MapObstacleTest.java, AIControllerMovementTest.java, ShootBehaviorTest.java, campaign_1.json client/server, campaign_2.json client/server, campaign_3.json client/server]

@@ -435,11 +435,14 @@ public class GameSimulation {
                 if (eventListener != null) eventListener.onHitWall();
                 if (hitWall != null && world.getCurrentMap() instanceof MapDefinition) {
                     TileType destroyed = ((MapDefinition) world.getCurrentMap()).hitWall(hitWall);
+                    double effectX = hitWall.getPosition().getX() + hitWall.getWidth() / 2.0;
+                    double effectY = hitWall.getPosition().getY() + hitWall.getHeight() / 2.0;
                     if (destroyed != null) {
-                        effects.add(new WorldEffect(
-                                hitWall.getPosition().getX() + hitWall.getWidth() / 2.0,
-                                hitWall.getPosition().getY() + hitWall.getHeight() / 2.0,
-                                destroyed == TileType.BUSH));
+                        effects.add(WorldEffect.destroyed(effectX, effectY, destroyed == TileType.BUSH));
+                    } else {
+                        // Cho cả người chơi và AI cùng phản hồi va chạm nhìn thấy được.
+                        // Hiệu ứng nhỏ chỉ báo "đã trúng", không có nghĩa tường đã vỡ.
+                        effects.add(WorldEffect.impact(effectX, effectY));
                     }
                 }
                 continue;
@@ -598,8 +601,9 @@ public class GameSimulation {
             EffectSnapshot out = new EffectSnapshot();
             out.x = (float) effect.x;
             out.y = (float) effect.y;
-            out.progress = (float) (1.0 - effect.remaining / WorldEffect.DURATION);
+            out.progress = (float) (1.0 - effect.remaining / effect.duration);
             out.bush = effect.bush;
+            out.impact = effect.impact;
             snap.effects.add(out);
         }
     }
@@ -624,13 +628,25 @@ public class GameSimulation {
     }
 
     private static final class WorldEffect {
-        static final double DURATION = 0.70;
         final double x;
         final double y;
         final boolean bush;
-        double remaining = DURATION;
-        WorldEffect(double x, double y, boolean bush) {
-            this.x = x; this.y = y; this.bush = bush;
+        final boolean impact;
+        final double duration;
+        double remaining;
+        private WorldEffect(double x, double y, boolean bush, boolean impact, double duration) {
+            this.x = x;
+            this.y = y;
+            this.bush = bush;
+            this.impact = impact;
+            this.duration = duration;
+            this.remaining = duration;
+        }
+        static WorldEffect destroyed(double x, double y, boolean bush) {
+            return new WorldEffect(x, y, bush, false, 0.70);
+        }
+        static WorldEffect impact(double x, double y) {
+            return new WorldEffect(x, y, false, true, 0.22);
         }
     }
 

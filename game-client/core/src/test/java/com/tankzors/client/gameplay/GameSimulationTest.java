@@ -8,6 +8,7 @@ import com.tankzors.client.gameplay.map.MapDefinition;
 import com.tankzors.client.gameplay.map.TileType;
 import com.tankzors.client.shop.PlayerShopState;
 import com.tankzors.client.shop.ShopItem;
+import com.tankzors.client.model.GameStateSnapshot;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -93,6 +94,42 @@ class GameSimulationTest {
 
         hitObstacle(sim, "bush-1", 140, 60);
         assertEquals(TileType.GROUND, map.getTileAt(3, 1));
+    }
+
+    @Test
+    @DisplayName("Đạn được bắn thật từ xe người chơi phá tường nâu bên trong sau đúng 4 phát")
+    void playerFiredBulletsDestroyInteriorBrownWall() {
+        int[][] grid = {
+                {1, 1, 1, 1, 1, 1, 1, 1},
+                {1, 0, 0, 0, 0, 0, 0, 1},
+                {1, 0, 3, 0, 1, 0, 0, 1},
+                {1, 0, 0, 0, 0, 0, 0, 1},
+                {1, 1, 1, 1, 1, 1, 1, 1}
+        };
+        MapDefinition map = new MapDefinition("player-wall", 8, 5, 40, grid);
+        GameSimulation sim = new GameSimulation(12L);
+        PlayerShopState shop = new PlayerShopState();
+        sim.setShopState(shop);
+        sim.startCampaignLevel(map, "campaign_1", "player");
+        PlayerTank player = (PlayerTank) sim.getWorld().getTank("player");
+        player.rotate(90);
+        com.tankzors.client.gameplay.entity.Wall interior = map.getWalls().stream()
+                .filter(w -> w.getCol() == 4 && w.getRow() == 2)
+                .findFirst().orElseThrow();
+
+        for (int hit = 1; hit <= 3; hit++) {
+            firePlayerShotUntilImpact(sim);
+            assertEquals(TileType.WALL, map.getTileAt(4, 2), "Wall must remain through hit " + hit);
+            assertEquals(4 - hit, interior.getHitPoints(), "Player hit must reduce brown-wall durability");
+            GameStateSnapshot snapshot = new GameStateSnapshot();
+            sim.appendEffectsTo(snapshot);
+            assertTrue(snapshot.effects.stream().anyMatch(effect -> effect.impact),
+                    "A non-terminal wall hit must show a small impact effect");
+        }
+        firePlayerShotUntilImpact(sim);
+
+        assertEquals(TileType.GROUND, map.getTileAt(4, 2));
+        assertEquals(96, shop.getItemCount(0));
     }
 
     @Test
@@ -330,5 +367,27 @@ class GameSimulationTest {
         sim.getWorld().addBullet(new Bullet(id, "player", new Position(x, y), 90,
                 1, Bullet.DEFAULT_DAMAGE, Bullet.DEFAULT_WIDTH, Bullet.DEFAULT_HEIGHT));
         sim.step(GameplayConfig.STEP_SECONDS);
+    }
+
+    private static void firePlayerShotUntilImpact(GameSimulation sim) {
+        PlayerTank player = (PlayerTank) sim.getWorld().getTank("player");
+        for (int frame = 0; frame < 30 && !player.canShoot(); frame++) {
+            sim.getWorld().setStatus(GameWorld.Status.PLAYING);
+            sim.step(GameplayConfig.STEP_SECONDS);
+        }
+        assertTrue(player.canShoot(), "Player cooldown must finish before the next test shot");
+        sim.getWorld().setStatus(GameWorld.Status.PLAYING);
+        sim.enqueueShoot();
+        boolean shotSeen = false;
+        for (int frame = 0; frame < 30; frame++) {
+            sim.getWorld().setStatus(GameWorld.Status.PLAYING);
+            sim.step(GameplayConfig.STEP_SECONDS);
+            if (sim.getWorld().getBulletCount() > 0) {
+                shotSeen = true;
+            } else if (shotSeen) {
+                return;
+            }
+        }
+        fail("Player bullet did not reach an obstacle within 30 fixed steps");
     }
 }

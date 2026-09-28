@@ -6,4 +6,6 @@ public final class EffectSnapshot {
     public float y;
     public float progress;
     public boolean bush;
+    /** true = tia va chạm nhỏ; false = hiệu ứng phá hủy đầy đủ. */
+    public boolean impact;
 }
