@@ -3,7 +3,7 @@ package com.tankzors.client.gameplay.map;
 /**
  * Loại ô lưới map. Giá trị số tương ứng JSON map.
  * 0=GROUND,1=BRICK,2=WATER,3=SPAWN_PLAYER,4=SPAWN_ENEMY,
- * 5=WHITE_WALL,6=BUSH,7=REPAIR_PICKUP,8=SPEED_PICKUP.
+ * 5=WHITE_WALL,6=BUSH,7=REPAIR_PICKUP,8=SPEED_PICKUP,9=FLAG.
  */
 public enum TileType {
     GROUND(0),
@@ -14,7 +14,8 @@ public enum TileType {
     WHITE_WALL(5),
     BUSH(6),
     REPAIR_PICKUP(7),
-    SPEED_PICKUP(8);
+    SPEED_PICKUP(8),
+    FLAG(9);
 
     private final int value;
 

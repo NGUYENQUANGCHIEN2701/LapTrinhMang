@@ -176,8 +176,12 @@ public class GameRenderer implements Disposable {
                 int px = c * ts;
                 int py = r * ts;
                 switch (tile) {
-                    case 0: case 3: case 4: // GROUND / SPAWN_PLAYER / SPAWN_ENEMY
+                    case 0: // GROUND
                         batch.draw(assets.groundFrame(r, c), px, py, ts, ts);
+                        break;
+                    case 3: case 4: // SPAWN_PLAYER xanh / SPAWN_ENEMY đỏ
+                        batch.draw(assets.groundFrame(r, c), px, py, ts, ts);
+                        batch.draw(assets.spawnFrame(tile == 3, r, c), px, py, ts, ts);
                         break;
                     case 1: // WALL
                         batch.draw(assets.wallFrame(wallHitPointsAt(map, r, c)), px, py, ts, ts);
@@ -196,6 +200,10 @@ public class GameRenderer implements Disposable {
                     case 7: case 8: // pickup trên nền
                         batch.draw(assets.groundFrame(r, c), px, py, ts, ts);
                         batch.draw(assets.pickupFrame(tile == 7), px + 6, py + 6, ts - 12, ts - 12);
+                        break;
+                    case 9: // cờ đích của campaign_1
+                        batch.draw(assets.groundFrame(r, c), px, py, ts, ts);
+                        batch.draw(assets.flagFrame(), px, py, ts, ts);
                         break;
                 }
             }

@@ -7,7 +7,7 @@ package com.tankzors.client.model;
  * {@code { width, height, tileSize, grid:[row][col], wallHitPoints:[row][col] }}.</p>
  *
  * <p>Tile values: 0=GROUND, 1=BRICK, 2=WATER, 3/4=SPAWN,
- * 5=WHITE_WALL, 6=BUSH, 7=REPAIR, 8=SPEED.</p>
+ * 5=WHITE_WALL, 6=BUSH, 7=REPAIR, 8=SPEED, 9=FLAG.</p>
  */
 public final class MapSnapshot {
     public int width;

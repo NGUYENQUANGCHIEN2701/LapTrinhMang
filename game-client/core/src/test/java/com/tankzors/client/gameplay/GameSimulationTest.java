@@ -25,6 +25,54 @@ import static org.junit.jupiter.api.Assertions.*;
 class GameSimulationTest {
 
     @Test
+    @DisplayName("Màn cướp cờ hồi sinh hai phe tại spawn và chỉ thắng khi player chạm cờ")
+    void captureFlagRespawnsBothSidesAndWinsOnlyAtFlag() {
+        int[][] grid = {
+                {1, 1, 1, 1, 1, 1, 1},
+                {1, 3, 0, 9, 0, 4, 1},
+                {1, 1, 1, 1, 1, 1, 1}
+        };
+        MapDefinition map = new MapDefinition("capture-flag", 7, 3, 40, grid);
+        map.setEnemies(List.of(new MapDefinition.EnemyConfig("AI", "EASY", 5, 1)));
+        GameSimulation sim = new GameSimulation(123L);
+        PlayerShopState shop = new PlayerShopState();
+        shop.setItemCount(0, 73);
+        sim.setShopState(shop);
+        int[] terminalCount = {0};
+        sim.setMatchEndHandler((level, status, hp, kills, elapsed) -> terminalCount[0]++);
+        sim.startCampaignLevel(map, "campaign_1", "player");
+
+        PlayerTank firstPlayer = (PlayerTank) sim.getWorld().getTank("player");
+        AITank firstAi = (AITank) sim.getWorld().getTank("ai-5-1");
+        firstPlayer.takeDamage(firstPlayer.getMaxHP());
+        firstAi.takeDamage(firstAi.getMaxHP());
+        sim.step(GameplayConfig.STEP_SECONDS);
+
+        PlayerTank respawnedPlayer = (PlayerTank) sim.getWorld().getTank("player");
+        AITank respawnedAi = (AITank) sim.getWorld().getTank("ai-5-1");
+        assertNotSame(firstPlayer, respawnedPlayer);
+        assertNotSame(firstAi, respawnedAi);
+        assertEquals(respawnedPlayer.getMaxHP(), respawnedPlayer.getHP());
+        assertEquals(respawnedAi.getMaxHP(), respawnedAi.getHP());
+        assertEquals(60, respawnedPlayer.getPosition().getX(), 0.001);
+        assertEquals(60, respawnedPlayer.getPosition().getY(), 0.001);
+        assertEquals(220, respawnedAi.getPosition().getX(), 0.001);
+        assertEquals(60, respawnedAi.getPosition().getY(), 0.001);
+        assertEquals(73, shop.getItemCount(0), "Hồi sinh không được làm mới hoặc trừ kho đồ");
+        assertEquals(GameWorld.Status.PLAYING, sim.getWorld().getStatus());
+        assertEquals(0, terminalCount[0]);
+
+        respawnedPlayer.getPosition().setX(140);
+        respawnedPlayer.getPosition().setY(60);
+        sim.step(GameplayConfig.STEP_SECONDS);
+
+        assertEquals(GameWorld.Status.VICTORY, sim.getWorld().getStatus());
+        assertEquals(1, terminalCount[0]);
+        sim.step(GameplayConfig.STEP_SECONDS);
+        assertEquals(1, terminalCount[0], "Chạm cờ chỉ được kết thúc trận một lần");
+    }
+
+    @Test
     @DisplayName("Repair hồi đầy HP và Speed tăng đúng 30% trong 20 giây")
     void supportItemsApplyExactEffects() {
         GameSimulation sim = new GameSimulation(99L);

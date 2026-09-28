@@ -22,7 +22,9 @@ import com.tankzors.client.shop.ShopItem;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 /**
@@ -53,9 +55,24 @@ public class GameSimulation {
     private double basePlayerSpeed = PlayerTank.DEFAULT_SPEED;
     private double speedBoostRemaining;
     private final List<WorldEffect> effects = new ArrayList<>();
+    private final Map<String, RespawnPoint> respawnPoints = new HashMap<>();
 
     public static final double SPEED_BOOST_MULTIPLIER = 1.30;
     public static final double SPEED_BOOST_SECONDS = 20.0;
+
+    private static final class RespawnPoint {
+        final double x;
+        final double y;
+        final boolean player;
+        final DifficultyLevel difficulty;
+
+        RespawnPoint(double x, double y, boolean player, DifficultyLevel difficulty) {
+            this.x = x;
+            this.y = y;
+            this.player = player;
+            this.difficulty = difficulty;
+        }
+    }
 
     public GameSimulation(long matchSeed) {
         this.matchRng = new Random(matchSeed);
@@ -109,6 +126,7 @@ public class GameSimulation {
     public void startCampaignLevel(MapDefinition map, String levelId, String playerId) {
         this.localPlayerId = playerId;
         this.currentLevelId = levelId != null ? levelId : map.getName();
+        this.coopMode = false;
         world.setCurrentMap(map);
         resetMatch();
         spawnPlayer(playerId);
@@ -179,11 +197,15 @@ public class GameSimulation {
         commandQueue.clear();
         speedBoostRemaining = 0;
         effects.clear();
+        respawnPoints.clear();
     }
 
     private void spawnPlayer(String playerId) {
-        IMap map = world.getCurrentMap();
         Position spawn = findPlayerSpawn();
+        spawnPlayerAt(playerId, spawn);
+    }
+
+    private void spawnPlayerAt(String playerId, Position spawn) {
         double speed = PlayerTank.DEFAULT_SPEED;
         int hp = PlayerTank.DEFAULT_HP;
         if (shopState != null) {
@@ -191,7 +213,8 @@ public class GameSimulation {
             hp += shopState.getArmorHpBonus();
         }
         basePlayerSpeed = speed;
-        PlayerTank player = new PlayerTank(playerId, spawn.getX(), spawn.getY(), speed);
+        double currentSpeed = speedBoostRemaining > 0 ? speed * SPEED_BOOST_MULTIPLIER : speed;
+        PlayerTank player = new PlayerTank(playerId, spawn.getX(), spawn.getY(), currentSpeed);
         player.setMaxHp(hp);
         player.setHp(hp);
         player.setBulletIdSource(() -> bulletIds.next("player"));
@@ -199,6 +222,8 @@ public class GameSimulation {
             player.setActiveWeaponId(shopState.getActiveWeaponId());
         }
         world.addTank(player);
+        respawnPoints.putIfAbsent(playerId,
+                new RespawnPoint(spawn.getX(), spawn.getY(), true, null));
     }
 
     private void spawnMapEnemies() {
@@ -217,12 +242,8 @@ public class GameSimulation {
                 DifficultyLevel diff = parseDifficulty(cfg.getDifficulty());
                 int col = cfg.getSpawnX();
                 int row = cfg.getSpawnY();
-                AITank enemy = new AITank("ai-" + col + "-" + row,
+                spawnEnemyAt("ai-" + col + "-" + row,
                         (col + 0.5) * map.getTileSize(), (row + 0.5) * map.getTileSize(), diff);
-                wireAiBulletIds(enemy);
-                if (!Collision.checkTankWallCollision(enemy, map, enemy.getPosition())) {
-                    world.addTank(enemy);
-                }
             }
             return;
             }
@@ -231,13 +252,19 @@ public class GameSimulation {
         for (int row = 0; row < map.getHeight(); row++) {
             for (int col = 0; col < map.getWidth(); col++) {
                 if (map.getTileAt(col, row) != TileType.SPAWN_ENEMY) continue;
-                AITank enemy = new AITank("ai-" + col + "-" + row,
+                spawnEnemyAt("ai-" + col + "-" + row,
                         (col + 0.5) * map.getTileSize(), (row + 0.5) * map.getTileSize(), DifficultyLevel.EASY);
-                wireAiBulletIds(enemy);
-                if (!Collision.checkTankWallCollision(enemy, map, enemy.getPosition())) {
-                    world.addTank(enemy);
-                }
             }
+        }
+    }
+
+    private void spawnEnemyAt(String id, double x, double y, DifficultyLevel difficulty) {
+        IMap map = world.getCurrentMap();
+        AITank enemy = new AITank(id, x, y, difficulty);
+        wireAiBulletIds(enemy);
+        if (map == null || !Collision.checkTankWallCollision(enemy, map, enemy.getPosition())) {
+            world.addTank(enemy);
+            respawnPoints.putIfAbsent(id, new RespawnPoint(x, y, false, difficulty));
         }
     }
 
@@ -299,8 +326,10 @@ public class GameSimulation {
             // Tích lũy simulation time chỉ khi đang chơi (pause không tăng).
             matchElapsedSeconds += dt;
             updateEntities(dt);
-            checkCollisions();
-            cleanupDeadTanks();
+            if (!checkCaptureFlagGoal()) {
+                checkCollisions();
+                cleanupDeadTanks();
+            }
         }
         // Terminal: không cập nhật physics nữa. Renderer vẫn vẽ state cuối.
         world.incrementTick();
@@ -514,6 +543,10 @@ public class GameSimulation {
     }
 
     private void cleanupDeadTanks() {
+        if (isCaptureFlagMode()) {
+            respawnCaptureFlagTanks();
+            return;
+        }
         List<String> deadIds = new ArrayList<>();
         for (ITank tank : world.getAllTanks()) {
             if (!tank.isAlive()) deadIds.add(tank.getId());
@@ -538,6 +571,48 @@ public class GameSimulation {
                 if (t instanceof PlayerTank) { hpRemain = t.getHP(); break; }
             }
             fireMatchEnd(GameWorld.Status.VICTORY, hpRemain);
+        }
+    }
+
+    private boolean isCaptureFlagMode() {
+        if (coopMode || world.getCurrentMap() == null) return false;
+        IMap map = world.getCurrentMap();
+        for (int row = 0; row < map.getHeight(); row++) {
+            for (int col = 0; col < map.getWidth(); col++) {
+                if (map.getTileAt(col, row) == TileType.FLAG) return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean checkCaptureFlagGoal() {
+        if (!isCaptureFlagMode()) return false;
+        PlayerTank player = localPlayer();
+        IMap map = world.getCurrentMap();
+        if (player == null || !player.isAlive() || map == null) return false;
+        int col = (int) Math.floor(player.getPosition().getX() / map.getTileSize());
+        int row = (int) Math.floor(player.getPosition().getY() / map.getTileSize());
+        if (map.getTileAt(col, row) != TileType.FLAG) return false;
+        world.setStatus(GameWorld.Status.VICTORY);
+        if (eventListener != null) eventListener.onPickup();
+        fireMatchEnd(GameWorld.Status.VICTORY, player.getHP());
+        return true;
+    }
+
+    private void respawnCaptureFlagTanks() {
+        List<String> deadIds = new ArrayList<>();
+        for (ITank tank : world.getAllTanks()) {
+            if (!tank.isAlive()) deadIds.add(tank.getId());
+        }
+        for (String id : deadIds) {
+            RespawnPoint spawn = respawnPoints.get(id);
+            world.removeTank(id);
+            if (spawn == null) continue;
+            if (spawn.player) {
+                spawnPlayerAt(id, new Position(spawn.x, spawn.y));
+            } else {
+                spawnEnemyAt(id, spawn.x, spawn.y, spawn.difficulty);
+            }
         }
     }
 

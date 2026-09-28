@@ -27,6 +27,8 @@ public class AssetRepository implements Disposable {
     private Texture palmsSheet;
     private Texture explosionBigSheet;
     private Texture powerupsSheet;
+    private Texture buildingsSheet;
+    private Texture triggersSheet;
 
     // Shop GUI Textures
     private Texture iconsSheet;
@@ -46,6 +48,8 @@ public class AssetRepository implements Disposable {
     private TextureRegion defaultBulletFrame;
     private TextureRegion[] explosionFrames;
     private TextureRegion[] powerupFrames;
+    private TextureRegion[] buildingFrames;
+    private TextureRegion[] triggerFrames;
 
     public void loadAll() {
         playerTankSheet = new Texture(Gdx.files.internal("tanks/player_tank.png"));
@@ -57,6 +61,8 @@ public class AssetRepository implements Disposable {
         palmsSheet = new Texture(Gdx.files.internal("map/palms.png"));
         explosionBigSheet = new Texture(Gdx.files.internal("effects/explosion_big.png"));
         powerupsSheet = new Texture(Gdx.files.internal("effects/powerups.png"));
+        buildingsSheet = new Texture(Gdx.files.internal("map/buildings.png"));
+        triggersSheet = new Texture(Gdx.files.internal("map/triggers.png"));
 
         // Tanks: 16 frame × 24px (theo Renderer.ts)
         // Camera renderer dùng y-down. Chỉ sprite tank có hướng cần đảo V để
@@ -77,6 +83,8 @@ public class AssetRepository implements Disposable {
         palmsFrames = split(palmsSheet, 88, 88, 5, false);
         explosionFrames = split(explosionBigSheet, 35, 35, 28, false);
         powerupFrames = split(powerupsSheet, 20, 20, 20, false);
+        buildingFrames = split(buildingsSheet, 20, 20, 6, false);
+        triggerFrames = split(triggersSheet, 20, 20, 10, false);
 
         // Shop GUI
         if (Gdx.files.internal("gui/icons.png").exists()) {
@@ -168,6 +176,15 @@ public class AssetRepository implements Disposable {
         return powerupFrames[repair ? 10 : 0];
     }
 
+    /** Cờ vàng gốc trong buildings.png (frame 3). */
+    public TextureRegion flagFrame() { return buildingFrames[3]; }
+
+    /** Vòng spawn gốc: cặp đỏ ở 0..1, cặp xanh ở 2..3. */
+    public TextureRegion spawnFrame(boolean player, int row, int col) {
+        int firstFrame = player ? 2 : 0;
+        return triggerFrames[firstFrame + ((row + col) & 1)];
+    }
+
     public TextureRegion explosionFrame(float progress) {
         if (explosionFrames == null || explosionFrames.length == 0) return null;
         int index = Math.max(0, Math.min(explosionFrames.length - 1,
@@ -198,6 +215,8 @@ public class AssetRepository implements Disposable {
         if (palmsSheet != null) palmsSheet.dispose();
         if (explosionBigSheet != null) explosionBigSheet.dispose();
         if (powerupsSheet != null) powerupsSheet.dispose();
+        if (buildingsSheet != null) buildingsSheet.dispose();
+        if (triggersSheet != null) triggersSheet.dispose();
         if (iconsSheet != null) iconsSheet.dispose();
         if (billetsTexture != null) billetsTexture.dispose();
         if (panelTexture != null) panelTexture.dispose();
