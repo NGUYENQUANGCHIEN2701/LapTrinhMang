@@ -4,12 +4,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Component;
 
+import java.security.Principal;
+
 /**
  * Resolve player identity thống nhất cho page / REST API / WS handshake.
  *
- * <p>MVP: dùng HttpSession hiện tại làm identity (không login mới trong đợt này).
- * Ưu tiên header {@code X-Player-Session} nếu client gửi (surrogate cho client
- * không có cookie JSESSIONID), fallback HttpSession.</p>
+ * <p>Khi đã đăng nhập, username là khóa bền vững của tài khoản. Header/session
+ * chỉ là fallback cho client ẩn danh hoặc công cụ phát triển.</p>
  *
  * <p>WS sessionId chỉ là connectionId — handshake gán connectionId -> playerId.
  * Không dùng WS sessionId làm khóa progression.</p>
@@ -26,16 +27,22 @@ public class PlayerIdentityResolver {
      */
     public String resolve(HttpServletRequest request) {
         if (request == null) return "anon";
-        // 1. Header surrogate (client chủ động gửi).
+        // 1. Tài khoản đã đăng nhập phải luôn thắng header/session để dữ liệu
+        // campaign không đổi khi JSESSIONID được tạo lại.
+        Principal principal = request.getUserPrincipal();
+        if (principal != null && principal.getName() != null && !principal.getName().isBlank()) {
+            return "user:" + principal.getName();
+        }
+        // 2. Header surrogate (client chủ động gửi).
         String header = request.getHeader("X-Player-Session");
         if (header != null && !header.isBlank()) return header.trim();
-        // 2. Thuộc tính trong HttpSession (identity ứng dụng).
+        // 3. Thuộc tính trong HttpSession (identity ứng dụng).
         HttpSession session = request.getSession(false);
         if (session != null) {
             Object attr = session.getAttribute(SESSION_ATTR);
             if (attr instanceof String s && !s.isBlank()) return s;
         }
-        // 3. Fallback: tạo session mới + phát id ổn định cho phiên.
+        // 4. Fallback: tạo session mới + phát id ổn định cho phiên.
         HttpSession newSession = request.getSession(true);
         String sid = newSession.getId();
         newSession.setAttribute(SESSION_ATTR, sid);
@@ -48,6 +55,10 @@ public class PlayerIdentityResolver {
      */
     public String resolveExisting(HttpServletRequest request) {
         if (request == null) return null;
+        Principal principal = request.getUserPrincipal();
+        if (principal != null && principal.getName() != null && !principal.getName().isBlank()) {
+            return "user:" + principal.getName();
+        }
         String header = request.getHeader("X-Player-Session");
         if (header != null && !header.isBlank()) return header.trim();
         HttpSession session = request.getSession(false);

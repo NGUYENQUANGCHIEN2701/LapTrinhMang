@@ -150,7 +150,7 @@ class LocalCampaignSessionTest {
         assertNull(session.matchResult(), "Restart phải xóa matchResult cũ (chống reward trùng)");
         source.pending.onLevelLoaded("campaign_1", MAP_JSON_REWARDS, "run-2", "v1");
         assertEquals("PLAYING", session.status());
-        assertFalse(session.canOpenShop(), "Không được mở shop khi màn mới đang chạy");
+        assertTrue(session.canOpenShop(), "Workshop phải mở được ngay trong màn mới");
         assertNull(session.matchResult(), "Chưa kết thúc màn mới → chưa có matchResult");
     }
 
@@ -256,6 +256,22 @@ class LocalCampaignSessionTest {
 
         assertEquals(73, session.snapshot().activeWeaponAmmo,
                 "Bootstrap màn kế không được làm mới số đạn còn lại");
+    }
+
+    @Test
+    void bootstrapLoadsWalletForTheAuthenticatedAccount() {
+        FakeAsyncMapSource source = new FakeAsyncMapSource();
+        LocalCampaignSession session = new LocalCampaignSession(
+                "player", "campaign_1", source, result -> true);
+
+        session.start();
+        source.pending.onLevelLoadedWithShop("campaign_1", MAP_JSON, "run-1", "v1",
+                600, 12, "{\"shellResearch\":2}", "{\"0\":73}");
+
+        assertEquals(600, session.getShopState().getCoins());
+        assertEquals(12, session.getShopState().getStars());
+        assertEquals(2, session.getShopState().getResearchLevel("shellResearch"));
+        assertEquals(73, session.getShopState().getItemCount(0));
     }
 
     @Test

@@ -95,7 +95,16 @@ public class PlayerShopStateTest {
         state.setItemCount(ShopItem.EX_CHASSIS.getId(), 1);
         assertTrue(state.hasExChassis());
         assertEquals(99, state.getEffectiveLimit(ShopItem.DOUBLE_ROUND));
-        assertEquals(1.15f, state.getSpeedMultiplier(), 0.001f);
+        assertEquals(1.0f, state.getSpeedMultiplier(), 0.001f,
+                "Builds cho khung gầm +2 HP, không tăng tốc độ nền");
+    }
+
+    @Test
+    void installedForceFieldSurvivesInventorySerialization() {
+        state.addInstalledForceField(3);
+        PlayerShopState restored = new PlayerShopState();
+        restored.loadState(0, 0, "{}", state.serializeInventory());
+        assertEquals(3, restored.getInstalledForceField());
     }
 
     @Test
@@ -105,6 +114,15 @@ public class PlayerShopStateTest {
         assertEquals(5, state.getExtraInterestPercent());
         state.setResearchLevel("extraInterest", 2);
         assertEquals(10, state.getExtraInterestPercent());
+    }
+
+    @Test
+    void shellResearchLevelsSixToEightReduceReloadLikeBuilds() {
+        assertEquals(0.50, state.getShellReloadSeconds(), 0.0001);
+        state.setResearchLevel("shellResearch", 6);
+        assertEquals(0.50 - 2.0 / 60.0, state.getShellReloadSeconds(), 0.0001);
+        state.setResearchLevel("shellResearch", 8);
+        assertEquals(0.50 - 6.0 / 60.0, state.getShellReloadSeconds(), 0.0001);
     }
 
     @Test

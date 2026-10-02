@@ -16,6 +16,10 @@ public abstract class Tank implements ITank, ICollidable {
     protected double speed;
     protected int hp;
     protected int maxHp;
+    protected int shieldHp;
+    protected int maxShieldHp;
+    private double shieldRegenRemaining;
+    private int shieldResearchLevel;
     protected double width;
     protected double height;
 
@@ -46,7 +50,12 @@ public abstract class Tank implements ITank, ICollidable {
     @Override public Position getPosition() { return position; }
     @Override public int getHP() { return hp; }
     @Override public int getMaxHP() { return maxHp; }
-    @Override public void takeDamage(int damage) { this.hp = Math.max(0, this.hp - damage); }
+    @Override public void takeDamage(int damage) {
+        if (damage <= 0) return;
+        int absorbed = Math.min(shieldHp, damage);
+        shieldHp -= absorbed;
+        hp = Math.max(0, hp - (damage - absorbed));
+    }
     @Override public boolean isAlive() { return hp > 0; }
     @Override public String getId() { return id; }
     @Override public abstract IBullet shoot();
@@ -65,6 +74,73 @@ public abstract class Tank implements ITank, ICollidable {
     public void setSpeed(double speed) { this.speed = speed; }
     public double getWidth() { return width; }
     public double getHeight() { return height; }
+    public int getShieldHp() { return shieldHp; }
+    public int getMaxShieldHp() { return maxShieldHp; }
+    /** Workshop armor in Builds increases both current and maximum hull HP. */
+    public void addHullHitPoints(int amount) {
+        if (amount <= 0) return;
+        maxHp += amount;
+        hp += amount;
+    }
+    /** Removes temporary armor after a lost life without affecting permanent armor. */
+    public void removeHullHitPoints(int amount) {
+        if (amount <= 0) return;
+        maxHp = Math.max(1, maxHp - amount);
+        hp = Math.min(hp, maxHp);
+    }
+    public void restoreHull() { hp = maxHp; }
+    public void addShieldCapacity(int amount) {
+        if (amount <= 0) return;
+        maxShieldHp += amount;
+        // The reference starts the normal regeneration timer; a newly mounted
+        // field is not instantly filled on the very next simulation tick.
+        if (shieldHp < maxShieldHp && shieldRegenRemaining <= 0) {
+            shieldRegenRemaining = shieldRegenDelaySeconds();
+        }
+    }
+    public void clearShield() { shieldHp = 0; maxShieldHp = 0; shieldRegenRemaining = 0; }
+
+    /** Research level changes the force-field regeneration cadence immediately. */
+    public void setShieldResearchLevel(int level) {
+        int normalized = Math.max(0, Math.min(4, level));
+        if (shieldResearchLevel == normalized) return;
+        shieldResearchLevel = normalized;
+        if (shieldHp < maxShieldHp) shieldRegenRemaining = shieldRegenDelaySeconds();
+    }
+
+    /** Force field cadence ported from Builds (its original 60 Hz timer). */
+    public void updateShield(double deltaTime) {
+        if (maxShieldHp <= shieldHp || deltaTime <= 0) return;
+        if (shieldRegenRemaining > 0) {
+            shieldRegenRemaining = Math.max(0, shieldRegenRemaining - deltaTime);
+            return;
+        }
+        shieldHp = Math.min(maxShieldHp, shieldHp + 1);
+        shieldRegenRemaining = shieldRegenDelaySeconds();
+    }
+
+    private double shieldRegenDelaySeconds() {
+        double hpBonus;
+        switch (shieldResearchLevel) {
+            case 2: hpBonus = maxHp / 5.0; break;
+            case 3: hpBonus = maxHp / 3.0; break;
+            case 4: hpBonus = maxHp / 2.0; break;
+            default: hpBonus = 0; break;
+        }
+        hpBonus = Math.min(hpBonus, Math.max(0, maxHp - hp));
+        double denominator = Math.max(1.0, hp + hpBonus);
+        double buildFrames = (30.0 + (maxShieldHp - shieldHp) * 25.0) * maxHp / denominator * 3.0;
+        // The prior port only varied with research after hull damage. Because
+        // a field normally absorbs damage first, all levels looked identical.
+        double researchMultiplier;
+        switch (shieldResearchLevel) {
+            case 2: researchMultiplier = 0.75; break;
+            case 3: researchMultiplier = 0.50; break;
+            case 4: researchMultiplier = 0.30; break;
+            default: researchMultiplier = 1.0; break;
+        }
+        return buildFrames / 60.0 * researchMultiplier;
+    }
 
     @Override public String toString() {
         return getClass().getSimpleName() + "{id='" + id + "', pos=" + position

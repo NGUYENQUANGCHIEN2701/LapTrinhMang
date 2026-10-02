@@ -134,6 +134,8 @@ public class GuestGameSession implements GameSession {
                 ts.rotation = t.getFloat("rotation", 0);
                 ts.hp = t.getInt("hp", 0);
                 ts.maxHp = t.getInt("maxHp", 100);
+                ts.shieldHp = t.getInt("shieldHp", 0);
+                ts.maxShieldHp = t.getInt("maxShieldHp", 0);
                 ts.alive = t.getBoolean("alive", true);
                 ts.isPlayer = t.getBoolean("isPlayer", false);
                 snap.tanks.add(ts);
@@ -149,6 +151,8 @@ public class GuestGameSession implements GameSession {
                 bs.y = b.getFloat("y", 0);
                 bs.direction = b.getFloat("direction", 0);
                 bs.ownerId = b.getString("ownerId", "");
+                bs.weaponType = b.getInt("weaponType", 0);
+                bs.damage = b.getInt("damage", 1);
                 bs.active = b.getBoolean("active", true);
                 snap.bullets.add(bs);
             }

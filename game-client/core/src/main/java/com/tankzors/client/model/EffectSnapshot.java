@@ -8,4 +8,6 @@ public final class EffectSnapshot {
     public boolean bush;
     /** true = tia va chạm nhỏ; false = hiệu ứng phá hủy đầy đủ. */
     public boolean impact;
+    /** Shell type which produced the impact; 0 is the default small explosion. */
+    public int weaponType;
 }

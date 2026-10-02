@@ -9,6 +9,9 @@ import java.util.Map;
  */
 public class PlayerShopState {
 
+    /** Hidden persisted state: Force Field plates already mounted on the tank. */
+    public static final int INSTALLED_FORCE_FIELD_ID = -3;
+
     private int coins = 0;
     private int stars = 0;
     private final Map<Integer, Integer> inventory = new HashMap<>();
@@ -111,6 +114,18 @@ public class PlayerShopState {
 
     public boolean hasRadar() {
         return getItemCount(ShopItem.RADAR.getId()) > 0;
+    }
+
+    public int getInstalledForceField() {
+        return getItemCount(INSTALLED_FORCE_FIELD_ID);
+    }
+
+    public void addInstalledForceField(int amount) {
+        if (amount > 0) setItemCount(INSTALLED_FORCE_FIELD_ID, getInstalledForceField() + amount);
+    }
+
+    public void clearInstalledForceField() {
+        setItemCount(INSTALLED_FORCE_FIELD_ID, 0);
     }
 
     public int getEffectiveLimit(ShopItem item) {
@@ -228,12 +243,15 @@ public class PlayerShopState {
     }
 
     public int getArmorHpBonus() {
-        return getItemCount(ShopItem.ARMOR.getId()) * 20
-                + getItemCount(ShopItem.ARMOR2.getId()) * 25;
+        // Builds adds one HP point per armor plate; combat itself uses a 5 HP base scale.
+        return getItemCount(ShopItem.ARMOR.getId())
+                + getItemCount(ShopItem.ARMOR2.getId());
     }
 
     public float getSpeedMultiplier() {
-        return hasExChassis() ? 1.15f : 1.0f;
+        // Builds changes the tank hull sprite and adds 2 HP; it does not alter
+        // the base movement speed. Nitro is the only speed modifier.
+        return 1.0f;
     }
 
     public int getExtraInterestPercent() {
@@ -241,6 +259,12 @@ public class PlayerShopState {
         if (lvl == 1) return 5;
         if (lvl >= 2) return 10;
         return 0;
+    }
+
+    /** Builds reduces the shell reload counter by two ticks for levels 6..8. */
+    public double getShellReloadSeconds() {
+        int level = getResearchLevel("shellResearch");
+        return Math.max(0.10, 0.50 - Math.max(0, level - 5) * (2.0 / 60.0));
     }
 
     public Map<Integer, Integer> getInventory() {

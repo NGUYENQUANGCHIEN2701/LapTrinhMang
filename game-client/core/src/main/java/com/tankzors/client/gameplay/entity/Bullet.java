@@ -1,5 +1,6 @@
 package com.tankzors.client.gameplay.entity;
 
+import com.tankzors.client.gameplay.WeaponProfile;
 import com.tankzors.client.gameplay.interfaces.IBullet;
 import com.tankzors.client.gameplay.interfaces.ICollidable;
 
@@ -23,12 +24,18 @@ public class Bullet implements IBullet, ICollidable {
     private double direction;
     private double speed;
     private int damage;
+    private final int weaponType;
     private boolean active;
     private double width;
     private double height;
 
     /** Caller phải cung cấp id deterministic (counter per-match). */
     public Bullet(String id, String ownerId, Position position, double direction, double speed, int damage, double width, double height) {
+        this(id, ownerId, position, direction, speed, damage, width, height, 0);
+    }
+
+    public Bullet(String id, String ownerId, Position position, double direction, double speed, int damage,
+                  double width, double height, int weaponType) {
         this.id = id != null ? id : "b-0";
         this.ownerId = ownerId;
         this.position = position != null ? new Position(position.getX(), position.getY()) : new Position(0, 0);
@@ -36,6 +43,7 @@ public class Bullet implements IBullet, ICollidable {
         this.direction = direction;
         this.speed = speed > 0 ? speed : DEFAULT_SPEED;
         this.damage = damage >= 0 ? damage : DEFAULT_DAMAGE;
+        this.weaponType = WeaponProfile.fromItemId(weaponType).getItemId();
         this.active = true;
         this.width = width > 0 ? width : DEFAULT_WIDTH;
         this.height = height > 0 ? height : DEFAULT_HEIGHT;
@@ -58,6 +66,7 @@ public class Bullet implements IBullet, ICollidable {
     @Override public double getDirection() { return direction; }
     public void setDirection(double direction) { this.direction = direction; }
     @Override public int getDamage() { return damage; }
+    public int getWeaponType() { return weaponType; }
     public void setDamage(int damage) { this.damage = damage; }
     @Override public double getSpeed() { return speed; }
     public void setSpeed(double speed) { this.speed = speed; }

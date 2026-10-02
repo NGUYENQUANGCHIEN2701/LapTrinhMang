@@ -1,6 +1,7 @@
 package com.tankzors.client.gameplay.entity;
 
 import com.tankzors.client.gameplay.GameWorld;
+import com.tankzors.client.gameplay.WeaponProfile;
 import com.tankzors.client.gameplay.ai.AIController;
 import com.tankzors.client.gameplay.ai.DifficultyLevel;
 import com.tankzors.client.gameplay.interfaces.IBullet;
@@ -17,7 +18,7 @@ public class AITank extends Tank {
     }
 
     public AITank(String id, double x, double y, DifficultyLevel difficulty, AIController controller) {
-        super(id, x, y, Objects.requireNonNull(difficulty).getSpeed(), 100, 100, 40, 40);
+        super(id, x, y, Objects.requireNonNull(difficulty).getSpeed(), difficulty.getReferenceHitPoints(), difficulty.getReferenceHitPoints(), 40, 40);
         this.difficulty = difficulty;
         this.controller = controller;
     }
@@ -31,7 +32,10 @@ public class AITank extends Tank {
 
     @Override
     public IBullet shoot() {
+        WeaponProfile weapon = WeaponProfile.fromItemId(difficulty.getReferenceWeaponType());
+        boolean horizontal = rotation == 90 || rotation == 270;
         return new Bullet("b-0", id, new Position(position.getX(), position.getY()), rotation,
-                Bullet.DEFAULT_SPEED, Bullet.DEFAULT_DAMAGE, Bullet.DEFAULT_WIDTH, Bullet.DEFAULT_HEIGHT);
+                weapon.speedPixelsPerSecond(), weapon.getDamage(), horizontal ? 8 : 4, horizontal ? 4 : 8,
+                weapon.getItemId());
     }
 }

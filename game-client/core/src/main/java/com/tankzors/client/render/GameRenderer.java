@@ -149,6 +149,9 @@ public class GameRenderer implements Disposable {
 
     private VisibilityMask createVisibility(GameStateSnapshot state) {
         if (state.map == null) return null;
+        // Radar in Builds reveals the whole operational map, including enemies
+        // and bonuses. The normal fog mask remains active without a radar.
+        if (state.radarActive) return null;
         TankSnapshot player = null;
         for (TankSnapshot tank : state.tanks) if (tank.isPlayer) { player = tank; break; }
         int col = player != null ? (int) (player.x / state.map.tileSize) : state.map.width / 2;
@@ -223,6 +226,14 @@ public class GameRenderer implements Disposable {
 
     private void drawTank(TankSnapshot tank) {
         if (!tank.alive || tank.hp <= 0) return;
+        if (tank.maxShieldHp > 0) {
+            com.badlogic.gdx.graphics.g2d.TextureRegion shield = assets.shieldRingFrame();
+            if (shield != null) {
+                batch.setColor(0.25f, 0.9f, 1f, tank.shieldHp > 0 ? 1f : 0.28f);
+                batch.draw(shield, tank.x - 27, tank.y - 27, 54, 54);
+                batch.setColor(Color.WHITE);
+            }
+        }
         com.badlogic.gdx.graphics.g2d.TextureRegion frame = assets.tankFrame(tank.isPlayer, tank.rotation);
         if (frame != null) {
             batch.draw(frame, tank.x - 20, tank.y - 20, 40, 40);
@@ -231,22 +242,41 @@ public class GameRenderer implements Disposable {
 
     private void drawBullet(BulletSnapshot bullet) {
         if (!bullet.active) return;
-        com.badlogic.gdx.graphics.g2d.TextureRegion frame = assets.defaultBulletFrame();
+        com.badlogic.gdx.graphics.g2d.TextureRegion frame = assets.bulletFrame(bullet.weaponType, bullet.direction);
         if (frame == null) return;
+        // Builds tạo một Bullet cho Double Shell/Double Plasma, rồi vẽ hai
+        // sprite cách nhau 3 px theo phương vuông góc đường bay — không tạo hai
+        // projectile độc lập. Khi va chạm làm damage còn 1, sprite chuyển mờ.
+        if (bullet.weaponType == 2 || bullet.weaponType == 3) {
+            float radians = bullet.direction * MathUtils.degreesToRadians;
+            float perpendicularX = -MathUtils.cos(radians) * 3f;
+            float perpendicularY = MathUtils.sin(radians) * 3f;
+            if (bullet.damage == 1) batch.setColor(1f, 1f, 1f, 160f / 255f);
+            drawBulletFrame(frame, bullet.x + perpendicularX, bullet.y + perpendicularY);
+            drawBulletFrame(frame, bullet.x - perpendicularX, bullet.y - perpendicularY);
+            batch.setColor(Color.WHITE);
+            return;
+        }
+        drawBulletFrame(frame, bullet.x, bullet.y);
+    }
+
+    private void drawBulletFrame(com.badlogic.gdx.graphics.g2d.TextureRegion frame, float x, float y) {
         float w = 24, h = 24;
         batch.draw(frame,
-            bullet.x - w / 2f, bullet.y - h / 2f,
+            x - w / 2f, y - h / 2f,
             w / 2f, h / 2f,
             w, h,
             1f, 1f,
-            bullet.direction - 90f
+            0f
         );
     }
 
     private void drawEffect(EffectSnapshot effect) {
-        com.badlogic.gdx.graphics.g2d.TextureRegion frame = assets.explosionFrame(effect.progress);
+        com.badlogic.gdx.graphics.g2d.TextureRegion frame = assets.explosionFrame(effect.weaponType, effect.progress);
         if (frame == null) return;
-        float size = effect.impact ? 26f : 56f;
+        float size = effect.weaponType == 0 || effect.weaponType == 2 ? (effect.impact ? 20f : 26f)
+                : effect.weaponType == 1 ? (effect.impact ? 22f : 30f)
+                : 48f;
         batch.draw(frame, effect.x - size / 2f, effect.y - size / 2f, size, size);
     }
 
@@ -269,6 +299,11 @@ public class GameRenderer implements Disposable {
         else shapes.setColor(Color.RED);
 
         shapes.rect(bx, by, barW * pct, barH);
+        if (tank.maxShieldHp > 0) {
+            float shieldPct = MathUtils.clamp((float) tank.shieldHp / tank.maxShieldHp, 0, 1);
+            shapes.setColor(0.1f, 0.85f, 1f, 0.95f);
+            shapes.rect(bx, by - 3, barW * shieldPct, 2);
+        }
     }
 
     private void drawHud(GameStateSnapshot state) {
@@ -278,6 +313,8 @@ public class GameRenderer implements Disposable {
         }
         int hp = player != null ? player.hp : 0;
         int maxHp = player != null ? player.maxHp : 100;
+        int shieldHp = player != null ? player.shieldHp : 0;
+        int maxShieldHp = player != null ? player.maxShieldHp : 0;
 
         int inventoryCount = inventoryCount(state);
         float panelHeight = state.inventoryMenuOpen ? 48 + inventoryCount * 34 : 82;
@@ -297,6 +334,13 @@ public class GameRenderer implements Disposable {
         else shapes.setColor(Color.RED);
         shapes.rect(18, 30, 138 * pct, 12);
         drawHealthTicks(18, 30, 138, 12, 5);
+        if (maxShieldHp > 0) {
+            shapes.setColor(0.03f, 0.18f, 0.25f, 0.95f);
+            shapes.rect(18, 44, 138, 4);
+            float shieldPct = MathUtils.clamp((float) shieldHp / maxShieldHp, 0, 1);
+            shapes.setColor(0.12f, 0.88f, 1f, 1f);
+            shapes.rect(18, 44, 138 * shieldPct, 4);
+        }
         shapes.end();
 
         // Vẽ Text & Icon trong batch.
@@ -304,9 +348,21 @@ public class GameRenderer implements Disposable {
         // HP Label
         font.setColor(Color.WHITE);
         font.draw(batch, "HP " + hp + "/" + maxHp, 18, 14);
+        if (maxShieldHp > 0) {
+            font.setColor(Color.CYAN);
+            font.draw(batch, "SH " + shieldHp + "/" + maxShieldHp, 104, 14);
+        }
 
         if (!state.inventoryMenuOpen) {
             drawInventoryItem(state.activeWeaponId, state.activeWeaponAmmo, 18, 50, false);
+        }
+        if (state.radarActive) {
+            font.setColor(Color.CYAN);
+            font.draw(batch, "RADAR ONLINE", 18, panelHeight - 8);
+        }
+        if (state.freezeSecondsRemaining > 0) {
+            font.setColor(Color.CYAN);
+            font.draw(batch, "FREEZE " + (int) Math.ceil(state.freezeSecondsRemaining) + "s", 18, panelHeight - 24);
         }
         batch.end();
     }

@@ -57,4 +57,9 @@ public interface GameSession {
     default void moveInventorySelection(int delta) {}
     default void confirmInventorySelection() {}
     default boolean canOpenShop() { return false; }
+    default void setShopOpen(boolean open) {}
+    default void onWorkshopItemBought(com.tankzors.client.shop.ShopItem item) {}
+    default void onWorkshopItemSold(com.tankzors.client.shop.ShopItem item) {}
+    default int workshopMissingHp() { return 0; }
+    default boolean repairTankAtWorkshop() { return false; }
 }

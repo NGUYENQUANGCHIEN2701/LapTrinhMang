@@ -1,6 +1,7 @@
 package com.tankzors.client.gameplay.ai;
 
 import com.tankzors.client.gameplay.GameWorld;
+import com.tankzors.client.gameplay.WeaponProfile;
 import com.tankzors.client.gameplay.entity.AITank;
 import com.tankzors.client.gameplay.entity.Bullet;
 import com.tankzors.client.gameplay.entity.PlayerTank;
@@ -70,9 +71,12 @@ public final class ShootBehavior implements IAIBehavior {
                 return;
             }
             String id = bulletIdSource != null ? bulletIdSource.nextId(self.getId()) : "b-0";
+            WeaponProfile weapon = WeaponProfile.fromItemId(self.getDifficulty().getReferenceWeaponType());
+            boolean horizontal = baseAngle == 90 || baseAngle == 270;
             Bullet bullet = new Bullet(id, self.getId(),
                     new Position(self.getPosition().getX(), self.getPosition().getY()), baseAngle,
-                    AI_BULLET_SPEED, Bullet.DEFAULT_DAMAGE, Bullet.DEFAULT_WIDTH, Bullet.DEFAULT_HEIGHT);
+                    weapon.speedPixelsPerSecond(), weapon.getDamage(), horizontal ? 8 : 4, horizontal ? 4 : 8,
+                    weapon.getItemId());
             state.addBullet(bullet);
             cooldownRemaining = self.getDifficulty().getShootCooldown();
         }

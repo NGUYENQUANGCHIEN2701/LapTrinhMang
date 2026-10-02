@@ -25,8 +25,8 @@ public enum ShopItem {
     AIR_SUPPORT(9, "Air Strike", Category.SPECIAL_AMMO, 170, 1, 99, "airRaidResearch", 1, "Goi may bay nem bom yem tro."),
 
     // --- PHÒNG THỦ & HỖ TRỢ ---
-    ARMOR(21, "Temp Armor", Category.DEFENSE, 110, 1, 4, "armorResearch", 1, "Giap tam thoi (+20 HP, mat khi xe bi pha huy)."),
-    ARMOR2(22, "Perm Armor", Category.DEFENSE, 250, 1, 4, "armorResearch", 2, "Giap vinh cuu nang cap do ben xe (+25 HP)."),
+    ARMOR(21, "Temp Armor", Category.DEFENSE, 110, 1, 4, "armorResearch", 1, "Giap tam thoi (+1 HP, mat khi xe bi pha huy)."),
+    ARMOR2(22, "Perm Armor", Category.DEFENSE, 250, 1, 4, "armorResearch", 2, "Giap vinh cuu nang cap do ben xe (+1 HP)."),
     FORCE_FIELD(20, "Force Field", Category.DEFENSE, 100, 1, 5, "powerFieldResearch", 1, "Khien nang luong tu dong tai tao."),
     REPAIR(19, "Repair Kit", Category.SUPPORT, 40, 1, 99, null, 0, "Tui cuu thuong hoi phuc HP trong tran."),
     RADAR(23, "Radar", Category.SUPPORT, 320, 1, 1, null, 0, "Radar dinh vi dich va cho phep goi khong kich."),
@@ -92,4 +92,3 @@ public enum ShopItem {
         return null;
     }
 }
-
