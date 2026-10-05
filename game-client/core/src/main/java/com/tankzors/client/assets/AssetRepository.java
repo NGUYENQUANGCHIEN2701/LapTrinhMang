@@ -172,13 +172,45 @@ public class AssetRepository implements Disposable {
         if (bulletFrames == null || bulletFrames.length == 0) return defaultBulletFrame;
         int normalized = ((int) Math.floor(((direction % 360 + 360) % 360 + 45) / 90)) % 4;
         int[] directionFrame = {2, 3, 0, 1}; // client UP/RIGHT/DOWN/LEFT -> Builds frames
-        int offset = weaponType == 1 || weaponType == 3 ? 4 : weaponType == 4 || weaponType == 5 ? 13 : 0;
+        int offset = weaponType == 1 || weaponType == 3 ? 4
+                : weaponType == 6 ? 8 : weaponType == 7 ? 9 : weaponType == 8 ? 11
+                : weaponType == 4 || weaponType == 5 ? 13 : 0;
         int index = Math.min(bulletFrames.length - 1, offset + directionFrame[normalized]);
         return bulletFrames[index];
     }
 
+    public TextureRegion artilleryShadowFrame() {
+        if (bulletFrames == null || bulletFrames.length <= 12) return defaultBulletFrame;
+        return bulletFrames[12];
+    }
+
+    /** Frame 17 trong bullets.png: Hồng tâm ngắm mục tiêu (Target Reticle) màu đỏ. */
+    public TextureRegion targetReticleFrame() {
+        if (bulletFrames == null || bulletFrames.length <= 17) return defaultBulletFrame;
+        return bulletFrames[17];
+    }
+
+    public TextureRegion artilleryPartFrame(int partIndex) {
+        if (bulletFrames == null || bulletFrames.length <= 22) return defaultBulletFrame;
+        int frame = 22 - Math.max(0, Math.min(3, partIndex));
+        return bulletFrames[frame];
+    }
+
+    public TextureRegion smallExplosionFrame(float progress) {
+        if (smallExplosionFrames == null || smallExplosionFrames.length == 0) return null;
+        int index = Math.max(0, Math.min(smallExplosionFrames.length - 1, (int) (progress * smallExplosionFrames.length)));
+        return smallExplosionFrames[index];
+    }
+
+    public TextureRegion bigExplosionFrame(float progress) {
+        if (explosionFrames == null || explosionFrames.length == 0) return null;
+        int index = Math.max(0, Math.min(explosionFrames.length - 1, (int) (progress * explosionFrames.length)));
+        return explosionFrames[index];
+    }
+
     public TextureRegion explosionFrame(int weaponType, float progress) {
-        TextureRegion[] frames = weaponType == 1 ? plasmaExplosionFrames
+        TextureRegion[] frames = weaponType == 6 || weaponType == 7 || weaponType == 8 ? explosionFrames
+                : weaponType == 1 ? plasmaExplosionFrames
                 : weaponType == 3 ? bigPlasmaExplosionFrames
                 : weaponType == 4 || weaponType == 5 ? bigRedExplosionFrames
                 : smallExplosionFrames;

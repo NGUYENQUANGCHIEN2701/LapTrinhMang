@@ -50,6 +50,44 @@ class GameSimulationTest {
     }
 
     @Test
+    @DisplayName("Armor Piercing va Reinforced AP tru damage hai chieu va xuyen qua dan thuong nhu Builds")
+    void armorPiercingRoundsKeepFlyingAfterCancellingWeakerRounds() {
+        GameSimulation sim = new GameSimulation(99L);
+        GameWorld world = sim.getWorld();
+        world.setCurrentMap(TestMaps.open());
+        world.setStatus(GameWorld.Status.PLAYING);
+        PlayerTank player = new PlayerTank("player", 60, 60);
+        AITank enemy = new AITank("enemy", 300, 300,
+                com.tankzors.client.gameplay.ai.DifficultyLevel.EASY);
+        world.addTank(player);
+        world.addTank(enemy);
+
+        Bullet armorPiercing = new Bullet("ap", player.getId(), new Position(180, 180), 90,
+                1, 3, 8, 4, WeaponProfile.ARMOR_PIERCING.getItemId());
+        Bullet shell = new Bullet("shell", enemy.getId(), new Position(180, 180), 270,
+                1, 1, 8, 4, WeaponProfile.SHELL.getItemId());
+        world.addBullet(armorPiercing);
+        world.addBullet(shell);
+        sim.step(GameplayConfig.STEP_SECONDS);
+
+        assertTrue(armorPiercing.isActive());
+        assertEquals(2, armorPiercing.getDamage());
+        assertFalse(shell.isActive());
+
+        Bullet reinforcedAp = new Bullet("rap", player.getId(), new Position(220, 220), 90,
+                1, 5, 8, 4, WeaponProfile.REINFORCED_AP.getItemId());
+        Bullet doubleShell = new Bullet("double", enemy.getId(), new Position(220, 220), 270,
+                1, 2, 8, 4, WeaponProfile.DOUBLE_SHELL.getItemId());
+        world.addBullet(reinforcedAp);
+        world.addBullet(doubleShell);
+        sim.step(GameplayConfig.STEP_SECONDS);
+
+        assertTrue(reinforcedAp.isActive());
+        assertEquals(3, reinforcedAp.getDamage());
+        assertFalse(doubleShell.isActive());
+    }
+
+    @Test
     @DisplayName("Workshop armor áp dụng ngay, repair chỉ hồi phần HP thân xe thiếu")
     void workshopArmorAndRepairApplyToCurrentTank() {
         GameSimulation sim = new GameSimulation(77L);
@@ -564,5 +602,46 @@ class GameSimulationTest {
             }
         }
         fail("Player bullet did not reach an obstacle within 30 fixed steps");
+    }
+
+    @Test
+    @DisplayName("Artillery bullet luu startX, startY va maxRange de snapshot phuc vu render quy dao va reticle diem roi")
+    void artillerySnapshotPreservesTrajectoryAndRange() {
+        GameSimulation sim = new GameSimulation(100L);
+        PlayerShopState shop = new PlayerShopState();
+        shop.setItemCount(ShopItem.ARTILLERY.getId(), 2);
+        shop.setActiveWeaponId(ShopItem.ARTILLERY.getId());
+        sim.setShopState(shop);
+
+        MapDefinition map = TestMaps.open();
+        setPlayerSpawn(map, 3, 4);
+        map.setEnemies(List.of(new MapDefinition.EnemyConfig("AI", "EASY", 15, 10)));
+        sim.startCampaignLevel(map, "campaign_1", "player");
+
+        GameWorld world = sim.getWorld();
+        PlayerTank player = (PlayerTank) world.getTank("player");
+        assertNotNull(player);
+        assertTrue(player.getPosition().getX() > 0);
+        assertTrue(player.getPosition().getY() > 0);
+
+        sim.enqueueShoot();
+        sim.step(GameplayConfig.STEP_SECONDS);
+
+        assertEquals(1, world.getBulletCount(), "Must spawn an artillery shell");
+        com.tankzors.client.gameplay.interfaces.IBullet rawBullet = world.getAllBullets().iterator().next();
+        assertTrue(rawBullet instanceof Bullet);
+        Bullet b = (Bullet) rawBullet;
+        assertEquals(ShopItem.ARTILLERY.getId(), b.getWeaponType());
+        assertEquals(player.getPosition().getX(), b.getStartX(), 0.001);
+        assertEquals(player.getPosition().getY(), b.getStartY(), 0.001);
+        assertTrue(b.getMaxRange() > 0, "MaxRange must be positive for artillery");
+
+        // Test snapshot mapper
+        GameStateSnapshot snap = WorldSnapshotMapper.snapshot(world, "player", 0, 0.0);
+        assertEquals(1, snap.bullets.size());
+        com.tankzors.client.model.BulletSnapshot bs = snap.bullets.get(0);
+        assertEquals((float) player.getPosition().getX(), bs.startX, 0.001f);
+        assertEquals((float) player.getPosition().getY(), bs.startY, 0.001f);
+        assertEquals((float) b.getMaxRange(), bs.maxRange, 0.001f);
     }
 }

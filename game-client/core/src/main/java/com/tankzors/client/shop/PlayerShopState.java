@@ -37,7 +37,7 @@ public class PlayerShopState {
     public void setActiveWeaponId(int id) { this.activeWeaponId = id; }
 
     public void selectWeapon(int weaponId) {
-        if (weaponId >= 0 && weaponId <= 5 && getItemCount(weaponId) > 0) {
+        if (weaponId >= 0 && weaponId <= ShopItem.ROCKET.getId() && getItemCount(weaponId) > 0) {
             this.activeWeaponId = weaponId;
         }
     }

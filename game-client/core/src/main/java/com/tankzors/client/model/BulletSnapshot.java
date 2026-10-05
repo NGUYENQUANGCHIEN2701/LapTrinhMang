@@ -16,5 +16,8 @@ public final class BulletSnapshot {
     public int weaponType;
     /** Damage còn lại; Double Shell/Plasma còn 1 được render mờ như Builds. */
     public int damage;
+    public float startX;
+    public float startY;
+    public float maxRange;
     public boolean active;
 }

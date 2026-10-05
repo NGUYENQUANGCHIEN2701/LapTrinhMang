@@ -22,6 +22,9 @@ public interface GameEventListener {
     /** Trận đấu kết thúc (VICTORY hoặc DEFEAT). */
     void onMatchEnd(GameWorld.Status status);
 
+    /** Vụ nổ vũ khí đặc biệt (Artillery, Warhead, Rocket). */
+    default void onSpecialExplosion(int weaponType, int radius) {}
+
     default void onPickup() {}
     default void onUseRepair() {}
     default void onUseSpeed() {}

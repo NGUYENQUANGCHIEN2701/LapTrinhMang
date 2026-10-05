@@ -198,6 +198,9 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
             @Override public void onUseRepair() { if (audioManager != null) audioManager.playRepair(); }
             @Override public void onUseSpeed() { if (audioManager != null) audioManager.playSpeed(); }
             @Override public void onUseFreeze() { if (audioManager != null) audioManager.playFreeze(); }
+            @Override public void onSpecialExplosion(int weaponType, int radius) {
+                if (audioManager != null) audioManager.playExplosionArtillery(radius);
+            }
         };
     }
 
@@ -346,7 +349,7 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         if (!items.isEmpty()) {
             int index = Math.max(0, Math.min(inventorySelectionIndex, items.size() - 1));
             int itemId = items.get(index);
-            if (itemId >= 0 && itemId <= 5) {
+            if (itemId >= 0 && itemId <= ShopItem.ROCKET.getId()) {
                 selectWeapon(itemId);
             } else {
                 sim.useInventoryItem(itemId);
@@ -359,6 +362,9 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
     private List<Integer> inventoryMenuItems() {
         List<Integer> ids = new ArrayList<>();
         for (int id = 0; id <= 5; id++) {
+            if (shopState.getItemCount(id) > 0) ids.add(id);
+        }
+        for (int id = ShopItem.ARTILLERY.getId(); id <= ShopItem.ROCKET.getId(); id++) {
             if (shopState.getItemCount(id) > 0) ids.add(id);
         }
         if (shopState.getItemCount(ShopItem.REPAIR.getId()) > 0) ids.add(ShopItem.REPAIR.getId());

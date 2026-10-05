@@ -85,6 +85,9 @@ public final class WorldSnapshotMapper {
             bs.ownerId = b.getOwnerId();
             bs.weaponType = b.getWeaponType();
             bs.damage = b.getDamage();
+            bs.startX = (float) b.getStartX();
+            bs.startY = (float) b.getStartY();
+            bs.maxRange = (float) b.getMaxRange();
             bs.active = b.isActive();
             snap.bullets.add(bs);
         }
