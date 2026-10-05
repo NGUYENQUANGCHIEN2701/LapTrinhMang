@@ -240,12 +240,6 @@ public final class ClientInputProcessor implements InputProcessor {
         if (shopOverlay != null && shopOverlay.isVisible()) {
             return shopOverlay.handleTouchDown(screenX, screenY);
         }
-        // HUD buttons check
-        // [B] WORKSHOP button at (260, 10, 130, 45)
-        if (screenX >= 260 && screenX <= 390 && screenY >= 10 && screenY <= 55) {
-            callbacks.onToggleShop();
-            return true;
-        }
         // Weapon Slot at (400, 10, 80, 45)
         if (screenX >= 400 && screenX <= 480 && screenY >= 10 && screenY <= 55) {
             callbacks.onCycleWeapon();

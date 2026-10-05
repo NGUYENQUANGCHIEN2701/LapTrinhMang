@@ -27,6 +27,11 @@ public class ShopOverlay {
     public interface ShopListener {
         void onShopClosed();
         void onShopStateChanged();
+        default void onShopVisibilityChanged(boolean visible) {}
+        default void onItemBought(ShopItem item) {}
+        default void onItemSold(ShopItem item) {}
+        default int missingTankHp() { return 0; }
+        default boolean repairTank() { return false; }
     }
 
     public enum Tab {
@@ -80,6 +85,7 @@ public class ShopOverlay {
             audio.playUiWindow();
             audio.playBriefingMusic();
         }
+        if (listener != null) listener.onShopVisibilityChanged(true);
     }
 
     public void hide() {
@@ -91,6 +97,7 @@ public class ShopOverlay {
         }
         if (listener != null) {
             listener.onShopClosed();
+            listener.onShopVisibilityChanged(false);
         }
     }
 
@@ -351,10 +358,14 @@ public class ShopOverlay {
 
             // Đăng ký vùng bấm
             if (canBuy) {
-                clickAreas.add(new ClickArea(buyBtnX, rowY + 8, 32, 28, () -> shopState.buy(item)));
+                clickAreas.add(new ClickArea(buyBtnX, rowY + 8, 32, 28, () -> {
+                    if (shopState.buy(item) && listener != null) listener.onItemBought(item);
+                }));
             }
             if (canSell) {
-                clickAreas.add(new ClickArea(sellBtnX, rowY + 8, 32, 28, () -> shopState.sell(item)));
+                clickAreas.add(new ClickArea(sellBtnX, rowY + 8, 32, 28, () -> {
+                    if (shopState.sell(item) && listener != null) listener.onItemSold(item);
+                }));
             }
         }
     }
@@ -404,7 +415,9 @@ public class ShopOverlay {
             batch.end();
 
             if (canUpgrade) {
-                clickAreas.add(new ClickArea(btnX, rowY + 8, 100, 28, () -> shopState.upgradeResearch(tech)));
+                clickAreas.add(new ClickArea(btnX, rowY + 8, 100, 28, () -> {
+                    if (shopState.upgradeResearch(tech) && listener != null) listener.onShopStateChanged();
+                }));
             }
         }
     }
@@ -416,7 +429,10 @@ public class ShopOverlay {
         float repairBtnX = x + 16;
 
         shapes.begin(ShapeRenderer.ShapeType.Filled);
-        shapes.setColor(new Color(0.22f, 0.32f, 0.42f, 1f));
+        int missingHp = listener != null ? listener.missingTankHp() : 0;
+        int repairCost = shopState.getRepairTankCost(missingHp);
+        boolean canRepair = missingHp > 0 && shopState.getCoins() >= repairCost;
+        shapes.setColor(canRepair ? new Color(0.22f, 0.32f, 0.42f, 1f) : new Color(0.25f, 0.28f, 0.32f, 0.7f));
         shapes.rect(repairBtnX, y + 6, repairBtnW, 32);
 
         // Nút Tiếp tục / Chiến đấu
@@ -428,15 +444,13 @@ public class ShopOverlay {
 
         batch.begin();
         font.setColor(Color.WHITE);
-        font.draw(batch, "[ SUA XE TANG ]", repairBtnX + 24, y + 14);
+        font.draw(batch, "[ SUA XE " + missingHp + " HP - " + repairCost + " C ]", repairBtnX + 8, y + 14);
         font.setColor(Color.YELLOW);
         font.draw(batch, "[ CHIEN DAU (ESC) ]", battleBtnX + 16, y + 14);
         batch.end();
 
-        clickAreas.add(new ClickArea(repairBtnX, y + 6, repairBtnW, 32, () -> {
-            // Sửa chữa xe nếu còn coin
-            shopState.repairTank(20);
-        }));
+        if (canRepair) clickAreas.add(new ClickArea(repairBtnX, y + 6, repairBtnW, 32,
+                () -> { if (listener != null) listener.repairTank(); }));
 
         clickAreas.add(new ClickArea(battleBtnX, y + 6, battleBtnW, 32, this::hide));
     }

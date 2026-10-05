@@ -12,5 +12,12 @@ public final class BulletSnapshot {
     public float y;
     public float direction;
     public String ownerId;
+    /** Shop ammunition ID (0..5), required to render the Builds projectile frame. */
+    public int weaponType;
+    /** Damage còn lại; Double Shell/Plasma còn 1 được render mờ như Builds. */
+    public int damage;
+    public float startX;
+    public float startY;
+    public float maxRange;
     public boolean active;
 }

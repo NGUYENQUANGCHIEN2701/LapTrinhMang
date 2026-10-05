@@ -36,6 +36,7 @@ public class GameRenderer implements Disposable {
 
     private MapSnapshot cachedMap;
     private int lastMapHash = 0;
+    private float animTime = 0f;
 
     public GameRenderer(AssetRepository assets) {
         this.assets = assets;
@@ -62,6 +63,7 @@ public class GameRenderer implements Disposable {
         Gdx.gl.glClear(com.badlogic.gdx.graphics.GL20.GL_COLOR_BUFFER_BIT);
 
         if (state == null) return;
+        animTime += Gdx.graphics.getDeltaTime();
 
         // Khi đang chuyển màn / lỗi tải: giữ world cũ (nếu có) và vẽ overlay transition.
         boolean transitioning = state.transitionStatus != null;
@@ -78,6 +80,8 @@ public class GameRenderer implements Disposable {
         for (TankSnapshot tank : state.tanks) {
             drawTank(tank);
         }
+        // 2.5 Aim preview khi trang bị Artillery
+        drawArtilleryAimPreview(state);
         // 3. Bullets
         for (BulletSnapshot bullet : state.bullets) {
             if (isVisible(visibility, state.map, bullet.x, bullet.y)) drawBullet(bullet);
@@ -149,6 +153,9 @@ public class GameRenderer implements Disposable {
 
     private VisibilityMask createVisibility(GameStateSnapshot state) {
         if (state.map == null) return null;
+        // Radar in Builds reveals the whole operational map, including enemies
+        // and bonuses. The normal fog mask remains active without a radar.
+        if (state.radarActive) return null;
         TankSnapshot player = null;
         for (TankSnapshot tank : state.tanks) if (tank.isPlayer) { player = tank; break; }
         int col = player != null ? (int) (player.x / state.map.tileSize) : state.map.width / 2;
@@ -223,30 +230,195 @@ public class GameRenderer implements Disposable {
 
     private void drawTank(TankSnapshot tank) {
         if (!tank.alive || tank.hp <= 0) return;
+        if (tank.maxShieldHp > 0) {
+            com.badlogic.gdx.graphics.g2d.TextureRegion shield = assets.shieldRingFrame();
+            if (shield != null) {
+                batch.setColor(0.25f, 0.9f, 1f, tank.shieldHp > 0 ? 1f : 0.28f);
+                batch.draw(shield, tank.x - 27, tank.y - 27, 54, 54);
+                batch.setColor(Color.WHITE);
+            }
+        }
         com.badlogic.gdx.graphics.g2d.TextureRegion frame = assets.tankFrame(tank.isPlayer, tank.rotation);
         if (frame != null) {
             batch.draw(frame, tank.x - 20, tank.y - 20, 40, 40);
         }
     }
 
+    private void drawArtilleryAimPreview(GameStateSnapshot state) {
+        if (state.activeWeaponId != 6) return;
+        TankSnapshot player = null;
+        for (TankSnapshot tank : state.tanks) {
+            if (tank.isPlayer && tank.alive && tank.hp > 0) {
+                player = tank;
+                break;
+            }
+        }
+        if (player == null) return;
+
+        int tileSize = cachedMap != null ? cachedMap.tileSize : 40;
+        float aimDist = 4f * tileSize; // Tầm bắn chuẩn của Artillery là 4 tiles (160px)
+        float rad = player.rotation * MathUtils.degreesToRadians;
+        float dirX = MathUtils.sin(rad);
+        float dirY = -MathUtils.cos(rad);
+
+        float targetX = player.x + dirX * aimDist;
+        float targetY = player.y + dirY * aimDist;
+
+        // 1. Vẽ các chấm quỹ đạo ngắm (Aim trajectory dots) từ nòng xe tăng tới đích
+        com.badlogic.gdx.graphics.g2d.TextureRegion dotFrame = assets.artilleryPartFrame(3);
+        if (dotFrame != null) {
+            float startDist = 24f;
+            float step = 16f;
+            for (float d = startDist; d < aimDist - 12f; d += step) {
+                float dotX = player.x + dirX * d;
+                float dotY = player.y + dirY * d;
+                float dotAlpha = 0.40f + 0.20f * MathUtils.sin(animTime * 8f - d * 0.05f);
+                batch.setColor(1f, 0.45f, 0.20f, dotAlpha);
+                batch.draw(dotFrame, dotX - 4f, dotY - 4f, 8f, 8f);
+            }
+        }
+
+        // 2. Vẽ Target Reticle (Frame 17 từ bullets.png) màu đỏ nhấp nháy tại điểm rơi dự kiến
+        com.badlogic.gdx.graphics.g2d.TextureRegion reticle = assets.targetReticleFrame();
+        if (reticle != null) {
+            float pulse = 0.95f + 0.10f * MathUtils.sin(animTime * 8f);
+            float rw = 32f * pulse;
+            float rh = 32f * pulse;
+            float alpha = 0.70f + 0.25f * MathUtils.sin(animTime * 10f);
+            batch.setColor(1f, 0.20f, 0.20f, alpha);
+            batch.draw(reticle, targetX - rw / 2f, targetY - rh / 2f, rw, rh);
+        }
+        batch.setColor(Color.WHITE);
+    }
+
     private void drawBullet(BulletSnapshot bullet) {
         if (!bullet.active) return;
-        com.badlogic.gdx.graphics.g2d.TextureRegion frame = assets.defaultBulletFrame();
+        if (bullet.weaponType == 6) {
+            // Quỹ đạo Artillery: chuẩn Base Builds + Target Landing Reticle & 3D Perspective Floating Arc
+            float maxDist = bullet.maxRange > 0 ? bullet.maxRange : 160f;
+            float startX = (bullet.startX != 0f || bullet.startY != 0f) ? bullet.startX : bullet.x;
+            float startY = (bullet.startX != 0f || bullet.startY != 0f) ? bullet.startY : bullet.y;
+            float d = (float) Math.hypot(bullet.x - startX, bullet.y - startY);
+            int tileSize = cachedMap != null ? cachedMap.tileSize : 40;
+
+            float radians = bullet.direction * MathUtils.degreesToRadians;
+            float dirX = MathUtils.sin(radians);
+            float dirY = -MathUtils.cos(radians);
+
+            // Tọa độ điểm rơi của quả pháo trên mặt đất
+            float targetX = startX + dirX * maxDist;
+            float targetY = startY + dirY * maxDist;
+
+            // 1. Chỉ định điểm rơi: Target Reticle (Frame 17 từ bullets.png) nhấp nháy cảnh báo đỏ
+            com.badlogic.gdx.graphics.g2d.TextureRegion reticle = assets.targetReticleFrame();
+            if (reticle != null) {
+                float progress = Math.min(1.0f, d / maxDist);
+                float pulseFreq = 10f + progress * 8f; // Nhấp nháy nhanh dần khi đạn càng gần đích
+                float pulse = 1.0f + 0.15f * MathUtils.sin(animTime * pulseFreq);
+                float rw = 32f * pulse;
+                float rh = 32f * pulse;
+                float reticleAlpha = 0.75f + 0.25f * MathUtils.sin(animTime * pulseFreq);
+                batch.setColor(1f, 0.15f, 0.15f, reticleAlpha);
+                batch.draw(reticle, targetX - rw / 2f, targetY - rh / 2f, rw, rh);
+                batch.setColor(Color.WHITE);
+            }
+
+            // 2. Bóng đạn trên mặt đất (Frame 12 từ bullets.png)
+            com.badlogic.gdx.graphics.g2d.TextureRegion shadow = assets.artilleryShadowFrame();
+            if (shadow != null) {
+                // Tỷ lệ độ cao từ 0.0 (mặt đất) đến 1.0 (đỉnh parabol)
+                float currentHeightRatio = (float) Math.sin(Math.min(1.0f, d / maxDist) * Math.PI);
+                // Khi lên cao bóng co nhỏ (scale 0.72x) và mờ dần (alpha 0.40f); khi sắp chạm đất bóng to đậm lại
+                float shadowScale = 1.0f - 0.28f * currentHeightRatio;
+                float shadowAlpha = 0.85f - 0.45f * currentHeightRatio;
+                batch.setColor(1f, 1f, 1f, shadowAlpha);
+                float sw = 24f * shadowScale;
+                float sh = 24f * shadowScale;
+                batch.draw(shadow, bullet.x - sw / 2f, bullet.y - sh / 2f, sw, sh);
+                batch.setColor(Color.WHITE);
+            }
+
+            // 3. Quả pháo và vệt khói lửa lơ lửng trên không:
+            // Đỉnh parabol nâng cao lên tileSize * 2.6f (~104px) để tạo cảm giác bay bổng rõ rệt
+            float maxHeight = tileSize * 2.6f;
+            int partCount = 5;
+            float[] alphas = { 1.0f, 0.90f, 0.75f, 0.60f, 0.45f };
+            float[] delaySteps = { 0f, 8f, 16f, 24f, 32f };
+
+            for (int i = 0; i < partCount; i++) {
+                float delay = delaySteps[i];
+                if (d < delay) break;
+                float partX = bullet.x - dirX * delay;
+                float partY = bullet.y - dirY * delay;
+                float partD = Math.max(0f, d - delay);
+                if (partD > maxDist) continue;
+
+                // Vòng cung parabol sin: đỉnh cao nhất ở giữa quãng đường
+                float heightRatio = (float) Math.sin(Math.min(1.0f, partD / maxDist) * Math.PI);
+                float offY = heightRatio * maxHeight;
+
+                // Phối cảnh 3D giả lập: đạn ở đỉnh cao phóng to (lên tới 1.70x ~41px) để nhìn rõ chi tiết trên không
+                float baseScale = (i == 0) ? 1.20f : (1.0f - i * 0.08f);
+                float scale = baseScale + 0.50f * heightRatio;
+                float pw = 24f * scale;
+                float ph = 24f * scale;
+
+                com.badlogic.gdx.graphics.g2d.TextureRegion partFrame = assets.artilleryPartFrame(i);
+                if (partFrame != null) {
+                    batch.setColor(1f, 1f, 1f, alphas[i]);
+                    // camera y-down: trừ offY để nâng vật thể bay lên cao!
+                    batch.draw(partFrame, partX - pw / 2f, (partY - offY) - ph / 2f, pw, ph);
+                }
+            }
+            batch.setColor(Color.WHITE);
+            return;
+        }
+
+        com.badlogic.gdx.graphics.g2d.TextureRegion frame = assets.bulletFrame(bullet.weaponType, bullet.direction);
         if (frame == null) return;
+        // Builds tạo một Bullet cho Double Shell/Double Plasma, rồi vẽ hai
+        // sprite cách nhau 3 px theo phương vuông góc đường bay — không tạo hai
+        // projectile độc lập. Khi va chạm làm damage còn 1, sprite chuyển mờ.
+        if (bullet.weaponType == 2 || bullet.weaponType == 3) {
+            float radians = bullet.direction * MathUtils.degreesToRadians;
+            float perpendicularX = -MathUtils.cos(radians) * 3f;
+            float perpendicularY = MathUtils.sin(radians) * 3f;
+            if (bullet.damage == 1) batch.setColor(1f, 1f, 1f, 160f / 255f);
+            drawBulletFrame(frame, bullet.x + perpendicularX, bullet.y + perpendicularY);
+            drawBulletFrame(frame, bullet.x - perpendicularX, bullet.y - perpendicularY);
+            batch.setColor(Color.WHITE);
+            return;
+        }
+        drawBulletFrame(frame, bullet.x, bullet.y);
+    }
+
+    private void drawBulletFrame(com.badlogic.gdx.graphics.g2d.TextureRegion frame, float x, float y) {
         float w = 24, h = 24;
         batch.draw(frame,
-            bullet.x - w / 2f, bullet.y - h / 2f,
+            x - w / 2f, y - h / 2f,
             w / 2f, h / 2f,
             w, h,
             1f, 1f,
-            bullet.direction - 90f
+            0f
         );
     }
 
     private void drawEffect(EffectSnapshot effect) {
-        com.badlogic.gdx.graphics.g2d.TextureRegion frame = assets.explosionFrame(effect.progress);
+        if (effect.weaponType == 6 && effect.blastRadius == 0) {
+            // Nổ lớn từng ô do Artillery tạo ra (big.png / explosion_big)
+            com.badlogic.gdx.graphics.g2d.TextureRegion frame = assets.bigExplosionFrame(effect.progress);
+            if (frame != null) {
+                float size = 44f;
+                batch.draw(frame, effect.x - size / 2f, effect.y - size / 2f, size, size);
+            }
+            return;
+        }
+        com.badlogic.gdx.graphics.g2d.TextureRegion frame = assets.explosionFrame(effect.weaponType, effect.progress);
         if (frame == null) return;
-        float size = effect.impact ? 26f : 56f;
+        float size = effect.blastRadius > 0 ? effect.blastRadius * 80f
+                : effect.weaponType == 0 || effect.weaponType == 2 ? (effect.impact ? 20f : 26f)
+                : effect.weaponType == 1 ? (effect.impact ? 22f : 30f)
+                : 48f;
         batch.draw(frame, effect.x - size / 2f, effect.y - size / 2f, size, size);
     }
 
@@ -269,6 +441,11 @@ public class GameRenderer implements Disposable {
         else shapes.setColor(Color.RED);
 
         shapes.rect(bx, by, barW * pct, barH);
+        if (tank.maxShieldHp > 0) {
+            float shieldPct = MathUtils.clamp((float) tank.shieldHp / tank.maxShieldHp, 0, 1);
+            shapes.setColor(0.1f, 0.85f, 1f, 0.95f);
+            shapes.rect(bx, by - 3, barW * shieldPct, 2);
+        }
     }
 
     private void drawHud(GameStateSnapshot state) {
@@ -278,6 +455,8 @@ public class GameRenderer implements Disposable {
         }
         int hp = player != null ? player.hp : 0;
         int maxHp = player != null ? player.maxHp : 100;
+        int shieldHp = player != null ? player.shieldHp : 0;
+        int maxShieldHp = player != null ? player.maxShieldHp : 0;
 
         int inventoryCount = inventoryCount(state);
         float panelHeight = state.inventoryMenuOpen ? 48 + inventoryCount * 34 : 82;
@@ -297,6 +476,13 @@ public class GameRenderer implements Disposable {
         else shapes.setColor(Color.RED);
         shapes.rect(18, 30, 138 * pct, 12);
         drawHealthTicks(18, 30, 138, 12, 5);
+        if (maxShieldHp > 0) {
+            shapes.setColor(0.03f, 0.18f, 0.25f, 0.95f);
+            shapes.rect(18, 44, 138, 4);
+            float shieldPct = MathUtils.clamp((float) shieldHp / maxShieldHp, 0, 1);
+            shapes.setColor(0.12f, 0.88f, 1f, 1f);
+            shapes.rect(18, 44, 138 * shieldPct, 4);
+        }
         shapes.end();
 
         // Vẽ Text & Icon trong batch.
@@ -304,9 +490,21 @@ public class GameRenderer implements Disposable {
         // HP Label
         font.setColor(Color.WHITE);
         font.draw(batch, "HP " + hp + "/" + maxHp, 18, 14);
+        if (maxShieldHp > 0) {
+            font.setColor(Color.CYAN);
+            font.draw(batch, "SH " + shieldHp + "/" + maxShieldHp, 104, 14);
+        }
 
         if (!state.inventoryMenuOpen) {
             drawInventoryItem(state.activeWeaponId, state.activeWeaponAmmo, 18, 50, false);
+        }
+        if (state.radarActive) {
+            font.setColor(Color.CYAN);
+            font.draw(batch, "RADAR ONLINE", 18, panelHeight - 8);
+        }
+        if (state.freezeSecondsRemaining > 0) {
+            font.setColor(Color.CYAN);
+            font.draw(batch, "FREEZE " + (int) Math.ceil(state.freezeSecondsRemaining) + "s", 18, panelHeight - 24);
         }
         batch.end();
     }

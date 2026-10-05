@@ -10,13 +10,15 @@ public enum ShopItem {
     PLASMA(1, "Plasma", Category.BASIC_AMMO, 15, 10, 99, "shellResearch", 1, "May tao tia plasma nang luong cao."),
     DOUBLE_ROUND(2, "Double Shell", Category.BASIC_AMMO, 30, 10, 40, "shellResearch", 2, "Ban cung luc 2 vien dan nong doi."),
     DOUBLE_PLASMA(3, "Double Plasma", Category.BASIC_AMMO, 55, 10, 40, "shellResearch", 3, "Ban cung luc 2 tia plasma cuc manh."),
-    ROUND2(4, "Armor Piercing", Category.BASIC_AMMO, 70, 10, 10, "shellResearch", 4, "Dan xuyen giap cong pha manh."),
-    ROUND3(5, "Reinforced AP", Category.BASIC_AMMO, 120, 10, 10, "shellResearch", 5, "Dan xuyen giap cuong hoa toi tan."),
+    ROUND2(4, "Armor Piercing", Category.BASIC_AMMO, 70, 10, 10, "shellResearch", 4,
+            "Dan xuyen giap 3 HP, van bay sau khi pha dan."),
+    ROUND3(5, "Reinforced AP", Category.BASIC_AMMO, 120, 10, 10, "shellResearch", 5,
+            "Dan xuyen giap cuong hoa, sat thuong 5 HP."),
 
     // --- VŨ KHÍ BỔ TRỢ & ĐẶC BIỆT (Mua từng đơn vị) ---
-    ARTILLERY(6, "Artillery", Category.SPECIAL_AMMO, 100, 1, 99, "artilleryResearch", 1, "Phao cau vong bay qua tuong chan."),
-    WARHEAD(7, "Warhead", Category.SPECIAL_AMMO, 60, 1, 99, "missileResearch", 1, "Dau dan no tam ban vo han."),
-    ROCKET(8, "Guided Missile", Category.SPECIAL_AMMO, 320, 1, 99, "missileResearch", 2, "Ten lua tu hanh pha tuong be tong xam."),
+    ARTILLERY(6, "Artillery", Category.SPECIAL_AMMO, 100, 1, 99, "artilleryResearch", 1, "Phao cau vong, bay qua tuong va no vung."),
+    WARHEAD(7, "Warhead", Category.SPECIAL_AMMO, 60, 1, 99, "missileResearch", 1, "Dau dan tam xa, no vung 3 o."),
+    ROCKET(8, "Guided Missile", Category.SPECIAL_AMMO, 320, 1, 99, "missileResearch", 2, "Ten lua dan duong, pha tuong thuong."),
     MINE(10, "TMD-5 Mine", Category.SPECIAL_AMMO, 10, 1, 99, "mineResearch", 1, "Min chong tang co ban."),
     MINE2(11, "TMD-9 Mine", Category.SPECIAL_AMMO, 25, 1, 99, "mineResearch", 2, "Min chong tang sat thuong cao."),
     DYNAMITE(12, "Dynamite x70", Category.SPECIAL_AMMO, 35, 1, 99, "dynamiteResearch", 1, "Thuoc no cong pha chuong ngai vat."),
@@ -25,8 +27,8 @@ public enum ShopItem {
     AIR_SUPPORT(9, "Air Strike", Category.SPECIAL_AMMO, 170, 1, 99, "airRaidResearch", 1, "Goi may bay nem bom yem tro."),
 
     // --- PHÒNG THỦ & HỖ TRỢ ---
-    ARMOR(21, "Temp Armor", Category.DEFENSE, 110, 1, 4, "armorResearch", 1, "Giap tam thoi (+20 HP, mat khi xe bi pha huy)."),
-    ARMOR2(22, "Perm Armor", Category.DEFENSE, 250, 1, 4, "armorResearch", 2, "Giap vinh cuu nang cap do ben xe (+25 HP)."),
+    ARMOR(21, "Temp Armor", Category.DEFENSE, 110, 1, 4, "armorResearch", 1, "Giap tam thoi (+1 HP, mat khi xe bi pha huy)."),
+    ARMOR2(22, "Perm Armor", Category.DEFENSE, 250, 1, 4, "armorResearch", 2, "Giap vinh cuu nang cap do ben xe (+1 HP)."),
     FORCE_FIELD(20, "Force Field", Category.DEFENSE, 100, 1, 5, "powerFieldResearch", 1, "Khien nang luong tu dong tai tao."),
     REPAIR(19, "Repair Kit", Category.SUPPORT, 40, 1, 99, null, 0, "Tui cuu thuong hoi phuc HP trong tran."),
     RADAR(23, "Radar", Category.SUPPORT, 320, 1, 1, null, 0, "Radar dinh vi dich va cho phep goi khong kich."),
@@ -92,4 +94,3 @@ public enum ShopItem {
         return null;
     }
 }
-

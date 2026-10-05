@@ -25,6 +25,93 @@ import static org.junit.jupiter.api.Assertions.*;
 class GameSimulationTest {
 
     @Test
+    @DisplayName("Double Shell chặn Shell nhưng còn một nòng bay tiếp như Builds")
+    void doubleShellSurvivesCollisionWithSingleShell() {
+        GameSimulation sim = new GameSimulation(99L);
+        GameWorld world = sim.getWorld();
+        world.setCurrentMap(TestMaps.open());
+        world.setStatus(GameWorld.Status.PLAYING);
+        PlayerTank player = new PlayerTank("player", 60, 60);
+        AITank enemy = new AITank("enemy", 300, 300, com.tankzors.client.gameplay.ai.DifficultyLevel.EASY);
+        world.addTank(player);
+        world.addTank(enemy);
+        Bullet doubleShell = new Bullet("double", player.getId(), new Position(180, 180), 90,
+                1, 2, 8, 4, 2);
+        Bullet shell = new Bullet("shell", enemy.getId(), new Position(180, 180), 270,
+                1, 1, 8, 4, 0);
+        world.addBullet(doubleShell);
+        world.addBullet(shell);
+
+        sim.step(GameplayConfig.STEP_SECONDS);
+
+        assertTrue(doubleShell.isActive());
+        assertEquals(1, doubleShell.getDamage());
+        assertFalse(shell.isActive());
+    }
+
+    @Test
+    @DisplayName("Armor Piercing va Reinforced AP tru damage hai chieu va xuyen qua dan thuong nhu Builds")
+    void armorPiercingRoundsKeepFlyingAfterCancellingWeakerRounds() {
+        GameSimulation sim = new GameSimulation(99L);
+        GameWorld world = sim.getWorld();
+        world.setCurrentMap(TestMaps.open());
+        world.setStatus(GameWorld.Status.PLAYING);
+        PlayerTank player = new PlayerTank("player", 60, 60);
+        AITank enemy = new AITank("enemy", 300, 300,
+                com.tankzors.client.gameplay.ai.DifficultyLevel.EASY);
+        world.addTank(player);
+        world.addTank(enemy);
+
+        Bullet armorPiercing = new Bullet("ap", player.getId(), new Position(180, 180), 90,
+                1, 3, 8, 4, WeaponProfile.ARMOR_PIERCING.getItemId());
+        Bullet shell = new Bullet("shell", enemy.getId(), new Position(180, 180), 270,
+                1, 1, 8, 4, WeaponProfile.SHELL.getItemId());
+        world.addBullet(armorPiercing);
+        world.addBullet(shell);
+        sim.step(GameplayConfig.STEP_SECONDS);
+
+        assertTrue(armorPiercing.isActive());
+        assertEquals(2, armorPiercing.getDamage());
+        assertFalse(shell.isActive());
+
+        Bullet reinforcedAp = new Bullet("rap", player.getId(), new Position(220, 220), 90,
+                1, 5, 8, 4, WeaponProfile.REINFORCED_AP.getItemId());
+        Bullet doubleShell = new Bullet("double", enemy.getId(), new Position(220, 220), 270,
+                1, 2, 8, 4, WeaponProfile.DOUBLE_SHELL.getItemId());
+        world.addBullet(reinforcedAp);
+        world.addBullet(doubleShell);
+        sim.step(GameplayConfig.STEP_SECONDS);
+
+        assertTrue(reinforcedAp.isActive());
+        assertEquals(3, reinforcedAp.getDamage());
+        assertFalse(doubleShell.isActive());
+    }
+
+    @Test
+    @DisplayName("Workshop armor áp dụng ngay, repair chỉ hồi phần HP thân xe thiếu")
+    void workshopArmorAndRepairApplyToCurrentTank() {
+        GameSimulation sim = new GameSimulation(77L);
+        PlayerShopState shop = new PlayerShopState();
+        shop.setCoins(1_000);
+        shop.setResearchLevel("armorResearch", 2);
+        sim.setShopState(shop);
+        MapDefinition map = TestMaps.open();
+        sim.startCampaignLevel(map, "campaign_1", "player");
+        PlayerTank player = (PlayerTank) sim.getWorld().getTank("player");
+        int baseMax = player.getMaxHP();
+
+        assertTrue(shop.buy(ShopItem.ARMOR));
+        sim.applyWorkshopPurchase(ShopItem.ARMOR);
+        assertEquals(baseMax + 1, player.getMaxHP());
+        assertEquals(baseMax + 1, player.getHP());
+
+        player.takeDamage(1);
+        assertEquals(1, sim.getLocalPlayerMissingHp());
+        assertTrue(sim.repairLocalPlayerAtWorkshop());
+        assertEquals(player.getMaxHP(), player.getHP());
+    }
+
+    @Test
     @DisplayName("Màn cướp cờ hồi sinh hai phe tại spawn và chỉ thắng khi player chạm cờ")
     void captureFlagRespawnsBothSidesAndWinsOnlyAtFlag() {
         int[][] grid = {
@@ -37,6 +124,7 @@ class GameSimulationTest {
         GameSimulation sim = new GameSimulation(123L);
         PlayerShopState shop = new PlayerShopState();
         shop.setItemCount(0, 73);
+        shop.setItemCount(ShopItem.ARMOR.getId(), 1);
         sim.setShopState(shop);
         int[] terminalCount = {0};
         sim.setMatchEndHandler((level, status, hp, kills, elapsed) -> terminalCount[0]++);
@@ -59,6 +147,10 @@ class GameSimulationTest {
         assertEquals(220, respawnedAi.getPosition().getX(), 0.001);
         assertEquals(60, respawnedAi.getPosition().getY(), 0.001);
         assertEquals(73, shop.getItemCount(0), "Hồi sinh không được làm mới hoặc trừ kho đồ");
+        assertEquals(0, shop.getItemCount(ShopItem.ARMOR.getId()),
+                "Mỗi lần mất mạng phải tiêu hao một Giáp tạm, kể cả ở màn cướp cờ");
+        assertEquals(PlayerTank.DEFAULT_HP, respawnedPlayer.getMaxHP(),
+                "Xe hồi sinh không được nhận lại Giáp tạm đã tiêu hao");
         assertEquals(GameWorld.Status.PLAYING, sim.getWorld().getStatus());
         assertEquals(0, terminalCount[0]);
 
@@ -73,7 +165,7 @@ class GameSimulationTest {
     }
 
     @Test
-    @DisplayName("Repair hồi đầy HP và Speed tăng đúng 30% trong 20 giây")
+    @DisplayName("Vật phẩm hỗ trợ theo đúng thời lượng và luật Force Field của Builds")
     void supportItemsApplyExactEffects() {
         GameSimulation sim = new GameSimulation(99L);
         PlayerShopState shop = new PlayerShopState();
@@ -83,7 +175,7 @@ class GameSimulationTest {
         sim.startCampaignLevel(map, "campaign_1", "player");
         PlayerTank player = (PlayerTank) sim.getWorld().getTank("player");
 
-        player.takeDamage(70);
+        player.takeDamage(2);
         assertTrue(sim.useInventoryItem(ShopItem.REPAIR.getId()));
         assertEquals(player.getMaxHP(), player.getHP());
         assertEquals(2, shop.getItemCount(ShopItem.REPAIR.getId()));
@@ -92,12 +184,85 @@ class GameSimulationTest {
         assertTrue(sim.useInventoryItem(ShopItem.SPEED_UP.getId()));
         assertEquals(baseSpeed * 1.30, player.getSpeed(), 0.0001);
         assertEquals(1, shop.getItemCount(ShopItem.SPEED_UP.getId()));
-        for (int i = 0; i < 601; i++) {
+        for (int i = 0; i < 1351; i++) {
             sim.getWorld().setStatus(GameWorld.Status.PLAYING);
             sim.step(1.0 / 30.0);
         }
         assertEquals(0.0, sim.getSpeedBoostRemaining(), 0.0001);
         assertEquals(baseSpeed, player.getSpeed(), 0.0001);
+
+        sim.getWorld().setStatus(GameWorld.Status.PLAYING);
+        shop.setItemCount(ShopItem.FORCE_FIELD.getId(), 2);
+        assertTrue(sim.useInventoryItem(ShopItem.FORCE_FIELD.getId()));
+        assertEquals(2, player.getMaxShieldHp());
+        assertEquals(0, shop.getItemCount(ShopItem.FORCE_FIELD.getId()));
+        assertEquals(2, shop.getInstalledForceField(), "Field đã lắp phải được lưu tách khỏi kho vật phẩm");
+        sim.step(1.0 / 30.0);
+        assertEquals(0, player.getShieldHp(), "Force Field phải chờ đúng nhịp tái tạo của Builds");
+        for (int i = 0; i < 123; i++) {
+            sim.getWorld().setStatus(GameWorld.Status.PLAYING);
+            sim.step(1.0 / 30.0);
+        }
+        assertEquals(1, player.getShieldHp(), "Force Field tái tạo từng điểm sau thời gian chờ");
+        int hpBeforeShieldHit = player.getHP();
+        player.takeDamage(1);
+        assertEquals(hpBeforeShieldHit, player.getHP(), "Shield phải hấp thụ damage trước HP");
+
+        // Cấp 4 phải làm nhanh rõ rệt ngay cả khi shield bảo vệ hoàn toàn
+        // nên HP thân xe vẫn đầy (regression cho lỗi mọi cấp hồi như nhau).
+        shop.setResearchLevel("powerFieldResearch", 4);
+        for (int i = 0; i < 90; i++) {
+            sim.getWorld().setStatus(GameWorld.Status.PLAYING);
+            sim.step(1.0 / 30.0);
+        }
+        assertTrue(player.getShieldHp() > 0, "Nghiên cứu Field cấp 4 phải hồi lại trong 3 giây");
+        player.takeDamage(2);
+        assertEquals(hpBeforeShieldHit, player.getHP(), "Hai lớp Field phải đỡ được hai damage trước HP thân xe");
+
+        sim.getWorld().setStatus(GameWorld.Status.PLAYING);
+        shop.setItemCount(ShopItem.FREEZE.getId(), 1);
+        assertTrue(sim.useInventoryItem(ShopItem.FREEZE.getId()));
+        assertEquals(GameSimulation.FREEZE_SECONDS, sim.getFreezeRemaining(), 0.0001);
+
+        sim.getWorld().setStatus(GameWorld.Status.PLAYING);
+        shop.setItemCount(ShopItem.RADAR.getId(), 1);
+        assertTrue(sim.useInventoryItem(ShopItem.RADAR.getId()));
+        assertTrue(sim.isRadarActive());
+
+        player.takeDamage(player.getMaxHP() + player.getShieldHp());
+        sim.getWorld().setStatus(GameWorld.Status.PLAYING);
+        sim.step(GameplayConfig.STEP_SECONDS);
+        assertEquals(0, shop.getInstalledForceField(), "Field phải biến mất khi xe bị phá hủy");
+    }
+
+    @Test
+    @DisplayName("Khung gầm tăng 2 HP, kéo dài Nitro/Freeze và Freeze dừng đạn địch")
+    void enhancedChassisAndFreezeMatchBuilds() {
+        GameSimulation sim = new GameSimulation(101L);
+        PlayerShopState shop = new PlayerShopState();
+        shop.setItemCount(ShopItem.EX_CHASSIS.getId(), 1);
+        shop.setItemCount(ShopItem.SPEED_UP.getId(), 1);
+        shop.setItemCount(ShopItem.FREEZE.getId(), 1);
+        sim.setShopState(shop);
+        MapDefinition map = TestMaps.open();
+        setPlayerSpawn(map, 2, 2);
+        sim.startCampaignLevel(map, "campaign_1", "player");
+        PlayerTank player = (PlayerTank) sim.getWorld().getTank("player");
+        assertEquals(PlayerTank.DEFAULT_HP + 2, player.getMaxHP());
+        assertEquals(PlayerTank.DEFAULT_SPEED, player.getSpeed(), 0.0001);
+
+        AITank enemy = new AITank("enemy", 500, 500, com.tankzors.client.gameplay.ai.DifficultyLevel.EASY);
+        sim.getWorld().addTank(enemy);
+        Bullet enemyBullet = new Bullet("enemy-shot", "enemy", new Position(400, 400), 0, 200, 1, 4, 8, 0);
+        sim.getWorld().addBullet(enemyBullet);
+
+        assertTrue(sim.useInventoryItem(ShopItem.SPEED_UP.getId()));
+        assertEquals(60.0, sim.getSpeedBoostRemaining(), 0.0001);
+        assertTrue(sim.useInventoryItem(ShopItem.FREEZE.getId()));
+        assertEquals(30.0, sim.getFreezeRemaining(), 0.0001);
+        double beforeY = enemyBullet.getPosition().getY();
+        sim.step(GameplayConfig.STEP_SECONDS);
+        assertEquals(beforeY, enemyBullet.getPosition().getY(), 0.0001);
     }
 
     @Test
@@ -343,9 +508,9 @@ class GameSimulationTest {
         w.addBullet(bullet);
         sim.step(GameplayConfig.STEP_SECONDS);
 
-        // Một trong hai mất 25, nhưng chưa chết (100HP). Đạn deactivate sau trúng đầu.
+        // Một trong hai bị trúng; đạn deactivate sau tank đầu.
         // Kiểm tra đạn đã inactive (không viết lại). Test lỏng: không tank nào âm tính HP.
-        for (var t : w.getAllTanks()) assertTrue(t.getHP() >= 0 && t.getHP() <= 100);
+        for (var t : w.getAllTanks()) assertTrue(t.getHP() >= 0 && t.getHP() <= t.getMaxHP());
     }
 
     @Test
@@ -368,7 +533,7 @@ class GameSimulationTest {
 
         sim.step(GameplayConfig.STEP_SECONDS);
 
-        assertEquals(100, ally.getHP());
+        assertEquals(3, ally.getHP());
         assertTrue(bullet.isActive(), "Đạn AI phải xuyên qua đồng đội thay vì bị hủy");
     }
 
@@ -437,5 +602,46 @@ class GameSimulationTest {
             }
         }
         fail("Player bullet did not reach an obstacle within 30 fixed steps");
+    }
+
+    @Test
+    @DisplayName("Artillery bullet luu startX, startY va maxRange de snapshot phuc vu render quy dao va reticle diem roi")
+    void artillerySnapshotPreservesTrajectoryAndRange() {
+        GameSimulation sim = new GameSimulation(100L);
+        PlayerShopState shop = new PlayerShopState();
+        shop.setItemCount(ShopItem.ARTILLERY.getId(), 2);
+        shop.setActiveWeaponId(ShopItem.ARTILLERY.getId());
+        sim.setShopState(shop);
+
+        MapDefinition map = TestMaps.open();
+        setPlayerSpawn(map, 3, 4);
+        map.setEnemies(List.of(new MapDefinition.EnemyConfig("AI", "EASY", 15, 10)));
+        sim.startCampaignLevel(map, "campaign_1", "player");
+
+        GameWorld world = sim.getWorld();
+        PlayerTank player = (PlayerTank) world.getTank("player");
+        assertNotNull(player);
+        assertTrue(player.getPosition().getX() > 0);
+        assertTrue(player.getPosition().getY() > 0);
+
+        sim.enqueueShoot();
+        sim.step(GameplayConfig.STEP_SECONDS);
+
+        assertEquals(1, world.getBulletCount(), "Must spawn an artillery shell");
+        com.tankzors.client.gameplay.interfaces.IBullet rawBullet = world.getAllBullets().iterator().next();
+        assertTrue(rawBullet instanceof Bullet);
+        Bullet b = (Bullet) rawBullet;
+        assertEquals(ShopItem.ARTILLERY.getId(), b.getWeaponType());
+        assertEquals(player.getPosition().getX(), b.getStartX(), 0.001);
+        assertEquals(player.getPosition().getY(), b.getStartY(), 0.001);
+        assertTrue(b.getMaxRange() > 0, "MaxRange must be positive for artillery");
+
+        // Test snapshot mapper
+        GameStateSnapshot snap = WorldSnapshotMapper.snapshot(world, "player", 0, 0.0);
+        assertEquals(1, snap.bullets.size());
+        com.tankzors.client.model.BulletSnapshot bs = snap.bullets.get(0);
+        assertEquals((float) player.getPosition().getX(), bs.startX, 0.001f);
+        assertEquals((float) player.getPosition().getY(), bs.startY, 0.001f);
+        assertEquals((float) b.getMaxRange(), bs.maxRange, 0.001f);
     }
 }

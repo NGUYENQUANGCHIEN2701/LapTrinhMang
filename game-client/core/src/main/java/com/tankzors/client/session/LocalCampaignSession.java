@@ -86,6 +86,7 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
     private int levelStartWeaponId;
     private boolean inventoryMenuOpen;
     private int inventorySelectionIndex;
+    private boolean shopOpen;
 
     public interface ShopSyncHandler {
         void onSyncShop(int coins, int stars, String researchJson, String inventoryJson);
@@ -172,6 +173,9 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
             @Override public void onShoot(boolean isPlayer) {
                 if (audioManager != null) audioManager.playShoot(isPlayer);
             }
+            @Override public void onShoot(boolean isPlayer, int weaponType) {
+                if (audioManager != null) audioManager.playShoot(isPlayer, weaponType);
+            }
             @Override public void onHitWall() {
                 if (audioManager != null) audioManager.playHitWall();
             }
@@ -193,6 +197,10 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
             @Override public void onPickup() { if (audioManager != null) audioManager.playPickup(); }
             @Override public void onUseRepair() { if (audioManager != null) audioManager.playRepair(); }
             @Override public void onUseSpeed() { if (audioManager != null) audioManager.playSpeed(); }
+            @Override public void onUseFreeze() { if (audioManager != null) audioManager.playFreeze(); }
+            @Override public void onSpecialExplosion(int weaponType, int radius) {
+                if (audioManager != null) audioManager.playExplosionArtillery(radius);
+            }
         };
     }
 
@@ -258,7 +266,15 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
 
     // ===== UPDATE =====
     @Override public void update(float rawDeltaTime) {
-        if (phase == Phase.PLAYING && !inventoryMenuOpen) sim.advance(rawDeltaTime);
+        if (phase == Phase.PLAYING && !inventoryMenuOpen && !shopOpen) sim.advance(rawDeltaTime);
+        if (sim != null && sim.consumeShopStateDirty()) {
+            // Consumables and installed Force Field state are account progress;
+            // a restart must not recreate anything already spent or destroyed.
+            if (levelStartInventory != null) {
+                levelStartInventory = shopState.snapshotInventory();
+            }
+            syncShopState();
+        }
     }
 
     @Override public GameStateSnapshot snapshot() {
@@ -303,6 +319,8 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         }
         sim.appendEffectsTo(snap);
         snap.speedBoostSecondsRemaining = (float) sim.getSpeedBoostRemaining();
+        snap.freezeSecondsRemaining = (float) sim.getFreezeRemaining();
+        snap.radarActive = sim.isRadarActive();
         snap.inventoryMenuOpen = inventoryMenuOpen;
         snap.inventorySelectionIndex = inventorySelectionIndex;
         return snap;
@@ -331,7 +349,7 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         if (!items.isEmpty()) {
             int index = Math.max(0, Math.min(inventorySelectionIndex, items.size() - 1));
             int itemId = items.get(index);
-            if (itemId >= 0 && itemId <= 5) {
+            if (itemId >= 0 && itemId <= ShopItem.ROCKET.getId()) {
                 selectWeapon(itemId);
             } else {
                 sim.useInventoryItem(itemId);
@@ -346,8 +364,14 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         for (int id = 0; id <= 5; id++) {
             if (shopState.getItemCount(id) > 0) ids.add(id);
         }
+        for (int id = ShopItem.ARTILLERY.getId(); id <= ShopItem.ROCKET.getId(); id++) {
+            if (shopState.getItemCount(id) > 0) ids.add(id);
+        }
         if (shopState.getItemCount(ShopItem.REPAIR.getId()) > 0) ids.add(ShopItem.REPAIR.getId());
         if (shopState.getItemCount(ShopItem.SPEED_UP.getId()) > 0) ids.add(ShopItem.SPEED_UP.getId());
+        if (shopState.getItemCount(ShopItem.FREEZE.getId()) > 0) ids.add(ShopItem.FREEZE.getId());
+        if (shopState.getItemCount(ShopItem.FORCE_FIELD.getId()) > 0) ids.add(ShopItem.FORCE_FIELD.getId());
+        if (shopState.getItemCount(ShopItem.RADAR.getId()) > 0) ids.add(ShopItem.RADAR.getId());
         return ids;
     }
 
@@ -407,6 +431,15 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
                     // Reject callback của request cũ (đã chuyển hướng sang level khác).
                     if (myToken != requestToken) return;
                     LocalCampaignSession.this.onLevelLoaded(lvl, mapJson, newRunId, newMapVersion);
+                }
+                @Override public void onLevelLoadedWithShop(String lvl, String mapJson, String newRunId,
+                                                            String newMapVersion, int totalCoins, int totalStars,
+                                                            String researchJson, String inventoryJson) {
+                    // Không dùng default method ở đây: default chỉ gọi onLevelLoaded
+                    // và làm mất wallet/inventory mà BootstrapMapSource vừa tải về.
+                    if (myToken != requestToken) return;
+                    LocalCampaignSession.this.onLevelLoadedWithShop(lvl, mapJson, newRunId, newMapVersion,
+                            totalCoins, totalStars, researchJson, inventoryJson);
                 }
                 @Override public void onLoadError(String reason) {
                     if (myToken != requestToken) return;
@@ -540,8 +573,31 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
     }
 
     @Override public MatchResult matchResult() { return matchResult; }
-    @Override public boolean canOpenShop() {
-        return sim != null && sim.getWorld().getStatus() == GameWorld.Status.VICTORY;
+    @Override public boolean canOpenShop() { return phase == Phase.PLAYING && sim != null; }
+    @Override public void setShopOpen(boolean open) { shopOpen = open; }
+    @Override public void onWorkshopItemBought(ShopItem item) {
+        if (sim == null || item == null) return;
+        sim.applyWorkshopPurchase(item);
+        // Armor purchases are persistent equipment, therefore a retry must not
+        // restore the pre-purchase plate count from the level checkpoint.
+        if ((item == ShopItem.ARMOR || item == ShopItem.ARMOR2) && levelStartInventory != null) {
+            levelStartInventory.put(item.getId(), shopState.getItemCount(item.getId()));
+        }
+        syncShopState();
+    }
+    @Override public void onWorkshopItemSold(ShopItem item) {
+        if (sim == null || item == null) return;
+        sim.applyWorkshopSale(item);
+        if ((item == ShopItem.ARMOR || item == ShopItem.ARMOR2) && levelStartInventory != null) {
+            levelStartInventory.put(item.getId(), shopState.getItemCount(item.getId()));
+        }
+        syncShopState();
+    }
+    @Override public int workshopMissingHp() { return sim == null ? 0 : sim.getLocalPlayerMissingHp(); }
+    @Override public boolean repairTankAtWorkshop() {
+        boolean repaired = sim != null && sim.repairLocalPlayerAtWorkshop();
+        if (repaired) syncShopState();
+        return repaired;
     }
     @Override public void dispose() {}
 

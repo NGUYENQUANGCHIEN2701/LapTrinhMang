@@ -93,6 +93,17 @@ public class GameClient implements ApplicationListener {
                         ((LocalCampaignSession) session).syncShopState();
                     }
                 }
+                @Override public void onShopVisibilityChanged(boolean visible) {
+                    if (session != null) session.setShopOpen(visible);
+                }
+                @Override public void onItemBought(com.tankzors.client.shop.ShopItem item) {
+                    if (session != null) session.onWorkshopItemBought(item);
+                }
+                @Override public void onItemSold(com.tankzors.client.shop.ShopItem item) {
+                    if (session != null) session.onWorkshopItemSold(item);
+                }
+                @Override public int missingTankHp() { return session != null ? session.workshopMissingHp() : 0; }
+                @Override public boolean repairTank() { return session != null && session.repairTankAtWorkshop(); }
             });
         }
 

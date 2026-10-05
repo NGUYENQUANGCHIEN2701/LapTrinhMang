@@ -149,7 +149,7 @@ public class AudioManagerTest {
         assertTrue(events.contains("HIT_WALL"), "Phải kích hoạt onHitWall khi đạn chạm tường");
 
         // 4. Test đạn chạm AI tank (spawn tại col 8, row 1: x=340, y=60) -> onHitTank
-        Bullet tankBullet = new Bullet("b-tank", "p1", new Position(340, 60), 0.0, 200, 25, 6, 6);
+        Bullet tankBullet = new Bullet("b-tank", "p1", new Position(340, 60), 0.0, 200, 1, 6, 6);
         sim.getWorld().addBullet(tankBullet);
         sim.step(1.0 / 30.0);
         assertTrue(events.contains("HIT_TANK_AI"), "Phải kích hoạt onHitTank khi đạn gây damage");

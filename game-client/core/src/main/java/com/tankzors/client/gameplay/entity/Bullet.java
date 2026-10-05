@@ -1,5 +1,6 @@
 package com.tankzors.client.gameplay.entity;
 
+import com.tankzors.client.gameplay.WeaponProfile;
 import com.tankzors.client.gameplay.interfaces.IBullet;
 import com.tankzors.client.gameplay.interfaces.ICollidable;
 
@@ -23,19 +24,34 @@ public class Bullet implements IBullet, ICollidable {
     private double direction;
     private double speed;
     private int damage;
+    private final int weaponType;
     private boolean active;
     private double width;
     private double height;
 
+    private double startX;
+    private double startY;
+    private double maxRange;
+
     /** Caller phải cung cấp id deterministic (counter per-match). */
     public Bullet(String id, String ownerId, Position position, double direction, double speed, int damage, double width, double height) {
+        this(id, ownerId, position, direction, speed, damage, width, height, 0);
+    }
+
+    public Bullet(String id, String ownerId, Position position, double direction, double speed, int damage,
+                  double width, double height, int weaponType) {
         this.id = id != null ? id : "b-0";
         this.ownerId = ownerId;
         this.position = position != null ? new Position(position.getX(), position.getY()) : new Position(0, 0);
         this.previousPosition = new Position(this.position.getX(), this.position.getY());
+        this.startX = this.position.getX();
+        this.startY = this.position.getY();
         this.direction = direction;
         this.speed = speed > 0 ? speed : DEFAULT_SPEED;
         this.damage = damage >= 0 ? damage : DEFAULT_DAMAGE;
+        // 0..5 are normal rounds; 6..8 are artillery/warhead/guided rocket.
+        // Keep their id for the special-ammo simulation and renderer.
+        this.weaponType = weaponType >= 0 ? weaponType : WeaponProfile.SHELL.getItemId();
         this.active = true;
         this.width = width > 0 ? width : DEFAULT_WIDTH;
         this.height = height > 0 ? height : DEFAULT_HEIGHT;
@@ -58,6 +74,7 @@ public class Bullet implements IBullet, ICollidable {
     @Override public double getDirection() { return direction; }
     public void setDirection(double direction) { this.direction = direction; }
     @Override public int getDamage() { return damage; }
+    public int getWeaponType() { return weaponType; }
     public void setDamage(int damage) { this.damage = damage; }
     @Override public double getSpeed() { return speed; }
     public void setSpeed(double speed) { this.speed = speed; }
@@ -67,6 +84,13 @@ public class Bullet implements IBullet, ICollidable {
     public String getId() { return id; }
     public double getWidth() { return width; }
     public double getHeight() { return height; }
+
+    public double getStartX() { return startX; }
+    public void setStartX(double startX) { this.startX = startX; }
+    public double getStartY() { return startY; }
+    public void setStartY(double startY) { this.startY = startY; }
+    public double getMaxRange() { return maxRange; }
+    public void setMaxRange(double maxRange) { this.maxRange = maxRange; }
 
     @Override
     public Rectangle getBoundingBox() {

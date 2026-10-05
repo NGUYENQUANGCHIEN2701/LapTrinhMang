@@ -8,6 +8,8 @@ public final class TankSnapshot {
     public float rotation;
     public int hp;
     public int maxHp;
+    public int shieldHp;
+    public int maxShieldHp;
     public boolean alive;
     public boolean isPlayer;
 }

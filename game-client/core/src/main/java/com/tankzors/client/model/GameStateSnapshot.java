@@ -27,6 +27,8 @@ public final class GameStateSnapshot {
     public int repairCount;
     public int speedCount;
     public float speedBoostSecondsRemaining;
+    public float freezeSecondsRemaining;
+    public boolean radarActive;
     public boolean inventoryMenuOpen;
     public int inventorySelectionIndex;
     public int[] inventoryItemIds = new int[0];

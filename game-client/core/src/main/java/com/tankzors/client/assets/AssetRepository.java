@@ -21,6 +21,10 @@ public class AssetRepository implements Disposable {
     private Texture playerTankSheet;
     private Texture enemyTankSheet;
     private Texture bulletSheet;
+    private Texture smallExplosionSheet;
+    private Texture plasmaExplosionSheet;
+    private Texture bigPlasmaExplosionSheet;
+    private Texture bigRedExplosionSheet;
     private Texture groundSheet;
     private Texture wallSheet;
     private Texture spikesSheet;
@@ -29,6 +33,7 @@ public class AssetRepository implements Disposable {
     private Texture powerupsSheet;
     private Texture buildingsSheet;
     private Texture triggersSheet;
+    private Texture shieldRingsSheet;
 
     // Shop GUI Textures
     private Texture iconsSheet;
@@ -46,15 +51,25 @@ public class AssetRepository implements Disposable {
     private TextureRegion[] spikesFrames;
     private TextureRegion[] palmsFrames;
     private TextureRegion defaultBulletFrame;
+    private TextureRegion[] bulletFrames;
     private TextureRegion[] explosionFrames;
+    private TextureRegion[] smallExplosionFrames;
+    private TextureRegion[] plasmaExplosionFrames;
+    private TextureRegion[] bigPlasmaExplosionFrames;
+    private TextureRegion[] bigRedExplosionFrames;
     private TextureRegion[] powerupFrames;
     private TextureRegion[] buildingFrames;
     private TextureRegion[] triggerFrames;
+    private TextureRegion[] shieldRingFrames;
 
     public void loadAll() {
         playerTankSheet = new Texture(Gdx.files.internal("tanks/player_tank.png"));
         enemyTankSheet = new Texture(Gdx.files.internal("tanks/enemy_tank.png"));
         bulletSheet = new Texture(Gdx.files.internal("effects/bullet.png"));
+        smallExplosionSheet = new Texture(Gdx.files.internal("effects/small.png"));
+        plasmaExplosionSheet = new Texture(Gdx.files.internal("effects/plasma.png"));
+        bigPlasmaExplosionSheet = new Texture(Gdx.files.internal("effects/big_plasma.png"));
+        bigRedExplosionSheet = new Texture(Gdx.files.internal("effects/big_red.png"));
         groundSheet = new Texture(Gdx.files.internal("map/ground.png"));
         wallSheet = new Texture(Gdx.files.internal("map/wall.png"));
         spikesSheet = new Texture(Gdx.files.internal("map/spikes.png"));
@@ -63,6 +78,9 @@ public class AssetRepository implements Disposable {
         powerupsSheet = new Texture(Gdx.files.internal("effects/powerups.png"));
         buildingsSheet = new Texture(Gdx.files.internal("map/buildings.png"));
         triggersSheet = new Texture(Gdx.files.internal("map/triggers.png"));
+        if (Gdx.files.internal("effects/rings.png").exists()) {
+            shieldRingsSheet = new Texture(Gdx.files.internal("effects/rings.png"));
+        }
 
         // Tanks: 16 frame × 24px (theo Renderer.ts)
         // Camera renderer dùng y-down. Chỉ sprite tank có hướng cần đảo V để
@@ -72,6 +90,11 @@ public class AssetRepository implements Disposable {
         // Fallback nếu bộ icon shop bị thiếu.
         defaultBulletFrame = new TextureRegion(bulletSheet, 24, 0, 24, 24);
         defaultBulletFrame.flip(false, true);
+        bulletFrames = split(bulletSheet, 24, 24, 23, true);
+        smallExplosionFrames = split(smallExplosionSheet, 15, 15, 17, false);
+        plasmaExplosionFrames = split(plasmaExplosionSheet, 15, 15, 13, false);
+        bigPlasmaExplosionFrames = split(bigPlasmaExplosionSheet, 40, 40, 12, false);
+        bigRedExplosionFrames = split(bigRedExplosionSheet, 40, 40, 12, false);
 
         // Ground: 5 frame × 20px
         groundFrames = split(groundSheet, 20, 20, 5, false);
@@ -85,6 +108,7 @@ public class AssetRepository implements Disposable {
         powerupFrames = split(powerupsSheet, 20, 20, 20, false);
         buildingFrames = split(buildingsSheet, 20, 20, 6, false);
         triggerFrames = split(triggersSheet, 20, 20, 10, false);
+        if (shieldRingsSheet != null) shieldRingFrames = split(shieldRingsSheet, 28, 28, 6, true);
 
         // Shop GUI
         if (Gdx.files.internal("gui/icons.png").exists()) {
@@ -142,6 +166,58 @@ public class AssetRepository implements Disposable {
     }
 
     public TextureRegion defaultBulletFrame() { return defaultBulletFrame; }
+
+    /** Frame layout follows Builds: four direction frames at offsets 0, 4, and 13. */
+    public TextureRegion bulletFrame(int weaponType, float direction) {
+        if (bulletFrames == null || bulletFrames.length == 0) return defaultBulletFrame;
+        int normalized = ((int) Math.floor(((direction % 360 + 360) % 360 + 45) / 90)) % 4;
+        int[] directionFrame = {2, 3, 0, 1}; // client UP/RIGHT/DOWN/LEFT -> Builds frames
+        int offset = weaponType == 1 || weaponType == 3 ? 4
+                : weaponType == 6 ? 8 : weaponType == 7 ? 9 : weaponType == 8 ? 11
+                : weaponType == 4 || weaponType == 5 ? 13 : 0;
+        int index = Math.min(bulletFrames.length - 1, offset + directionFrame[normalized]);
+        return bulletFrames[index];
+    }
+
+    public TextureRegion artilleryShadowFrame() {
+        if (bulletFrames == null || bulletFrames.length <= 12) return defaultBulletFrame;
+        return bulletFrames[12];
+    }
+
+    /** Frame 17 trong bullets.png: Hồng tâm ngắm mục tiêu (Target Reticle) màu đỏ. */
+    public TextureRegion targetReticleFrame() {
+        if (bulletFrames == null || bulletFrames.length <= 17) return defaultBulletFrame;
+        return bulletFrames[17];
+    }
+
+    public TextureRegion artilleryPartFrame(int partIndex) {
+        if (bulletFrames == null || bulletFrames.length <= 22) return defaultBulletFrame;
+        int frame = 22 - Math.max(0, Math.min(3, partIndex));
+        return bulletFrames[frame];
+    }
+
+    public TextureRegion smallExplosionFrame(float progress) {
+        if (smallExplosionFrames == null || smallExplosionFrames.length == 0) return null;
+        int index = Math.max(0, Math.min(smallExplosionFrames.length - 1, (int) (progress * smallExplosionFrames.length)));
+        return smallExplosionFrames[index];
+    }
+
+    public TextureRegion bigExplosionFrame(float progress) {
+        if (explosionFrames == null || explosionFrames.length == 0) return null;
+        int index = Math.max(0, Math.min(explosionFrames.length - 1, (int) (progress * explosionFrames.length)));
+        return explosionFrames[index];
+    }
+
+    public TextureRegion explosionFrame(int weaponType, float progress) {
+        TextureRegion[] frames = weaponType == 6 || weaponType == 7 || weaponType == 8 ? explosionFrames
+                : weaponType == 1 ? plasmaExplosionFrames
+                : weaponType == 3 ? bigPlasmaExplosionFrames
+                : weaponType == 4 || weaponType == 5 ? bigRedExplosionFrames
+                : smallExplosionFrames;
+        if (frames == null || frames.length == 0) return explosionFrame(progress);
+        int index = Math.max(0, Math.min(frames.length - 1, (int) (progress * frames.length)));
+        return frames[index];
+    }
 
     public TextureRegion groundFrame(int row, int col) {
         return groundFrames[(row * 3 + col * 7) % groundFrames.length];
@@ -204,11 +280,22 @@ public class AssetRepository implements Disposable {
         return explosionBigSheet;
     }
 
+    /** Blue energy-field ring frames copied from the reference Builds asset. */
+    public TextureRegion shieldRingFrame() {
+        if (shieldRingFrames == null || shieldRingFrames.length == 0) return null;
+        // The source atlas uses its penultimate frame for a stable blue shield.
+        return shieldRingFrames[Math.max(0, shieldRingFrames.length - 2)];
+    }
+
     @Override
     public void dispose() {
         if (playerTankSheet != null) playerTankSheet.dispose();
         if (enemyTankSheet != null) enemyTankSheet.dispose();
         if (bulletSheet != null) bulletSheet.dispose();
+        if (smallExplosionSheet != null) smallExplosionSheet.dispose();
+        if (plasmaExplosionSheet != null) plasmaExplosionSheet.dispose();
+        if (bigPlasmaExplosionSheet != null) bigPlasmaExplosionSheet.dispose();
+        if (bigRedExplosionSheet != null) bigRedExplosionSheet.dispose();
         if (groundSheet != null) groundSheet.dispose();
         if (wallSheet != null) wallSheet.dispose();
         if (spikesSheet != null) spikesSheet.dispose();
@@ -217,6 +304,7 @@ public class AssetRepository implements Disposable {
         if (powerupsSheet != null) powerupsSheet.dispose();
         if (buildingsSheet != null) buildingsSheet.dispose();
         if (triggersSheet != null) triggersSheet.dispose();
+        if (shieldRingsSheet != null) shieldRingsSheet.dispose();
         if (iconsSheet != null) iconsSheet.dispose();
         if (billetsTexture != null) billetsTexture.dispose();
         if (panelTexture != null) panelTexture.dispose();

@@ -37,6 +37,8 @@ class ShootBehaviorTest {
         assertEquals(90.0, ai.getRotation(), 0.001);
         assertEquals(90.0, bullet.getDirection(), 0.001);
         assertEquals(com.tankzors.client.gameplay.entity.Bullet.DEFAULT_SPEED, bullet.getSpeed(), 0.001);
+        assertEquals(1, bullet.getDamage(), "AI Shell phải dùng thang damage của Builds");
+        assertEquals(0, ((com.tankzors.client.gameplay.entity.Bullet) bullet).getWeaponType());
         assertTrue(behavior.isReservingMovement(), "The firing tick must not also move the AI sideways");
         bullet.update(0.1);
         assertEquals(200.0 + com.tankzors.client.gameplay.entity.Bullet.DEFAULT_SPEED * 0.1,

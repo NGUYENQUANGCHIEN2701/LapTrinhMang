@@ -62,6 +62,11 @@ public final class WorldSnapshotMapper {
             ts.rotation = (float) tank.getRotation();
             ts.hp = tank.getHP();
             ts.maxHp = tank.getMaxHP();
+            if (tank instanceof com.tankzors.client.gameplay.entity.Tank) {
+                com.tankzors.client.gameplay.entity.Tank body = (com.tankzors.client.gameplay.entity.Tank) tank;
+                ts.shieldHp = body.getShieldHp();
+                ts.maxShieldHp = body.getMaxShieldHp();
+            }
             ts.alive = tank.isAlive();
             ts.isPlayer = tank instanceof PlayerTank;
             snap.tanks.add(ts);
@@ -78,6 +83,11 @@ public final class WorldSnapshotMapper {
             bs.y = (float) b.getPosition().getY();
             bs.direction = (float) b.getDirection();
             bs.ownerId = b.getOwnerId();
+            bs.weaponType = b.getWeaponType();
+            bs.damage = b.getDamage();
+            bs.startX = (float) b.getStartX();
+            bs.startY = (float) b.getStartY();
+            bs.maxRange = (float) b.getMaxRange();
             bs.active = b.isActive();
             snap.bullets.add(bs);
         }

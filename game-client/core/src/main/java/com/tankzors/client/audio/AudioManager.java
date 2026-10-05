@@ -22,6 +22,11 @@ public class AudioManager implements Disposable {
 
     // SFX
     private Sound shootSound;
+    private Sound plasmaShootSound;
+    private Sound doubleShootSound;
+    private Sound doublePlasmaShootSound;
+    private Sound apShootSound;
+    private Sound shellArtillerySound;
     private Sound hitWallSound;
     private Sound hitTankSound;
     private Sound explosionMediumSound;
@@ -32,6 +37,7 @@ public class AudioManager implements Disposable {
     private Sound pickupSound;
     private Sound repairSound;
     private Sound speedSound;
+    private Sound freezeSound;
 
     // Music
     private Music track1;
@@ -78,6 +84,11 @@ public class AudioManager implements Disposable {
 
         try {
             shootSound = loadSound("sounds/shell_default.ogg");
+            plasmaShootSound = loadSound("sounds/shell_plasma.ogg");
+            doubleShootSound = loadSound("sounds/shell_double.ogg");
+            doublePlasmaShootSound = loadSound("sounds/shell_plasma_double.ogg");
+            apShootSound = loadSound("sounds/shell_ap.ogg");
+            shellArtillerySound = loadSound("sounds/shell_artillery.ogg");
             hitWallSound = loadSound("sounds/hit_wall_concrete.ogg");
             hitTankSound = loadSound("sounds/hit_metal01.ogg");
             explosionMediumSound = loadSound("sounds/explosion_medium01.ogg");
@@ -88,6 +99,7 @@ public class AudioManager implements Disposable {
             pickupSound = loadSound("sounds/fx_powerup_pickup.ogg");
             repairSound = loadSound("sounds/fx_powerup_use_repair.ogg");
             speedSound = loadSound("sounds/fx_powerup_use_speed.ogg");
+            freezeSound = loadSound("sounds/fx_powerup_use_freeze.ogg");
 
             track1 = loadMusic("music/track1.ogg");
             track2 = loadMusic("music/track2.ogg");
@@ -125,10 +137,31 @@ public class AudioManager implements Disposable {
     // ================= SFX PLAYBACK =================
 
     public void playShoot(boolean isPlayer) {
-        if (muted || shootSound == null) return;
+        playShoot(isPlayer, 0);
+    }
+
+    /** Uses the same shell sound routing as Builds for ammunition IDs 0..6. */
+    public void playShoot(boolean isPlayer, int weaponType) {
+        Sound sound = weaponType == 1 ? plasmaShootSound
+                : weaponType == 2 ? doubleShootSound
+                : weaponType == 3 ? doublePlasmaShootSound
+                : weaponType == 4 || weaponType == 5 ? apShootSound
+                : weaponType == 6 ? (shellArtillerySound != null ? shellArtillerySound : shootSound)
+                : shootSound;
+        if (muted || sound == null) return;
         try {
             float vol = soundVolume * (isPlayer ? 1.0f : 0.75f);
-            shootSound.play(clamp01(vol));
+            sound.play(clamp01(vol));
+        } catch (Exception ignored) {}
+    }
+
+    public void playExplosionArtillery(int radius) {
+        if (muted) return;
+        try {
+            Sound sound = radius >= 4 ? explosionLargeSound : explosionMediumSound;
+            if (sound != null) {
+                sound.play(clamp01(soundVolume));
+            }
         } catch (Exception ignored) {}
     }
 
@@ -217,6 +250,7 @@ public class AudioManager implements Disposable {
     public void playPickup() { playSound(pickupSound); }
     public void playRepair() { playSound(repairSound); }
     public void playSpeed() { playSound(speedSound); }
+    public void playFreeze() { playSound(freezeSound); }
 
     private void playSound(Sound sound) {
         if (muted || sound == null) return;
@@ -294,6 +328,11 @@ public class AudioManager implements Disposable {
     public void dispose() {
         stopMusic();
         if (shootSound != null) { shootSound.dispose(); shootSound = null; }
+        if (plasmaShootSound != null) { plasmaShootSound.dispose(); plasmaShootSound = null; }
+        if (doubleShootSound != null) { doubleShootSound.dispose(); doubleShootSound = null; }
+        if (doublePlasmaShootSound != null) { doublePlasmaShootSound.dispose(); doublePlasmaShootSound = null; }
+        if (apShootSound != null) { apShootSound.dispose(); apShootSound = null; }
+        if (shellArtillerySound != null) { shellArtillerySound.dispose(); shellArtillerySound = null; }
         if (hitWallSound != null) { hitWallSound.dispose(); hitWallSound = null; }
         if (hitTankSound != null) { hitTankSound.dispose(); hitTankSound = null; }
         if (explosionMediumSound != null) { explosionMediumSound.dispose(); explosionMediumSound = null; }
@@ -304,6 +343,7 @@ public class AudioManager implements Disposable {
         if (pickupSound != null) { pickupSound.dispose(); pickupSound = null; }
         if (repairSound != null) { repairSound.dispose(); repairSound = null; }
         if (speedSound != null) { speedSound.dispose(); speedSound = null; }
+        if (freezeSound != null) { freezeSound.dispose(); freezeSound = null; }
 
         if (track1 != null) { track1.dispose(); track1 = null; }
         if (track2 != null) { track2.dispose(); track2 = null; }
@@ -313,4 +353,3 @@ public class AudioManager implements Disposable {
         if (briefingMusic != null) { briefingMusic.dispose(); briefingMusic = null; }
     }
 }
-

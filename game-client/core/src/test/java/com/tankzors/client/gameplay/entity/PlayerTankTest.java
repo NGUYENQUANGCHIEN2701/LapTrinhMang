@@ -58,11 +58,11 @@ class PlayerTankTest {
     @Test
     @DisplayName("takeDamage giảm HP, clamp ở 0, isAlive cập nhật")
     void takeDamage_clamped() {
-        assertEquals(100, tank.getHP());
+        assertEquals(5, tank.getHP());
         assertTrue(tank.isAlive());
-        tank.takeDamage(30);
-        assertEquals(70, tank.getHP());
-        tank.takeDamage(70);
+        tank.takeDamage(2);
+        assertEquals(3, tank.getHP());
+        tank.takeDamage(3);
         assertEquals(0, tank.getHP());
         assertFalse(tank.isAlive());
         tank.takeDamage(999);
@@ -82,7 +82,7 @@ class PlayerTankTest {
     @DisplayName("Thông số mặc định parity server")
     void defaultStats() {
         assertEquals(60.0, tank.getSpeed(), 0.001);
-        assertEquals(100, tank.getMaxHP());
+        assertEquals(5, tank.getMaxHP());
         assertEquals(40.0, tank.getWidth(), 0.001);
         assertEquals(40.0, tank.getHeight(), 0.001);
         assertEquals("player-1", tank.getId());

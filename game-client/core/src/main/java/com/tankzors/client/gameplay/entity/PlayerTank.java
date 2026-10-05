@@ -1,20 +1,21 @@
 package com.tankzors.client.gameplay.entity;
 
 import com.tankzors.client.gameplay.collision.Collision;
+import com.tankzors.client.gameplay.WeaponProfile;
 import com.tankzors.client.gameplay.interfaces.IBullet;
 import com.tankzors.client.gameplay.interfaces.IMap;
 
 /**
  * Xe tăng người chơi. Parity server entity.PlayerTank.
- * Speed 60, HP 100, 40x40, cooldown 0.5s. Người chơi chỉ đi theo bốn
+ * Speed 60, HP 5 (reference build), 40x40, cooldown 0.5s. Người chơi chỉ đi theo bốn
  * hướng chính; phím được nhấn gần nhất xác định hướng hiện hành.
  * Substep ≤5px, wall-slide qua Collision.resolveCollision.
  */
 public class PlayerTank extends Tank {
 
     public static final double DEFAULT_SPEED = 60.0;
-    public static final int DEFAULT_HP = 100;
-    public static final int DEFAULT_MAX_HP = 100;
+    public static final int DEFAULT_HP = 5;
+    public static final int DEFAULT_MAX_HP = 5;
     public static final double DEFAULT_WIDTH = 40.0;
     public static final double DEFAULT_HEIGHT = 40.0;
     /** Phân biệt một cú bấm đổi hướng với thao tác chủ ý giữ để chạy. */
@@ -50,6 +51,12 @@ public class PlayerTank extends Tank {
 
     public void setHp(int hp) { this.hp = hp; }
     public void setMaxHp(int maxHp) { this.maxHp = maxHp; }
+    public void revive(double x, double y) {
+        position.setX(x);
+        position.setY(y);
+        hp = maxHp;
+        clearShield();
+    }
 
     public void setBulletIdSource(BulletIdSource source) { this.bulletIdSource = source; }
 
@@ -187,30 +194,14 @@ public class PlayerTank extends Tank {
         timeSinceLastShot = 0;
         String bulletId = bulletIdSource != null ? bulletIdSource.nextId() : "b-0";
 
-        double speed = Bullet.DEFAULT_SPEED;
-        int damage = Bullet.DEFAULT_DAMAGE;
-        double width = Bullet.DEFAULT_WIDTH;
-        double height = Bullet.DEFAULT_HEIGHT;
-
-        if (activeWeaponId == 1) { // Plasma
-            speed = Bullet.DEFAULT_SPEED * 1.35;
-            damage = 35;
-            width = 10;
-            height = 10;
-        } else if (activeWeaponId == 2 || activeWeaponId == 3) { // Double Shell / Double Plasma
-            speed = Bullet.DEFAULT_SPEED * 1.1;
-            damage = 45;
-            width = 12;
-            height = 12;
-        } else if (activeWeaponId == 4 || activeWeaponId == 5) { // Armor Piercing
-            speed = Bullet.DEFAULT_SPEED * 1.2;
-            damage = 60;
-            width = 10;
-            height = 10;
-        }
-
-        return new Bullet(bulletId, id, new Position(position.getX(), position.getY()), cardinalRotation(rotation),
-                speed, damage, width, height);
+        WeaponProfile weapon = WeaponProfile.fromItemId(activeWeaponId);
+        double direction = cardinalRotation(rotation);
+        // Builds uses a 4x8 projectile hitbox, rotated on horizontal shots.
+        boolean horizontal = direction == 90 || direction == 270;
+        double width = horizontal ? 8 : 4;
+        double height = horizontal ? 4 : 8;
+        return new Bullet(bulletId, id, new Position(position.getX(), position.getY()), direction,
+                weapon.speedPixelsPerSecond(), weapon.getDamage(), width, height, weapon.getItemId());
     }
 
     /** Làm tròn hướng để đạn người chơi luôn bay thẳng theo một trục. */

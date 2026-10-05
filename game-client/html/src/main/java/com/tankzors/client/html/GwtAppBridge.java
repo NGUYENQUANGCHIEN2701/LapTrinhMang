@@ -30,8 +30,11 @@ public final class GwtAppBridge {
         String url = "/api/game/shop/sync";
         StringBuilder sb = new StringBuilder();
         sb.append('{');
-        sb.append("\"totalCoins\":").append(coins).append(',');
-        sb.append("\"totalStars\":").append(stars).append(',');
+        // Tên trường phải khớp PlayerShopService.SyncRequest. Trước đây gửi
+        // totalCoins/totalStars nên Jackson bỏ qua hai giá trị và lần bootstrap
+        // tiếp theo luôn nạp wallet cũ (thường là 0).
+        sb.append("\"coins\":").append(coins).append(',');
+        sb.append("\"stars\":").append(stars).append(',');
         sb.append("\"researchJson\":").append(quote(researchJson)).append(',');
         sb.append("\"inventoryJson\":").append(quote(inventoryJson));
         sb.append('}');

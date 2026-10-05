@@ -199,6 +199,7 @@ public class HostGameSession implements GameSession {
               .append(",\"x\":").append(t.x).append(",\"y\":").append(t.y)
               .append(",\"rotation\":").append(t.rotation)
               .append(",\"hp\":").append(t.hp).append(",\"maxHp\":").append(t.maxHp)
+              .append(",\"shieldHp\":").append(t.shieldHp).append(",\"maxShieldHp\":").append(t.maxShieldHp)
               .append(",\"alive\":").append(t.alive).append(",\"isPlayer\":").append(t.isPlayer)
               .append('}');
         }
@@ -215,6 +216,8 @@ public class HostGameSession implements GameSession {
               .append(",\"x\":").append(b.x).append(",\"y\":").append(b.y)
               .append(",\"direction\":").append(b.direction)
               .append(",\"ownerId\":").append(RelayPackets.quote(b.ownerId))
+              .append(",\"weaponType\":").append(b.weaponType)
+              .append(",\"damage\":").append(b.damage)
               .append(",\"active\":").append(b.active).append('}');
         }
         sb.append(']');
