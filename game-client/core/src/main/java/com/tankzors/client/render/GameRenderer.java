@@ -188,7 +188,7 @@ public class GameRenderer implements Disposable {
                         break;
                     case 3: case 4: // SPAWN_PLAYER xanh / SPAWN_ENEMY đỏ
                         batch.draw(assets.groundFrame(r, c), px, py, ts, ts);
-                        batch.draw(assets.spawnFrame(tile == 3, r, c), px, py, ts, ts);
+                        batch.draw(assets.spawnBaseFrame(tile == 3), px, py, ts, ts);
                         break;
                     case 1: // WALL
                         batch.draw(assets.wallFrame(wallHitPointsAt(map, r, c)), px, py, ts, ts);
@@ -215,7 +215,28 @@ public class GameRenderer implements Disposable {
                 }
             }
         }
+        drawSpawnOverlays(map, visibility, ts);
         batch.end();
+    }
+
+    /** Overlay 100px được tint theo đúng game Base gốc và vẽ sau tilemap. */
+    private void drawSpawnOverlays(MapSnapshot map, VisibilityMask visibility, int tileSize) {
+        com.badlogic.gdx.graphics.Texture overlay = assets.spawnOverlay();
+        if (overlay == null) return;
+        for (int row = 0; row < map.height; row++) {
+            for (int col = 0; col < map.width; col++) {
+                if (visibility != null && !visibility.isVisible(col, row)) continue;
+                int tile = map.grid[row][col];
+                if (tile != 3 && tile != 4) continue;
+                boolean player = tile == 3;
+                batch.setColor(player ? 0.267f : 1f, player ? 1f : 0f,
+                        0f, player ? 0.376f : 0.502f);
+                float centerX = (col + 0.5f) * tileSize;
+                float centerY = (row + 0.5f) * tileSize;
+                batch.draw(overlay, centerX - 50f, centerY - 50f, 100f, 100f);
+            }
+        }
+        batch.setColor(Color.WHITE);
     }
 
     private int wallHitPointsAt(MapSnapshot map, int row, int col) {
@@ -230,6 +251,10 @@ public class GameRenderer implements Disposable {
 
     private void drawTank(TankSnapshot tank) {
         if (!tank.alive || tank.hp <= 0) return;
+        com.badlogic.gdx.graphics.g2d.TextureRegion teamRing = assets.teamRingFrame(tank.isPlayer);
+        if (teamRing != null) {
+            batch.draw(teamRing, tank.x - 26f, tank.y - 26f, 52f, 52f);
+        }
         if (tank.maxShieldHp > 0) {
             com.badlogic.gdx.graphics.g2d.TextureRegion shield = assets.shieldRingFrame();
             if (shield != null) {
@@ -436,9 +461,7 @@ public class GameRenderer implements Disposable {
 
         // Thanh máu
         float pct = MathUtils.clamp((float) tank.hp / tank.maxHp, 0, 1);
-        if (pct > 0.6f) shapes.setColor(Color.GREEN);
-        else if (pct > 0.3f) shapes.setColor(Color.YELLOW);
-        else shapes.setColor(Color.RED);
+        shapes.setColor(tank.isPlayer ? Color.GREEN : Color.RED);
 
         shapes.rect(bx, by, barW * pct, barH);
         if (tank.maxShieldHp > 0) {
@@ -471,9 +494,7 @@ public class GameRenderer implements Disposable {
         shapes.rect(18, 30, 138, 12);
 
         float pct = MathUtils.clamp((float) hp / maxHp, 0, 1);
-        if (pct > 0.6f) shapes.setColor(Color.GREEN);
-        else if (pct > 0.3f) shapes.setColor(Color.YELLOW);
-        else shapes.setColor(Color.RED);
+        shapes.setColor(Color.GREEN);
         shapes.rect(18, 30, 138 * pct, 12);
         drawHealthTicks(18, 30, 138, 12, 5);
         if (maxShieldHp > 0) {
@@ -487,9 +508,6 @@ public class GameRenderer implements Disposable {
 
         // Vẽ Text & Icon trong batch.
         batch.begin();
-        // HP Label
-        font.setColor(Color.WHITE);
-        font.draw(batch, "HP " + hp + "/" + maxHp, 18, 14);
         if (maxShieldHp > 0) {
             font.setColor(Color.CYAN);
             font.draw(batch, "SH " + shieldHp + "/" + maxShieldHp, 104, 14);

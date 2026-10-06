@@ -200,6 +200,8 @@ public class GameClient implements ApplicationListener {
     public void render() {
         float dt = Gdx.graphics.getDeltaTime();
 
+        if (input != null) input.update(dt);
+
         if (session != null) {
             session.update(dt);
             setEnabledByStatus(session.status());

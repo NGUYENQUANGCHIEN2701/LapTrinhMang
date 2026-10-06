@@ -34,6 +34,7 @@ public class AssetRepository implements Disposable {
     private Texture buildingsSheet;
     private Texture triggersSheet;
     private Texture shieldRingsSheet;
+    private Texture spawnOverlayTexture;
 
     // Shop GUI Textures
     private Texture iconsSheet;
@@ -48,6 +49,7 @@ public class AssetRepository implements Disposable {
     private TextureRegion[] enemyTankFrames;
     private TextureRegion[] groundFrames;
     private TextureRegion[] wallFrames;
+    private TextureRegion[] bushFrames;
     private TextureRegion[] spikesFrames;
     private TextureRegion[] palmsFrames;
     private TextureRegion defaultBulletFrame;
@@ -81,6 +83,9 @@ public class AssetRepository implements Disposable {
         if (Gdx.files.internal("effects/rings.png").exists()) {
             shieldRingsSheet = new Texture(Gdx.files.internal("effects/rings.png"));
         }
+        if (Gdx.files.internal("effects/overlay.png").exists()) {
+            spawnOverlayTexture = new Texture(Gdx.files.internal("effects/overlay.png"));
+        }
 
         // Tanks: 16 frame × 24px (theo Renderer.ts)
         // Camera renderer dùng y-down. Chỉ sprite tank có hướng cần đảo V để
@@ -100,6 +105,11 @@ public class AssetRepository implements Disposable {
         groundFrames = split(groundSheet, 20, 20, 5, false);
         // Wall sheet gốc: gạch, bê tông trắng và cây/bụi.
         wallFrames = split(wallSheet, 20, 20, 18, false);
+        bushFrames = new TextureRegion[7];
+        for (int i = 0; i < bushFrames.length; i++) {
+            bushFrames[i] = new TextureRegion(wallFrames[11 + i]);
+            bushFrames[i].flip(false, true);
+        }
         // Spikes: 3 frame × 20px
         spikesFrames = split(spikesSheet, 20, 20, 3, false);
         // Palms: 5 frame × 88px
@@ -244,8 +254,7 @@ public class AssetRepository implements Disposable {
     }
 
     public TextureRegion bushFrame(int row, int col) {
-        // Sprite 11..17 là toàn bộ nhóm cây/cỏ xanh.
-        return wallFrames[11 + (row * 2 + col * 3) % 7];
+        return bushFrames[(row * 2 + col * 3) % bushFrames.length];
     }
 
     public TextureRegion pickupFrame(boolean repair) {
@@ -255,11 +264,22 @@ public class AssetRepository implements Disposable {
     /** Cờ vàng gốc trong buildings.png (frame 3). */
     public TextureRegion flagFrame() { return buildingFrames[3]; }
 
-    /** Vòng spawn gốc: cặp đỏ ở 0..1, cặp xanh ở 2..3. */
-    public TextureRegion spawnFrame(boolean player, int row, int col) {
-        int firstFrame = player ? 2 : 0;
-        return triggerFrames[firstFrame + ((row + col) & 1)];
+    /** Base gốc: frame sọc vàng cho phe người chơi, sọc đỏ cho phe AI. */
+    public TextureRegion spawnBaseFrame(boolean player) {
+        return buildingFrames[spawnBaseFrameIndex(player)];
     }
+
+    public static int spawnBaseFrameIndex(boolean player) { return player ? 0 : 1; }
+
+    /** Vòng phe gốc trong rings.png: team 1 xanh, team 2 đỏ. */
+    public TextureRegion teamRingFrame(boolean player) {
+        if (shieldRingFrames == null || shieldRingFrames.length < 3) return null;
+        return shieldRingFrames[teamRingFrameIndex(player)];
+    }
+
+    public static int teamRingFrameIndex(boolean player) { return player ? 1 : 2; }
+
+    public Texture spawnOverlay() { return spawnOverlayTexture; }
 
     public TextureRegion explosionFrame(float progress) {
         if (explosionFrames == null || explosionFrames.length == 0) return null;
@@ -305,6 +325,7 @@ public class AssetRepository implements Disposable {
         if (buildingsSheet != null) buildingsSheet.dispose();
         if (triggersSheet != null) triggersSheet.dispose();
         if (shieldRingsSheet != null) shieldRingsSheet.dispose();
+        if (spawnOverlayTexture != null) spawnOverlayTexture.dispose();
         if (iconsSheet != null) iconsSheet.dispose();
         if (billetsTexture != null) billetsTexture.dispose();
         if (panelTexture != null) panelTexture.dispose();
