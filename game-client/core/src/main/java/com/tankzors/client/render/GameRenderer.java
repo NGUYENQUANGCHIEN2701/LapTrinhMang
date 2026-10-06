@@ -31,7 +31,8 @@ public class GameRenderer implements Disposable {
     private final SpriteBatch batch;
     private final ShapeRenderer shapes;
     private final BitmapFont font;
-    private final OrthographicCamera camera;
+    private final OrthographicCamera worldCamera;
+    private final OrthographicCamera hudCamera;
     private final AssetRepository assets;
 
     private MapSnapshot cachedMap;
@@ -40,8 +41,10 @@ public class GameRenderer implements Disposable {
 
     public GameRenderer(AssetRepository assets) {
         this.assets = assets;
-        this.camera = new OrthographicCamera();
-        this.camera.setToOrtho(true, 800, 600); // y-down để khớp logic server
+        this.worldCamera = new OrthographicCamera();
+        this.worldCamera.setToOrtho(true, 800, 600); // y-down để khớp logic gameplay
+        this.hudCamera = new OrthographicCamera();
+        this.hudCamera.setToOrtho(true, 800, 600);
         this.batch = new SpriteBatch();
         this.shapes = new ShapeRenderer();
         // Camera dùng hệ tọa độ y-down, vì vậy font cũng phải flip theo y-down.
@@ -51,10 +54,12 @@ public class GameRenderer implements Disposable {
     }
 
     public void resize(int width, int height) {
-        camera.setToOrtho(true, width, height);
-        camera.update();
-        batch.setProjectionMatrix(camera.combined);
-        shapes.setProjectionMatrix(camera.combined);
+        int viewportWidth = Math.max(1, width);
+        int viewportHeight = Math.max(1, height);
+        worldCamera.setToOrtho(true, viewportWidth, viewportHeight);
+        hudCamera.setToOrtho(true, viewportWidth, viewportHeight);
+        worldCamera.update();
+        hudCamera.update();
     }
 
     public void render(GameStateSnapshot state) {
@@ -64,6 +69,9 @@ public class GameRenderer implements Disposable {
 
         if (state == null) return;
         animTime += Gdx.graphics.getDeltaTime();
+
+        updateWorldCamera(state);
+        useWorldProjection();
 
         // Khi đang chuyển màn / lỗi tải: giữ world cũ (nếu có) và vẽ overlay transition.
         boolean transitioning = state.transitionStatus != null;
@@ -97,6 +105,10 @@ public class GameRenderer implements Disposable {
             drawHealthBar(tank);
         }
         shapes.end();
+
+        // HUD/menu/overlay dùng camera màn hình riêng nên luôn đứng yên trong
+        // khung game, không trôi theo map khi world camera theo người chơi.
+        useHudProjection();
 
         if (transitioning) {
             drawTransitionOverlay(state.transitionStatus);
@@ -217,6 +229,44 @@ public class GameRenderer implements Disposable {
         }
         drawSpawnOverlays(map, visibility, ts);
         batch.end();
+    }
+
+    private void updateWorldCamera(GameStateSnapshot state) {
+        if (state.map == null) {
+            worldCamera.position.set(worldCamera.viewportWidth / 2f,
+                    worldCamera.viewportHeight / 2f, 0f);
+            worldCamera.update();
+            return;
+        }
+
+        float targetX = state.map.width * state.map.tileSize / 2f;
+        float targetY = state.map.height * state.map.tileSize / 2f;
+        for (TankSnapshot tank : state.tanks) {
+            if (tank.isPlayer) {
+                targetX = tank.x;
+                targetY = tank.y;
+                break;
+            }
+        }
+
+        float mapWidth = state.map.width * state.map.tileSize;
+        float mapHeight = state.map.height * state.map.tileSize;
+        float cameraX = WorldCameraBounds.centerForAxis(
+                targetX, mapWidth, worldCamera.viewportWidth);
+        float cameraY = WorldCameraBounds.centerForAxis(
+                targetY, mapHeight, worldCamera.viewportHeight);
+        worldCamera.position.set(cameraX, cameraY, 0f);
+        worldCamera.update();
+    }
+
+    private void useWorldProjection() {
+        batch.setProjectionMatrix(worldCamera.combined);
+        shapes.setProjectionMatrix(worldCamera.combined);
+    }
+
+    private void useHudProjection() {
+        batch.setProjectionMatrix(hudCamera.combined);
+        shapes.setProjectionMatrix(hudCamera.combined);
     }
 
     /** Overlay 100px được tint theo đúng game Base gốc và vẽ sau tilemap. */
@@ -627,6 +677,7 @@ public class GameRenderer implements Disposable {
 
     public void renderShop(com.tankzors.client.ui.ShopOverlay shopOverlay) {
         if (shopOverlay != null && shopOverlay.isVisible()) {
+            useHudProjection();
             shopOverlay.render(batch, shapes, font);
         }
     }
