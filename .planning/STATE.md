@@ -36,10 +36,11 @@ See: `.planning/PROJECT.md` (updated 2026-09-28)
 | # | Description | Date | Commit | Directory |
 |---|---|---|---|---|
 | 260928-n9l | Thiết kế lại campaign_1 thành màn cướp cờ có hồi sinh tại spawn cố định | 2026-09-28 | 1441af2 | [260928-n9l-thi-t-k-l-i-campaign-1-th-nh-m-n-c-p-c-n](./quick/260928-n9l-thi-t-k-l-i-campaign-1-th-nh-m-n-c-p-c-n/) |
+| 261006-g29 | Sửa hướng cây, giao diện spawn gốc, giữ Space bắn liên tục và thanh máu theo phe | 2026-10-06 | 11c50f4 | [261006-g29-s-a-h-ng-c-y-giao-di-n-i-m-xu-t-ph-t-g-c](./quick/261006-g29-s-a-h-ng-c-y-giao-di-n-i-m-xu-t-ph-t-g-c/) |
 
 ## Next Action
 
 Run the three checks in `.planning/phases/04-campaign-tactical-systems/04-UAT.md` on `http://localhost:8081`.
 
 ---
-*Last activity: 2026-09-28 — campaign_1 capture-the-flag implementation verified and deployed; awaiting gameplay UAT*
+*Last activity: 2026-10-06 — corrected campaign visuals, held-fire input and team health bars; Docker build deployed for gameplay UAT*
