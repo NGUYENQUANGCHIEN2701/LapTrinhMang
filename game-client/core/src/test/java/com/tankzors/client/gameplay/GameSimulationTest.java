@@ -236,6 +236,46 @@ class GameSimulationTest {
     }
 
     @Test
+    @DisplayName("Repair và Speed nhặt trên bản đồ dùng ngay mà không cộng vào kho")
+    void mapPickupsApplyImmediatelyWithoutChangingInventory() {
+        int[][] grid = {
+                {1, 1, 1, 1, 1},
+                {1, 3, 7, 8, 1},
+                {1, 1, 1, 1, 1}
+        };
+        MapDefinition map = new MapDefinition("instant-pickups", 5, 3, 40, grid);
+        GameSimulation sim = new GameSimulation(102L);
+        PlayerShopState shop = new PlayerShopState();
+        int repairReserve = shop.getItemCount(ShopItem.REPAIR.getId());
+        int speedReserve = shop.getItemCount(ShopItem.SPEED_UP.getId());
+        sim.setShopState(shop);
+        sim.startCampaignLevel(map, "campaign_1", "player");
+        PlayerTank player = (PlayerTank) sim.getWorld().getTank("player");
+
+        player.takeDamage(2);
+        player.getPosition().setX(100);
+        player.getPosition().setY(60);
+        sim.step(GameplayConfig.STEP_SECONDS);
+
+        assertEquals(player.getMaxHP(), player.getHP(), "Repair nhặt trên đường phải hồi đầy ngay");
+        assertEquals(repairReserve, shop.getItemCount(ShopItem.REPAIR.getId()),
+                "Repair nhặt trên đường không được cộng vào kho dự trữ");
+        assertEquals(TileType.GROUND, map.getTileAt(2, 1));
+
+        double baseSpeed = player.getSpeed();
+        player.getPosition().setX(140);
+        sim.getWorld().setStatus(GameWorld.Status.PLAYING);
+        sim.step(GameplayConfig.STEP_SECONDS);
+
+        assertEquals(baseSpeed * GameSimulation.SPEED_BOOST_MULTIPLIER, player.getSpeed(), 0.0001,
+                "Speed nhặt trên đường phải kích hoạt ngay");
+        assertEquals(GameSimulation.SPEED_BOOST_SECONDS, sim.getSpeedBoostRemaining(), 0.0001);
+        assertEquals(speedReserve, shop.getItemCount(ShopItem.SPEED_UP.getId()),
+                "Speed nhặt trên đường không được cộng vào kho dự trữ");
+        assertEquals(TileType.GROUND, map.getTileAt(3, 1));
+    }
+
+    @Test
     @DisplayName("Khung gầm tăng 2 HP, kéo dài Nitro/Freeze và Freeze dừng đạn địch")
     void enhancedChassisAndFreezeMatchBuilds() {
         GameSimulation sim = new GameSimulation(101L);
