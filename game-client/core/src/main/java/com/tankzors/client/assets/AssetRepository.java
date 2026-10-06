@@ -102,13 +102,16 @@ public class AssetRepository implements Disposable {
         bigPlasmaExplosionFrames = split(bigPlasmaExplosionSheet, 40, 40, 12, false);
         bigRedExplosionFrames = split(bigRedExplosionSheet, 40, 40, 12, false);
 
-        // Ground: 5 frame × 20px
-        groundFrames = split(groundSheet, 20, 20, 5, false);
+        // Ground atlas gốc có 106 frame × 20px. Nạp toàn bộ để campaign_1 có
+        // đúng cỏ, vệt bánh xe và hố đất theo mã tile của Builds.
+        groundFrames = split(groundSheet, 20, 20,
+                Math.max(1, groundSheet.getWidth() / 20), false);
         // Wall sheet gốc: gạch, bê tông trắng và cây/bụi.
         wallFrames = split(wallSheet, 20, 20, 18, false);
-        bushFrames = new TextureRegion[7];
+        // Builds dùng wall tile id 16..18 cho ba bụi cây tròn của map này.
+        bushFrames = new TextureRegion[3];
         for (int i = 0; i < bushFrames.length; i++) {
-            bushFrames[i] = new TextureRegion(wallFrames[11 + i]);
+            bushFrames[i] = new TextureRegion(wallFrames[15 + i]);
             bushFrames[i].flip(false, true);
         }
         // Spikes: 3 frame × 20px
@@ -233,11 +236,27 @@ public class AssetRepository implements Disposable {
     }
 
     public TextureRegion groundFrame(int row, int col) {
-        return groundFrames[(row * 3 + col * 7) % groundFrames.length];
+        // Map schema mới không có visualGrid vẫn giữ tập năm frame cỏ cũ;
+        // chỉ campaign có mã Builds mới được truy cập toàn bộ atlas.
+        int fallbackFrameCount = Math.min(5, groundFrames.length);
+        return groundFrames[(row * 3 + col * 7) % fallbackFrameCount];
+    }
+
+    public TextureRegion groundFrameById(int oneBasedTileId) {
+        return groundFrames[frameIndexForTileId(oneBasedTileId, groundFrames.length)];
     }
 
     public TextureRegion wallFrame(int hitPoints) {
         return wallFrames[brownWallFrameIndex(hitPoints)];
+    }
+
+    public TextureRegion wallFrameById(int oneBasedTileId) {
+        return wallFrames[frameIndexForTileId(oneBasedTileId, wallFrames.length)];
+    }
+
+    public static int frameIndexForTileId(int oneBasedTileId, int frameCount) {
+        if (frameCount <= 1) return 0;
+        return Math.max(0, Math.min(frameCount - 1, oneBasedTileId - 1));
     }
 
     /**
@@ -252,8 +271,8 @@ public class AssetRepository implements Disposable {
     }
 
     public TextureRegion whiteWallFrame(int row, int col) {
-        // Sprite 6..10 là nhóm bê tông/kim loại sáng; frame 11 đã là cỏ.
-        return wallFrames[6 + (row + col) % 5];
+        // Builds dùng đúng wall tile id 9 và 10 cho bê tông trắng.
+        return wallFrames[8 + (row + col) % 2];
     }
 
     public TextureRegion bushFrame(int row, int col) {

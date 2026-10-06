@@ -22,6 +22,8 @@ public class MapDefinition implements IMap {
     private int height;
     private int tileSize;
     private int[][] grid;
+    /** Mã tile hình ảnh từ map Builds gốc; không tham gia collision/gameplay. */
+    private int[][] visualGrid;
     private List<EnemyConfig> enemies = new ArrayList<>();
     private RewardsConfig rewards;
 
@@ -194,4 +196,6 @@ public class MapDefinition implements IMap {
 
     public int[][] getGrid() { return grid; }
     public void setGrid(int[][] grid) { this.grid = grid; initializeMap(); }
+    public int[][] getVisualGrid() { return visualGrid; }
+    public void setVisualGrid(int[][] visualGrid) { this.visualGrid = visualGrid; }
 }

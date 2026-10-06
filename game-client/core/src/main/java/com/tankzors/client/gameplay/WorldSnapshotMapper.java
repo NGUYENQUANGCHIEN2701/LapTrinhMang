@@ -11,6 +11,7 @@ import com.tankzors.client.model.GameStateSnapshot;
 import com.tankzors.client.model.MapSnapshot;
 import com.tankzors.client.model.TankSnapshot;
 import com.tankzors.client.gameplay.map.TileType;
+import com.tankzors.client.gameplay.map.MapDefinition;
 
 /**
  * Map GameWorld (local simulation) → GameStateSnapshot (định dạng render cũ).
@@ -50,6 +51,9 @@ public final class WorldSnapshotMapper {
             }
             ms.grid = grid;
             ms.wallHitPoints = wallHitPoints;
+            if (map instanceof MapDefinition) {
+                ms.visualGrid = ((MapDefinition) map).getVisualGrid();
+            }
             snap.map = ms;
         }
 

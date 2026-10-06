@@ -121,6 +121,18 @@ public class GuestGameSession implements GameSession {
                     for (JsonValue c = r.child; c != null; c = c.next, j++) ms.grid[i][j] = c.asInt();
                 }
             }
+            JsonValue visualGrid = map.get("visualGrid");
+            if (visualGrid != null && visualGrid.isArray()) {
+                ms.visualGrid = new int[countChildren(visualGrid)][];
+                int i = 0;
+                for (JsonValue r = visualGrid.child; r != null; r = r.next, i++) {
+                    ms.visualGrid[i] = new int[countChildren(r)];
+                    int j = 0;
+                    for (JsonValue c = r.child; c != null; c = c.next, j++) {
+                        ms.visualGrid[i][j] = c.asInt();
+                    }
+                }
+            }
             snap.map = ms;
         }
 

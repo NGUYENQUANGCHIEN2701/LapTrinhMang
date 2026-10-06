@@ -26,6 +26,10 @@ class MapLoaderTest {
                 assertEquals(3, map.getGrid()[3][11], "Player spawn phải ở (11,3)");
                 assertEquals(7, map.getGrid()[13][5], "Repair phải ở (5,13)");
                 assertEquals(4, map.getGrid()[19][2], "AI spawn phải ở (2,19)");
+                assertNotNull(map.getVisualGrid(), "Màn 1 phải giữ mã tile hình ảnh từ Builds");
+                assertEquals(115, map.getVisualGrid()[3][3], "Visual cờ phải giữ mã 115 gốc");
+                assertEquals(145, map.getVisualGrid()[8][0], "Visual bụi phải giữ mã 145 gốc");
+                assertEquals(164, map.getVisualGrid()[13][5], "Visual Repair phải giữ mã 164 gốc");
                 assertTrue(isReachable(map, 3, 9),
                         "Player phải có lộ trình tới cờ sau khi phá vật cản nâu/bụi");
                 assertTrue(isReachable(map, 4, 3),

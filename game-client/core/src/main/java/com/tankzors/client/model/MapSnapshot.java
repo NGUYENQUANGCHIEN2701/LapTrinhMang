@@ -14,6 +14,8 @@ public final class MapSnapshot {
     public int height;
     public int tileSize = 40;
     public int[][] grid;
+    /** Mã tile hình ảnh gốc, tùy chọn; gameplay vẫn chỉ dùng {@link #grid}. */
+    public int[][] visualGrid;
     /** HP hiện tại của vật cản; renderer dùng 4/3/2/1 cho các frame tường nâu. */
     public int[][] wallHitPoints;
 }

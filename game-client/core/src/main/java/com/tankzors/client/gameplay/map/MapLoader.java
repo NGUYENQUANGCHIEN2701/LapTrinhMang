@@ -59,31 +59,17 @@ public final class MapLoader {
             // grid[row][col] — 2D int array
             JsonValue gridArray = root.get("grid");
             if (gridArray != null && gridArray.isArray()) {
-                int rows = 0;
-                for (JsonValue r = gridArray.child; r != null; r = r.next) rows++;
-                int[][] grid;
-                if (rows == 0) {
-                    grid = new int[0][];
-                } else {
-                    grid = new int[rows][];
-                    int i = 0;
-                    for (JsonValue r = gridArray.child; r != null; r = r.next, i++) {
-                        int cols = 0;
-                        for (JsonValue c = r.child; c != null; c = c.next) cols++;
-                        int[] row = new int[cols];
-                        int j = 0;
-                        for (JsonValue c = r.child; c != null; c = c.next, j++) {
-                            row[j] = c.asInt();
-                        }
-                        grid[i] = row;
-                    }
-                }
+                int[][] grid = readGrid(gridArray);
                 map.setGrid(grid);
                 // Sau setGrid: width/height suy ra từ grid nếu chưa set
                 if (width <= 0 && grid.length > 0 && grid[0] != null) width = grid[0].length;
                 if (height <= 0) height = grid.length;
                 map.setWidth(width);
                 map.setHeight(height);
+            }
+            JsonValue visualGridArray = root.get("visualGrid");
+            if (visualGridArray != null && visualGridArray.isArray()) {
+                map.setVisualGrid(readGrid(visualGridArray));
             }
             map.initializeMap();
             return map;
@@ -92,5 +78,22 @@ public final class MapLoader {
             System.err.println("MapParser lỗi: " + e.getMessage());
             return null;
         }
+    }
+
+    private static int[][] readGrid(JsonValue array) {
+        int rows = 0;
+        for (JsonValue r = array.child; r != null; r = r.next) rows++;
+        int[][] result = new int[rows][];
+        int i = 0;
+        for (JsonValue r = array.child; r != null; r = r.next, i++) {
+            int cols = 0;
+            for (JsonValue c = r.child; c != null; c = c.next) cols++;
+            result[i] = new int[cols];
+            int j = 0;
+            for (JsonValue c = r.child; c != null; c = c.next, j++) {
+                result[i][j] = c.asInt();
+            }
+        }
+        return result;
     }
 }

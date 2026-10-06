@@ -19,6 +19,8 @@ public class GameMap {
     private int height;
     private int tileSize = DEFAULT_TILE_SIZE;
     private int[][] grid;
+    /** Optional source visual tile IDs consumed only by the LibGDX renderer. */
+    private int[][] visualGrid;
     private List<EnemyConfig> enemies = new ArrayList<>();
     private RewardsConfig rewards;
 
@@ -66,6 +68,8 @@ public class GameMap {
     }
     public int[][] getGrid() { return grid; }
     public void setGrid(int[][] grid) { this.grid = grid; }
+    public int[][] getVisualGrid() { return visualGrid; }
+    public void setVisualGrid(int[][] visualGrid) { this.visualGrid = visualGrid; }
     public List<EnemyConfig> getEnemies() { return enemies; }
     public void setEnemies(List<EnemyConfig> enemies) {
         this.enemies = enemies == null ? new ArrayList<>() : enemies;

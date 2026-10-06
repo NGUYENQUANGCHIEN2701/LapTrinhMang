@@ -34,4 +34,11 @@ class AssetRepositoryTest {
         assertTrue(AssetRepository.flagRequiresVerticalFlip(),
                 "Region riêng của cờ phải lật dọc cho camera y-down");
     }
+
+    @Test
+    void legacyTileIdsAddressOneBasedAtlasFrames() {
+        assertEquals(0, AssetRepository.frameIndexForTileId(1, 106));
+        assertEquals(52, AssetRepository.frameIndexForTileId(53, 106));
+        assertEquals(105, AssetRepository.frameIndexForTileId(999, 106));
+    }
 }
