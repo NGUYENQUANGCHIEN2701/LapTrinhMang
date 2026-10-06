@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AssetRepositoryTest {
 
@@ -25,5 +26,12 @@ class AssetRepositoryTest {
         assertEquals(1, AssetRepository.spawnBaseFrameIndex(false));
         assertEquals(1, AssetRepository.teamRingFrameIndex(true));
         assertEquals(2, AssetRepository.teamRingFrameIndex(false));
+    }
+
+    @Test
+    void campaignFlagUsesOriginalFrameWithAnIndependentVerticalFlip() {
+        assertEquals(3, AssetRepository.flagFrameIndex());
+        assertTrue(AssetRepository.flagRequiresVerticalFlip(),
+                "Region riêng của cờ phải lật dọc cho camera y-down");
     }
 }

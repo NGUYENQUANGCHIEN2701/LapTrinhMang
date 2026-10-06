@@ -61,6 +61,7 @@ public class AssetRepository implements Disposable {
     private TextureRegion[] bigRedExplosionFrames;
     private TextureRegion[] powerupFrames;
     private TextureRegion[] buildingFrames;
+    private TextureRegion campaignFlagFrame;
     private TextureRegion[] triggerFrames;
     private TextureRegion[] shieldRingFrames;
 
@@ -117,6 +118,8 @@ public class AssetRepository implements Disposable {
         explosionFrames = split(explosionBigSheet, 35, 35, 28, false);
         powerupFrames = split(powerupsSheet, 20, 20, 20, false);
         buildingFrames = split(buildingsSheet, 20, 20, 6, false);
+        campaignFlagFrame = new TextureRegion(buildingFrames[flagFrameIndex()]);
+        campaignFlagFrame.flip(false, flagRequiresVerticalFlip());
         triggerFrames = split(triggersSheet, 20, 20, 10, false);
         if (shieldRingsSheet != null) shieldRingFrames = split(shieldRingsSheet, 28, 28, 6, true);
 
@@ -261,8 +264,12 @@ public class AssetRepository implements Disposable {
         return powerupFrames[repair ? 10 : 0];
     }
 
-    /** Cờ vàng gốc trong buildings.png (frame 3). */
-    public TextureRegion flagFrame() { return buildingFrames[3]; }
+    /** Cờ vàng gốc trong buildings.png (frame 3), lật dọc riêng cho camera y-down. */
+    public TextureRegion flagFrame() { return campaignFlagFrame; }
+
+    public static int flagFrameIndex() { return 3; }
+
+    public static boolean flagRequiresVerticalFlip() { return true; }
 
     /** Base gốc: frame sọc vàng cho phe người chơi, sọc đỏ cho phe AI. */
     public TextureRegion spawnBaseFrame(boolean player) {
