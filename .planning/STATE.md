@@ -37,10 +37,11 @@ See: `.planning/PROJECT.md` (updated 2026-09-28)
 |---|---|---|---|---|
 | 260928-n9l | Thiết kế lại campaign_1 thành màn cướp cờ có hồi sinh tại spawn cố định | 2026-09-28 | 1441af2 | [260928-n9l-thi-t-k-l-i-campaign-1-th-nh-m-n-c-p-c-n](./quick/260928-n9l-thi-t-k-l-i-campaign-1-th-nh-m-n-c-p-c-n/) |
 | 261006-g29 | Sửa hướng cây, giao diện spawn gốc, giữ Space bắn liên tục và thanh máu theo phe | 2026-10-06 | 11c50f4 | [261006-g29-s-a-h-ng-c-y-giao-di-n-i-m-xu-t-ph-t-g-c](./quick/261006-g29-s-a-h-ng-c-y-giao-di-n-i-m-xu-t-ph-t-g-c/) |
+| 261006-gt2 | Vật phẩm Repair và Speed nhặt trên bản đồ được sử dụng ngay thay vì cộng vào kho dự trữ | 2026-10-06 | 7be3904 | [261006-gt2-v-t-ph-m-repair-v-speed-nh-t-tr-n-b-n-c-](./quick/261006-gt2-v-t-ph-m-repair-v-speed-nh-t-tr-n-b-n-c-/) |
 
 ## Next Action
 
 Run the three checks in `.planning/phases/04-campaign-tactical-systems/04-UAT.md` on `http://localhost:8081`.
 
 ---
-*Last activity: 2026-10-06 — corrected campaign visuals, held-fire input and team health bars; Docker build deployed for gameplay UAT*
+*Last activity: 2026-10-06 — map Repair/Speed pickups now apply immediately without changing reserve inventory; Docker build deployed for gameplay UAT*
