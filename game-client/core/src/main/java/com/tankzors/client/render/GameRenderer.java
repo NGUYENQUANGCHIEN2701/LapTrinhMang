@@ -31,7 +31,8 @@ public class GameRenderer implements Disposable {
     private final SpriteBatch batch;
     private final ShapeRenderer shapes;
     private final BitmapFont font;
-    private final OrthographicCamera camera;
+    private final OrthographicCamera worldCamera;
+    private final OrthographicCamera hudCamera;
     private final AssetRepository assets;
 
     private MapSnapshot cachedMap;
@@ -40,8 +41,10 @@ public class GameRenderer implements Disposable {
 
     public GameRenderer(AssetRepository assets) {
         this.assets = assets;
-        this.camera = new OrthographicCamera();
-        this.camera.setToOrtho(true, 800, 600); // y-down để khớp logic server
+        this.worldCamera = new OrthographicCamera();
+        this.worldCamera.setToOrtho(true, 800, 600); // y-down để khớp logic gameplay
+        this.hudCamera = new OrthographicCamera();
+        this.hudCamera.setToOrtho(true, 800, 600);
         this.batch = new SpriteBatch();
         this.shapes = new ShapeRenderer();
         // Camera dùng hệ tọa độ y-down, vì vậy font cũng phải flip theo y-down.
@@ -51,10 +54,12 @@ public class GameRenderer implements Disposable {
     }
 
     public void resize(int width, int height) {
-        camera.setToOrtho(true, width, height);
-        camera.update();
-        batch.setProjectionMatrix(camera.combined);
-        shapes.setProjectionMatrix(camera.combined);
+        int viewportWidth = Math.max(1, width);
+        int viewportHeight = Math.max(1, height);
+        worldCamera.setToOrtho(true, viewportWidth, viewportHeight);
+        hudCamera.setToOrtho(true, viewportWidth, viewportHeight);
+        worldCamera.update();
+        hudCamera.update();
     }
 
     public void render(GameStateSnapshot state) {
@@ -64,6 +69,9 @@ public class GameRenderer implements Disposable {
 
         if (state == null) return;
         animTime += Gdx.graphics.getDeltaTime();
+
+        updateWorldCamera(state);
+        useWorldProjection();
 
         // Khi đang chuyển màn / lỗi tải: giữ world cũ (nếu có) và vẽ overlay transition.
         boolean transitioning = state.transitionStatus != null;
@@ -97,6 +105,10 @@ public class GameRenderer implements Disposable {
             drawHealthBar(tank);
         }
         shapes.end();
+
+        // HUD/menu/overlay dùng camera màn hình riêng nên luôn đứng yên trong
+        // khung game, không trôi theo map khi world camera theo người chơi.
+        useHudProjection();
 
         if (transitioning) {
             drawTransitionOverlay(state.transitionStatus);
@@ -180,42 +192,146 @@ public class GameRenderer implements Disposable {
             for (int c = 0; c < map.width; c++) {
                 if (visibility != null && !visibility.isVisible(c, r)) continue;
                 int tile = map.grid[r][c];
+                int visualTile = visualTileAt(map, r, c);
                 int px = c * ts;
                 int py = r * ts;
+                if (visualTile > 0) {
+                    batch.draw(assets.groundFrameById(legacyGroundTileId(visualTile)), px, py, ts, ts);
+                } else {
+                    batch.draw(assets.groundFrame(r, c), px, py, ts, ts);
+                }
                 switch (tile) {
                     case 0: // GROUND
-                        batch.draw(assets.groundFrame(r, c), px, py, ts, ts);
                         break;
                     case 3: case 4: // SPAWN_PLAYER xanh / SPAWN_ENEMY đỏ
-                        batch.draw(assets.groundFrame(r, c), px, py, ts, ts);
-                        batch.draw(assets.spawnFrame(tile == 3, r, c), px, py, ts, ts);
+                        batch.draw(assets.spawnBaseFrame(tile == 3), px, py, ts, ts);
                         break;
                     case 1: // WALL
-                        batch.draw(assets.wallFrame(wallHitPointsAt(map, r, c)), px, py, ts, ts);
+                        int hitPoints = wallHitPointsAt(map, r, c);
+                        int legacyWall = legacyWallTileId(visualTile);
+                        batch.draw(hitPoints >= 4 && legacyWall >= 1 && legacyWall <= 8
+                                        ? assets.wallFrameById(legacyWall)
+                                        : assets.wallFrame(hitPoints),
+                                px, py, ts, ts);
                         break;
                     case 2: // WATER/SPIKES overlay lên ground
-                        batch.draw(assets.groundFrame(r, c), px, py, ts, ts);
                         batch.draw(assets.spikesFrame(r, c), px, py, ts, ts);
                         break;
                     case 5: // bê tông trắng, không thể phá
-                        batch.draw(assets.whiteWallFrame(r, c), px, py, ts, ts);
+                        int legacyConcrete = legacyWallTileId(visualTile);
+                        batch.draw(legacyConcrete >= 9 && legacyConcrete <= 10
+                                        ? assets.wallFrameById(legacyConcrete)
+                                        : assets.whiteWallFrame(r, c),
+                                px, py, ts, ts);
                         break;
                     case 6: // bụi/cỏ xanh, vỡ sau 1 hit
-                        batch.draw(assets.groundFrame(r, c), px, py, ts, ts);
                         batch.draw(assets.bushFrame(r, c), px, py, ts, ts);
                         break;
                     case 7: case 8: // pickup trên nền
-                        batch.draw(assets.groundFrame(r, c), px, py, ts, ts);
                         batch.draw(assets.pickupFrame(tile == 7), px + 6, py + 6, ts - 12, ts - 12);
                         break;
                     case 9: // cờ đích của campaign_1
-                        batch.draw(assets.groundFrame(r, c), px, py, ts, ts);
                         batch.draw(assets.flagFrame(), px, py, ts, ts);
                         break;
                 }
             }
         }
+        drawSpawnOverlays(map, visibility, ts);
         batch.end();
+    }
+
+    private int visualTileAt(MapSnapshot map, int row, int col) {
+        if (map.visualGrid == null || row < 0 || row >= map.visualGrid.length
+                || map.visualGrid[row] == null || col < 0 || col >= map.visualGrid[row].length) {
+            return 0;
+        }
+        return map.visualGrid[row][col];
+    }
+
+    /** Chuyển mã map_arr Builds thành tile nền 1-based trong ground.png. */
+    static int legacyGroundTileId(int sourceTile) {
+        if (sourceTile >= 1 && sourceTile <= 90) return sourceTile;
+        if (sourceTile > 249) return Math.max(1, Math.min(106, sourceTile - 149));
+        if (sourceTile >= 100 && sourceTile < 115) {
+            return themeGround((sourceTile - 100) / 5);
+        }
+        if (sourceTile >= 115 && sourceTile < 130) {
+            return themeGround((sourceTile - 115) / 5);
+        }
+        if (sourceTile >= 130 && sourceTile < 250) {
+            return themeGround((sourceTile - 130) / 40);
+        }
+        return 1;
+    }
+
+    private static int themeGround(int theme) {
+        if (theme <= 0) return 1;
+        if (theme == 1) return 34;
+        return 56;
+    }
+
+    /** Overlay wall id 1-based được đóng gói trong mã 130..249 của map cũ. */
+    static int legacyWallTileId(int sourceTile) {
+        if (sourceTile < 130 || sourceTile >= 250) return 0;
+        return (sourceTile - 130) % 40 + 1;
+    }
+
+    private void updateWorldCamera(GameStateSnapshot state) {
+        if (state.map == null) {
+            worldCamera.position.set(worldCamera.viewportWidth / 2f,
+                    worldCamera.viewportHeight / 2f, 0f);
+            worldCamera.update();
+            return;
+        }
+
+        float targetX = state.map.width * state.map.tileSize / 2f;
+        float targetY = state.map.height * state.map.tileSize / 2f;
+        for (TankSnapshot tank : state.tanks) {
+            if (tank.isPlayer) {
+                targetX = tank.x;
+                targetY = tank.y;
+                break;
+            }
+        }
+
+        float mapWidth = state.map.width * state.map.tileSize;
+        float mapHeight = state.map.height * state.map.tileSize;
+        float cameraX = WorldCameraBounds.centerForAxis(
+                targetX, mapWidth, worldCamera.viewportWidth);
+        float cameraY = WorldCameraBounds.centerForAxis(
+                targetY, mapHeight, worldCamera.viewportHeight);
+        worldCamera.position.set(cameraX, cameraY, 0f);
+        worldCamera.update();
+    }
+
+    private void useWorldProjection() {
+        batch.setProjectionMatrix(worldCamera.combined);
+        shapes.setProjectionMatrix(worldCamera.combined);
+    }
+
+    private void useHudProjection() {
+        batch.setProjectionMatrix(hudCamera.combined);
+        shapes.setProjectionMatrix(hudCamera.combined);
+    }
+
+    /** Overlay 100px được tint theo đúng game Base gốc và vẽ sau tilemap. */
+    private void drawSpawnOverlays(MapSnapshot map, VisibilityMask visibility, int tileSize) {
+        com.badlogic.gdx.graphics.Texture overlay = assets.spawnOverlay();
+        if (overlay == null) return;
+        for (int row = 0; row < map.height; row++) {
+            for (int col = 0; col < map.width; col++) {
+                if (visibility != null && !visibility.isVisible(col, row)) continue;
+                int tile = map.grid[row][col];
+                if (tile != 3 && tile != 4) continue;
+                boolean player = tile == 3;
+                batch.setColor(player ? 0.267f : 1f, player ? 1f : 0f,
+                        0f, player ? 0.376f : 0.502f);
+                float centerX = (col + 0.5f) * tileSize;
+                float centerY = (row + 0.5f) * tileSize;
+                batch.draw(overlay, centerX - 50f, centerY - 50f, 100f, 100f);
+            }
+        }
+        batch.setColor(Color.WHITE);
     }
 
     private int wallHitPointsAt(MapSnapshot map, int row, int col) {
@@ -230,6 +346,10 @@ public class GameRenderer implements Disposable {
 
     private void drawTank(TankSnapshot tank) {
         if (!tank.alive || tank.hp <= 0) return;
+        com.badlogic.gdx.graphics.g2d.TextureRegion teamRing = assets.teamRingFrame(tank.isPlayer);
+        if (teamRing != null) {
+            batch.draw(teamRing, tank.x - 26f, tank.y - 26f, 52f, 52f);
+        }
         if (tank.maxShieldHp > 0) {
             com.badlogic.gdx.graphics.g2d.TextureRegion shield = assets.shieldRingFrame();
             if (shield != null) {
@@ -436,9 +556,7 @@ public class GameRenderer implements Disposable {
 
         // Thanh máu
         float pct = MathUtils.clamp((float) tank.hp / tank.maxHp, 0, 1);
-        if (pct > 0.6f) shapes.setColor(Color.GREEN);
-        else if (pct > 0.3f) shapes.setColor(Color.YELLOW);
-        else shapes.setColor(Color.RED);
+        shapes.setColor(tank.isPlayer ? Color.GREEN : Color.RED);
 
         shapes.rect(bx, by, barW * pct, barH);
         if (tank.maxShieldHp > 0) {
@@ -471,9 +589,7 @@ public class GameRenderer implements Disposable {
         shapes.rect(18, 30, 138, 12);
 
         float pct = MathUtils.clamp((float) hp / maxHp, 0, 1);
-        if (pct > 0.6f) shapes.setColor(Color.GREEN);
-        else if (pct > 0.3f) shapes.setColor(Color.YELLOW);
-        else shapes.setColor(Color.RED);
+        shapes.setColor(Color.GREEN);
         shapes.rect(18, 30, 138 * pct, 12);
         drawHealthTicks(18, 30, 138, 12, 5);
         if (maxShieldHp > 0) {
@@ -487,9 +603,6 @@ public class GameRenderer implements Disposable {
 
         // Vẽ Text & Icon trong batch.
         batch.begin();
-        // HP Label
-        font.setColor(Color.WHITE);
-        font.draw(batch, "HP " + hp + "/" + maxHp, 18, 14);
         if (maxShieldHp > 0) {
             font.setColor(Color.CYAN);
             font.draw(batch, "SH " + shieldHp + "/" + maxShieldHp, 104, 14);
@@ -609,6 +722,7 @@ public class GameRenderer implements Disposable {
 
     public void renderShop(com.tankzors.client.ui.ShopOverlay shopOverlay) {
         if (shopOverlay != null && shopOverlay.isVisible()) {
+            useHudProjection();
             shopOverlay.render(batch, shapes, font);
         }
     }

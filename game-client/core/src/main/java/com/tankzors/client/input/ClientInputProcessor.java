@@ -16,6 +16,8 @@ import com.badlogic.gdx.InputProcessor;
  */
 public final class ClientInputProcessor implements InputProcessor {
 
+    private static final float AUTO_FIRE_REPEAT_SECONDS = 0.10f;
+
     public enum Direction { UP, DOWN, LEFT, RIGHT }
 
     public interface Callbacks {
@@ -43,6 +45,8 @@ public final class ClientInputProcessor implements InputProcessor {
     private final Callbacks callbacks;
     private final EnumSet<Direction> activeDirections = EnumSet.noneOf(Direction.class);
     private boolean reverseActive;
+    private boolean spaceActive;
+    private float autoFireElapsed;
     private boolean enabled = true;
     private com.tankzors.client.ui.ShopOverlay shopOverlay;
 
@@ -92,6 +96,20 @@ public final class ClientInputProcessor implements InputProcessor {
 
     private boolean isShootKey(int keycode) {
         return keycode == Input.Keys.SPACE || keycode == Input.Keys.J;
+    }
+
+    /** Keep requesting shots while Space is held; the tank cooldown controls actual fire rate. */
+    public void update(float deltaSeconds) {
+        if (!enabled || !spaceActive || callbacks.isInventoryMenuOpen()
+                || (shopOverlay != null && shopOverlay.isVisible())) {
+            autoFireElapsed = 0f;
+            return;
+        }
+        autoFireElapsed += Math.max(0f, deltaSeconds);
+        if (autoFireElapsed >= AUTO_FIRE_REPEAT_SECONDS) {
+            autoFireElapsed %= AUTO_FIRE_REPEAT_SECONDS;
+            callbacks.onShoot();
+        }
     }
 
     @Override
@@ -179,6 +197,14 @@ public final class ClientInputProcessor implements InputProcessor {
             }
             return true;
         }
+        if (keycode == Input.Keys.SPACE) {
+            if (!spaceActive) {
+                spaceActive = true;
+                autoFireElapsed = 0f;
+                callbacks.onShoot();
+            }
+            return true;
+        }
         if (isShootKey(keycode)) {
             callbacks.onShoot();
             return true;
@@ -188,6 +214,11 @@ public final class ClientInputProcessor implements InputProcessor {
 
     @Override
     public boolean keyUp(int keycode) {
+        if (keycode == Input.Keys.SPACE) {
+            spaceActive = false;
+            autoFireElapsed = 0f;
+            return true;
+        }
         if (shopOverlay != null && shopOverlay.isVisible()) {
             return true;
         }
@@ -229,6 +260,8 @@ public final class ClientInputProcessor implements InputProcessor {
             reverseActive = false;
             callbacks.onReverse(false);
         }
+        spaceActive = false;
+        autoFireElapsed = 0f;
     }
 
     // ========== InputProcessor touch/scroll methods ==========

@@ -575,12 +575,25 @@ public class GameSimulation {
         TileType pickup = ((MapDefinition) world.getCurrentMap()).collectPickupAt(
                 player.getPosition().getX(), player.getPosition().getY());
         if (pickup == TileType.REPAIR_PICKUP) {
-            shopState.setItemCount(ShopItem.REPAIR.getId(), shopState.getItemCount(ShopItem.REPAIR.getId()) + 1);
             if (eventListener != null) eventListener.onPickup();
+            applyRepair(player);
         } else if (pickup == TileType.SPEED_PICKUP) {
-            shopState.setItemCount(ShopItem.SPEED_UP.getId(), shopState.getItemCount(ShopItem.SPEED_UP.getId()) + 1);
             if (eventListener != null) eventListener.onPickup();
+            applySpeedBoost(player);
         }
+    }
+
+    private void applyRepair(PlayerTank player) {
+        player.setHp(player.getMaxHP());
+        if (eventListener != null) eventListener.onUseRepair();
+    }
+
+    private void applySpeedBoost(PlayerTank player) {
+        speedBoostRemaining = SPEED_BOOST_SECONDS
+                + (shopState.hasExChassis() ? EX_CHASSIS_SPEED_BONUS_SECONDS : 0);
+        player.setSpeed(basePlayerSpeed * SPEED_BOOST_MULTIPLIER);
+        player.setShootCooldown(Math.max(0.10, basePlayerShootCooldown - NITRO_RELOAD_REDUCTION_SECONDS));
+        if (eventListener != null) eventListener.onUseSpeed();
     }
 
     private void checkCollisions() {
@@ -966,19 +979,14 @@ public class GameSimulation {
         if (player == null || !player.isAlive()) return false;
         if (itemId == ShopItem.REPAIR.getId()) {
             if (player.getHP() >= player.getMaxHP() || !shopState.consumeItem(itemId)) return false;
-            player.setHp(player.getMaxHP());
+            applyRepair(player);
             shopStateDirty = true;
-            if (eventListener != null) eventListener.onUseRepair();
             return true;
         }
         if (itemId == ShopItem.SPEED_UP.getId()) {
             if (!shopState.consumeItem(itemId)) return false;
-            speedBoostRemaining = SPEED_BOOST_SECONDS
-                    + (shopState.hasExChassis() ? EX_CHASSIS_SPEED_BONUS_SECONDS : 0);
-            player.setSpeed(basePlayerSpeed * SPEED_BOOST_MULTIPLIER);
-            player.setShootCooldown(Math.max(0.10, basePlayerShootCooldown - NITRO_RELOAD_REDUCTION_SECONDS));
+            applySpeedBoost(player);
             shopStateDirty = true;
-            if (eventListener != null) eventListener.onUseSpeed();
             return true;
         }
         if (itemId == ShopItem.FREEZE.getId()) {

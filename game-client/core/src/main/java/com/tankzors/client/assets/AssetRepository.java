@@ -34,6 +34,7 @@ public class AssetRepository implements Disposable {
     private Texture buildingsSheet;
     private Texture triggersSheet;
     private Texture shieldRingsSheet;
+    private Texture spawnOverlayTexture;
 
     // Shop GUI Textures
     private Texture iconsSheet;
@@ -48,6 +49,7 @@ public class AssetRepository implements Disposable {
     private TextureRegion[] enemyTankFrames;
     private TextureRegion[] groundFrames;
     private TextureRegion[] wallFrames;
+    private TextureRegion[] bushFrames;
     private TextureRegion[] spikesFrames;
     private TextureRegion[] palmsFrames;
     private TextureRegion defaultBulletFrame;
@@ -59,6 +61,7 @@ public class AssetRepository implements Disposable {
     private TextureRegion[] bigRedExplosionFrames;
     private TextureRegion[] powerupFrames;
     private TextureRegion[] buildingFrames;
+    private TextureRegion campaignFlagFrame;
     private TextureRegion[] triggerFrames;
     private TextureRegion[] shieldRingFrames;
 
@@ -81,6 +84,9 @@ public class AssetRepository implements Disposable {
         if (Gdx.files.internal("effects/rings.png").exists()) {
             shieldRingsSheet = new Texture(Gdx.files.internal("effects/rings.png"));
         }
+        if (Gdx.files.internal("effects/overlay.png").exists()) {
+            spawnOverlayTexture = new Texture(Gdx.files.internal("effects/overlay.png"));
+        }
 
         // Tanks: 16 frame × 24px (theo Renderer.ts)
         // Camera renderer dùng y-down. Chỉ sprite tank có hướng cần đảo V để
@@ -96,10 +102,18 @@ public class AssetRepository implements Disposable {
         bigPlasmaExplosionFrames = split(bigPlasmaExplosionSheet, 40, 40, 12, false);
         bigRedExplosionFrames = split(bigRedExplosionSheet, 40, 40, 12, false);
 
-        // Ground: 5 frame × 20px
-        groundFrames = split(groundSheet, 20, 20, 5, false);
+        // Ground atlas gốc có 106 frame × 20px. Nạp toàn bộ để campaign_1 có
+        // đúng cỏ, vệt bánh xe và hố đất theo mã tile của Builds.
+        groundFrames = split(groundSheet, 20, 20,
+                Math.max(1, groundSheet.getWidth() / 20), false);
         // Wall sheet gốc: gạch, bê tông trắng và cây/bụi.
         wallFrames = split(wallSheet, 20, 20, 18, false);
+        // Builds dùng wall tile id 16..18 cho ba bụi cây tròn của map này.
+        bushFrames = new TextureRegion[3];
+        for (int i = 0; i < bushFrames.length; i++) {
+            bushFrames[i] = new TextureRegion(wallFrames[15 + i]);
+            bushFrames[i].flip(false, true);
+        }
         // Spikes: 3 frame × 20px
         spikesFrames = split(spikesSheet, 20, 20, 3, false);
         // Palms: 5 frame × 88px
@@ -107,6 +121,8 @@ public class AssetRepository implements Disposable {
         explosionFrames = split(explosionBigSheet, 35, 35, 28, false);
         powerupFrames = split(powerupsSheet, 20, 20, 20, false);
         buildingFrames = split(buildingsSheet, 20, 20, 6, false);
+        campaignFlagFrame = new TextureRegion(buildingFrames[flagFrameIndex()]);
+        campaignFlagFrame.flip(false, flagRequiresVerticalFlip());
         triggerFrames = split(triggersSheet, 20, 20, 10, false);
         if (shieldRingsSheet != null) shieldRingFrames = split(shieldRingsSheet, 28, 28, 6, true);
 
@@ -220,11 +236,27 @@ public class AssetRepository implements Disposable {
     }
 
     public TextureRegion groundFrame(int row, int col) {
-        return groundFrames[(row * 3 + col * 7) % groundFrames.length];
+        // Map schema mới không có visualGrid vẫn giữ tập năm frame cỏ cũ;
+        // chỉ campaign có mã Builds mới được truy cập toàn bộ atlas.
+        int fallbackFrameCount = Math.min(5, groundFrames.length);
+        return groundFrames[(row * 3 + col * 7) % fallbackFrameCount];
+    }
+
+    public TextureRegion groundFrameById(int oneBasedTileId) {
+        return groundFrames[frameIndexForTileId(oneBasedTileId, groundFrames.length)];
     }
 
     public TextureRegion wallFrame(int hitPoints) {
         return wallFrames[brownWallFrameIndex(hitPoints)];
+    }
+
+    public TextureRegion wallFrameById(int oneBasedTileId) {
+        return wallFrames[frameIndexForTileId(oneBasedTileId, wallFrames.length)];
+    }
+
+    public static int frameIndexForTileId(int oneBasedTileId, int frameCount) {
+        if (frameCount <= 1) return 0;
+        return Math.max(0, Math.min(frameCount - 1, oneBasedTileId - 1));
     }
 
     /**
@@ -239,27 +271,41 @@ public class AssetRepository implements Disposable {
     }
 
     public TextureRegion whiteWallFrame(int row, int col) {
-        // Sprite 6..10 là nhóm bê tông/kim loại sáng; frame 11 đã là cỏ.
-        return wallFrames[6 + (row + col) % 5];
+        // Builds dùng đúng wall tile id 9 và 10 cho bê tông trắng.
+        return wallFrames[8 + (row + col) % 2];
     }
 
     public TextureRegion bushFrame(int row, int col) {
-        // Sprite 11..17 là toàn bộ nhóm cây/cỏ xanh.
-        return wallFrames[11 + (row * 2 + col * 3) % 7];
+        return bushFrames[(row * 2 + col * 3) % bushFrames.length];
     }
 
     public TextureRegion pickupFrame(boolean repair) {
         return powerupFrames[repair ? 10 : 0];
     }
 
-    /** Cờ vàng gốc trong buildings.png (frame 3). */
-    public TextureRegion flagFrame() { return buildingFrames[3]; }
+    /** Cờ vàng gốc trong buildings.png (frame 3), lật dọc riêng cho camera y-down. */
+    public TextureRegion flagFrame() { return campaignFlagFrame; }
 
-    /** Vòng spawn gốc: cặp đỏ ở 0..1, cặp xanh ở 2..3. */
-    public TextureRegion spawnFrame(boolean player, int row, int col) {
-        int firstFrame = player ? 2 : 0;
-        return triggerFrames[firstFrame + ((row + col) & 1)];
+    public static int flagFrameIndex() { return 3; }
+
+    public static boolean flagRequiresVerticalFlip() { return true; }
+
+    /** Base gốc: frame sọc vàng cho phe người chơi, sọc đỏ cho phe AI. */
+    public TextureRegion spawnBaseFrame(boolean player) {
+        return buildingFrames[spawnBaseFrameIndex(player)];
     }
+
+    public static int spawnBaseFrameIndex(boolean player) { return player ? 0 : 1; }
+
+    /** Vòng phe gốc trong rings.png: team 1 xanh, team 2 đỏ. */
+    public TextureRegion teamRingFrame(boolean player) {
+        if (shieldRingFrames == null || shieldRingFrames.length < 3) return null;
+        return shieldRingFrames[teamRingFrameIndex(player)];
+    }
+
+    public static int teamRingFrameIndex(boolean player) { return player ? 1 : 2; }
+
+    public Texture spawnOverlay() { return spawnOverlayTexture; }
 
     public TextureRegion explosionFrame(float progress) {
         if (explosionFrames == null || explosionFrames.length == 0) return null;
@@ -305,6 +351,7 @@ public class AssetRepository implements Disposable {
         if (buildingsSheet != null) buildingsSheet.dispose();
         if (triggersSheet != null) triggersSheet.dispose();
         if (shieldRingsSheet != null) shieldRingsSheet.dispose();
+        if (spawnOverlayTexture != null) spawnOverlayTexture.dispose();
         if (iconsSheet != null) iconsSheet.dispose();
         if (billetsTexture != null) billetsTexture.dispose();
         if (panelTexture != null) panelTexture.dispose();

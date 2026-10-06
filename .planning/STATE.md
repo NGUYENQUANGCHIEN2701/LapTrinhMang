@@ -36,10 +36,13 @@ See: `.planning/PROJECT.md` (updated 2026-09-28)
 | # | Description | Date | Commit | Directory |
 |---|---|---|---|---|
 | 260928-n9l | Thiết kế lại campaign_1 thành màn cướp cờ có hồi sinh tại spawn cố định | 2026-09-28 | 1441af2 | [260928-n9l-thi-t-k-l-i-campaign-1-th-nh-m-n-c-p-c-n](./quick/260928-n9l-thi-t-k-l-i-campaign-1-th-nh-m-n-c-p-c-n/) |
+| 261006-g29 | Sửa hướng cây, giao diện spawn gốc, giữ Space bắn liên tục và thanh máu theo phe | 2026-10-06 | 11c50f4 | [261006-g29-s-a-h-ng-c-y-giao-di-n-i-m-xu-t-ph-t-g-c](./quick/261006-g29-s-a-h-ng-c-y-giao-di-n-i-m-xu-t-ph-t-g-c/) |
+| 261006-gt2 | Vật phẩm Repair và Speed nhặt trên bản đồ được sử dụng ngay thay vì cộng vào kho dự trữ | 2026-10-06 | 7be3904 | [261006-gt2-v-t-ph-m-repair-v-speed-nh-t-tr-n-b-n-c-](./quick/261006-gt2-v-t-ph-m-repair-v-speed-nh-t-tr-n-b-n-c-/) |
+| 261006-gz8 | Sửa sprite cờ trong campaign hiển thị đúng chiều hướng lên trên | 2026-10-06 | 3f39d55 | [261006-gz8-s-a-sprite-c-trong-campaign-hi-n-th-ng-c](./quick/261006-gz8-s-a-sprite-c-trong-campaign-hi-n-th-ng-c/) |
 
 ## Next Action
 
 Run the three checks in `.planning/phases/04-campaign-tactical-systems/04-UAT.md` on `http://localhost:8081`.
 
 ---
-*Last activity: 2026-09-28 — campaign_1 capture-the-flag implementation verified and deployed; awaiting gameplay UAT*
+*Last activity: 2026-10-06 — campaign flag sprite corrected for the y-down camera; Docker build deployed for gameplay UAT*

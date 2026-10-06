@@ -50,6 +50,24 @@ class ClientInputProcessorTest {
         assertEquals(1, callbacks.confirmMenu);
     }
 
+    @Test
+    void holdingSpaceRepeatsShotsUntilKeyIsReleased() {
+        RecordingCallbacks callbacks = new RecordingCallbacks();
+        ClientInputProcessor input = new ClientInputProcessor(callbacks);
+
+        input.keyDown(Input.Keys.SPACE);
+        input.keyDown(Input.Keys.SPACE);
+        assertEquals(1, callbacks.shots, "OS key-repeat must not duplicate the initial shot");
+
+        input.update(0.10f);
+        input.update(0.14f);
+        assertEquals(3, callbacks.shots, "Holding Space must keep firing at the repeat cadence");
+
+        input.keyUp(Input.Keys.SPACE);
+        input.update(1f);
+        assertEquals(3, callbacks.shots, "Releasing Space must stop automatic fire");
+    }
+
     private static final class RecordingCallbacks implements ClientInputProcessor.Callbacks {
         int reversePressed;
         int reverseReleased;
@@ -57,10 +75,11 @@ class ClientInputProcessorTest {
         int openMenu;
         int menuMoves;
         int confirmMenu;
+        int shots;
         boolean menuOpen;
 
         @Override public void onMove(ClientInputProcessor.Direction direction, boolean moving) {}
-        @Override public void onShoot() {}
+        @Override public void onShoot() { shots++; }
         @Override public void onAllReleased() {}
         @Override public void onRestart() {}
         @Override public void onNextLevel() {}

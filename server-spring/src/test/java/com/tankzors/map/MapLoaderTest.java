@@ -16,13 +16,24 @@ class MapLoaderTest {
             GameMap map = MapLoader.load(levelId);
             assertNotNull(map, levelId);
             if ("campaign_1".equals(levelId)) {
-                assertEquals(20, map.getWidth());
-                assertEquals(15, map.getHeight());
+                assertEquals(16, map.getWidth());
+                assertEquals(22, map.getHeight());
                 assertEquals(1, countTiles(map, 3), "Màn 1 phải có đúng một player spawn xanh");
                 assertEquals(1, countTiles(map, 4), "Màn 1 phải có đúng một AI spawn đỏ");
                 assertEquals(1, countTiles(map, 9), "Màn 1 phải có đúng một cờ đích");
-                assertTrue(isReachable(map, 3, 9), "Player phải có đường đi tới cờ");
-                assertTrue(isReachable(map, 4, 3), "AI phải có đường đi tới khu player");
+                assertEquals(1, countTiles(map, 7), "Màn 1 phải có đúng một Repair như map gốc");
+                assertEquals(9, map.getGrid()[3][3], "Cờ phải ở (3,3)");
+                assertEquals(3, map.getGrid()[3][11], "Player spawn phải ở (11,3)");
+                assertEquals(7, map.getGrid()[13][5], "Repair phải ở (5,13)");
+                assertEquals(4, map.getGrid()[19][2], "AI spawn phải ở (2,19)");
+                assertNotNull(map.getVisualGrid(), "Màn 1 phải giữ mã tile hình ảnh từ Builds");
+                assertEquals(115, map.getVisualGrid()[3][3], "Visual cờ phải giữ mã 115 gốc");
+                assertEquals(145, map.getVisualGrid()[8][0], "Visual bụi phải giữ mã 145 gốc");
+                assertEquals(164, map.getVisualGrid()[13][5], "Visual Repair phải giữ mã 164 gốc");
+                assertTrue(isReachable(map, 3, 9),
+                        "Player phải có lộ trình tới cờ sau khi phá vật cản nâu/bụi");
+                assertTrue(isReachable(map, 4, 3),
+                        "AI phải có lộ trình tới khu player sau khi phá vật cản nâu/bụi");
             } else {
                 assertEquals(20, map.getWidth());
                 assertEquals(15, map.getHeight());
@@ -84,7 +95,7 @@ class MapLoaderTest {
                 int col = current[0] + direction[0];
                 int row = current[1] + direction[1];
                 if (col < 0 || col >= map.getWidth() || row < 0 || row >= map.getHeight()
-                        || visited[row][col] || !isWalkableTile(grid[row][col])) continue;
+                        || visited[row][col] || !isRouteTile(grid[row][col])) continue;
                 visited[row][col] = true;
                 queue.addLast(new int[]{col, row});
             }
@@ -92,7 +103,9 @@ class MapLoaderTest {
         return false;
     }
 
-    private static boolean isWalkableTile(int tile) {
-        return tile == 0 || tile == 3 || tile == 4 || tile == 7 || tile == 8 || tile == 9;
+    private static boolean isRouteTile(int tile) {
+        // Tường nâu (1) và bụi (6) có thể bị phá để mở đường; nước (2) và
+        // tường trắng (5) mới là vật cản vĩnh viễn của lộ trình campaign.
+        return tile != 2 && tile != 5;
     }
 }
