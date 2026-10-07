@@ -3,6 +3,7 @@ package com.tankzors.client.gameplay.entity;
 import com.tankzors.client.gameplay.GameWorld;
 import com.tankzors.client.gameplay.WeaponProfile;
 import com.tankzors.client.gameplay.ai.AIController;
+import com.tankzors.client.gameplay.ai.BuildsTankStats;
 import com.tankzors.client.gameplay.ai.DifficultyLevel;
 import com.tankzors.client.gameplay.interfaces.IBullet;
 import com.tankzors.client.gameplay.interfaces.ITank;
@@ -23,6 +24,10 @@ public class AITank extends Tank {
     private boolean turret;
     private int turretRangeTiles;
     private boolean followPlayer;
+    /** Loại xe Builds (0..7) và cấp độ khó (1..5) quyết định máu, tốc độ, loại đạn. */
+    private int buildsType;
+    private int buildsLevel = 1;
+    private double buildsSpeed = BuildsTankStats.speed(0, 1);
 
     public AITank(String id, double x, double y, DifficultyLevel difficulty) {
         this(id, x, y, difficulty, new AIController());
@@ -33,6 +38,24 @@ public class AITank extends Tank {
         this.difficulty = difficulty;
         this.controller = controller;
     }
+
+    /** Xe AI theo bảng chỉ số Builds (game.Base.createBot). */
+    public static AITank builds(String id, double x, double y, int typeId, int level) {
+        AITank tank = new AITank(id, x, y, DifficultyLevel.EASY);
+        tank.buildsType = Math.max(0, Math.min(7, typeId));
+        tank.buildsLevel = Math.max(1, Math.min(5, level));
+        tank.buildsSpeed = BuildsTankStats.speed(tank.buildsType, tank.buildsLevel);
+        tank.hp = BuildsTankStats.hitPoints(tank.buildsType, tank.buildsLevel);
+        tank.maxHp = tank.hp;
+        int shield = BuildsTankStats.shieldHitPoints(tank.buildsType, tank.buildsLevel);
+        if (shield > 0) tank.addShieldCapacity(shield);
+        return tank;
+    }
+
+    public int getBuildsType() { return buildsType; }
+    public int getBuildsLevel() { return buildsLevel; }
+    /** Tốc độ Builds (đơn vị 100/speed frame mỗi ô), chưa nhân hệ số nền. */
+    public double getBuildsSpeed() { return buildsSpeed; }
 
     /** Ụ súng cố định Builds: không di chuyển, chỉ bắn theo hướng nòng trong tầm. */
     public static AITank turret(String id, double x, double y, Direction facing, int rangeTiles, int hitPoints) {

@@ -289,19 +289,20 @@ public class GameSimulation {
         checkTriggers();
         if (enemySpawner != null) {
             MissionConfig.SpawnBase base = enemySpawner.update(dt, countOnField(false), this::isCellFree);
-            if (base != null) spawnWaveTank(base, enemySpawner.waves(), false);
+            if (base != null) spawnWaveTank(base, enemySpawner, false);
         }
         if (allySpawner != null) {
             MissionConfig.SpawnBase base = allySpawner.update(dt, countOnField(true), this::isCellFree);
-            if (base != null) spawnWaveTank(base, allySpawner.waves(), true);
+            if (base != null) spawnWaveTank(base, allySpawner, true);
         }
     }
 
-    private void spawnWaveTank(MissionConfig.SpawnBase base, MissionConfig.Waves waves, boolean ally) {
+    private void spawnWaveTank(MissionConfig.SpawnBase base, MissionSpawner spawner, boolean ally) {
         int tileSize = world.getCurrentMap().getTileSize();
+        MissionConfig.Waves waves = spawner.waves();
         String id = (ally ? "ally-" : "ai-wave-") + (missionSerial++);
-        AITank tank = new AITank(id, (base.x + 0.5) * tileSize, (base.y + 0.5) * tileSize,
-                parseDifficulty(waves.difficulty));
+        AITank tank = AITank.builds(id, (base.x + 0.5) * tileSize, (base.y + 0.5) * tileSize,
+                spawner.takeTankType(matchRng), waves.level);
         if (ally) {
             tank.setTeam(AITank.Team.ALLY);
             tank.setFollowPlayer(waves.followPlayer);
@@ -611,11 +612,8 @@ public class GameSimulation {
     }
 
     private void wireAiBulletIds(AITank enemy) {
-        // ShootBehavior default đếm id riêng theo owner.
-        IAIBehavior sb = enemy.getController().getShootBehavior();
-        if (sb instanceof ShootBehavior) {
-            ((ShootBehavior) sb).setBulletIdSource(owner -> bulletIds.next(owner));
-        }
+        // Seed RNG theo trận để AI rẽ ngẫu nhiên nhưng tái lập được; id đạn đếm theo owner.
+        enemy.getController().seed(matchRng.nextLong(), owner -> bulletIds.next(owner));
     }
 
     private Position findPlayerSpawn() {
@@ -1026,6 +1024,8 @@ public class GameSimulation {
                 if (isSameSide(bullet, tank)) continue;
                 if (Collision.checkBulletTankCollision(bullet, tank)) {
                     tank.takeDamage(bullet.getDamage());
+                    // Builds damageTank → attackedSide: xe AI quay về phía phát đạn.
+                    if (tank instanceof AITank) ((AITank) tank).getController().onAttacked(bullet.getDirection());
                     bullet.deactivate();
                     effects.add(WorldEffect.impact(tank.getPosition().getX(), tank.getPosition().getY(), weaponTypeOf(bullet)));
                     boolean killed = !tank.isAlive();

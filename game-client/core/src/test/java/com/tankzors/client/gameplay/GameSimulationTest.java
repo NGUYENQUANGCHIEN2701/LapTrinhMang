@@ -314,9 +314,8 @@ class GameSimulationTest {
             assertEquals(PlayerTank.DEFAULT_SPEED, level.getSpeed());
         }
         assertEquals(200.0, Bullet.DEFAULT_SPEED);
-        assertEquals(Bullet.DEFAULT_SPEED,
-                com.tankzors.client.gameplay.ai.ShootBehavior.AI_BULLET_SPEED,
-                "Player and AI projectiles must use the same speed");
+        assertEquals(Bullet.DEFAULT_SPEED, WeaponProfile.fromItemId(0).speedPixelsPerSecond(),
+                "Player and AI shells must use the same speed");
     }
 
     @Test

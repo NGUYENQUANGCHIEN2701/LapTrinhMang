@@ -108,6 +108,37 @@ class MissionGameplayTest {
     }
 
     @Test
+    @DisplayName("Đợt địch ra theo loại Builds lần lượt: hết loại 0 (3 máu) mới tới loại 1 (5 máu)")
+    void waveTankTypesFollowBuildsOrder() {
+        MapDefinition map = TestMaps.parse(
+                "##########",
+                "#o.......#",
+                "#........#",
+                "#......x.#",
+                "##########");
+        MissionConfig mission = new MissionConfig();
+        List<MissionConfig.SpawnBase> bases = new ArrayList<>();
+        bases.add(new MissionConfig.SpawnBase(7, 3, 3));
+        mission.setEnemyWaves(new MissionConfig.Waves(1, 1.0, "EASY", false, bases,
+                new int[]{2, 1, 0, 0, 0, 0, 0, 0}, 1, false));
+        GameSimulation sim = start(map, mission, new PlayerShopState());
+        GameWorld world = sim.getWorld();
+        player(sim).setMaxHp(999);
+        player(sim).setHp(999);
+
+        List<Integer> hps = new ArrayList<>();
+        for (int wave = 0; wave < 3; wave++) {
+            int guard = 0;
+            while (aiTanks(world, false, false).isEmpty() && guard++ < 90) sim.step(STEP);
+            AITank tank = aiTanks(world, false, false).get(0);
+            hps.add(tank.getMaxHP());
+            tank.takeDamage(100);
+            sim.step(STEP);
+        }
+        assertEquals(List.of(3, 3, 5), hps);
+    }
+
+    @Test
     @DisplayName("Đồng minh ra khi người chơi rời base, thù địch với phe địch, đạn người chơi không trúng")
     void allySpawnsFromPlayerBaseAndIsFriendly() {
         MapDefinition map = TestMaps.parse(
