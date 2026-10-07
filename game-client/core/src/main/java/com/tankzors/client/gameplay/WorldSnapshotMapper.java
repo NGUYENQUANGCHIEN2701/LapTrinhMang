@@ -20,7 +20,19 @@ import com.tankzors.client.gameplay.map.MapDefinition;
 public final class WorldSnapshotMapper {
     private WorldSnapshotMapper() {}
 
+    /** Quá khoảng này giữa hai tick thì coi là dịch chuyển tức thời (respawn), không nội suy. */
+    static final double MAX_INTERPOLATION_DISTANCE = 48.0;
+
     public static GameStateSnapshot snapshot(GameWorld world, String localPlayerId, int score, double elapsedSeconds) {
+        return snapshot(world, localPlayerId, score, elapsedSeconds, 1f);
+    }
+
+    /**
+     * @param alpha tỉ lệ nội suy render (0 = vị trí đầu step, 1 = vị trí hiện tại).
+     *              Chỉ ảnh hưởng toạ độ hiển thị, không đụng tới world.
+     */
+    public static GameStateSnapshot snapshot(GameWorld world, String localPlayerId, int score,
+                                             double elapsedSeconds, float alpha) {
         GameStateSnapshot snap = new GameStateSnapshot();
         snap.gameStatus = world.getStatus().name();
         snap.score = score;
@@ -61,8 +73,16 @@ public final class WorldSnapshotMapper {
         for (ITank tank : world.getAllTanks()) {
             TankSnapshot ts = new TankSnapshot();
             ts.id = tank.getId();
-            ts.x = (float) tank.getPosition().getX();
-            ts.y = (float) tank.getPosition().getY();
+            double tx = tank.getPosition().getX();
+            double ty = tank.getPosition().getY();
+            if (tank instanceof com.tankzors.client.gameplay.entity.Tank) {
+                com.tankzors.client.gameplay.entity.Tank body = (com.tankzors.client.gameplay.entity.Tank) tank;
+                ts.x = interpolate(body.getPreviousX(), body.getPreviousY(), tx, ty, alpha, true);
+                ts.y = interpolate(body.getPreviousX(), body.getPreviousY(), tx, ty, alpha, false);
+            } else {
+                ts.x = (float) tx;
+                ts.y = (float) ty;
+            }
             ts.rotation = (float) tank.getRotation();
             ts.hp = tank.getHP();
             ts.maxHp = tank.getMaxHP();
@@ -83,8 +103,10 @@ public final class WorldSnapshotMapper {
             com.tankzors.client.gameplay.entity.Bullet b = (com.tankzors.client.gameplay.entity.Bullet) bullet;
             BulletSnapshot bs = new BulletSnapshot();
             bs.id = b.getId();
-            bs.x = (float) b.getPosition().getX();
-            bs.y = (float) b.getPosition().getY();
+            double px = b.getPreviousPosition().getX();
+            double py = b.getPreviousPosition().getY();
+            bs.x = interpolate(px, py, b.getPosition().getX(), b.getPosition().getY(), alpha, true);
+            bs.y = interpolate(px, py, b.getPosition().getX(), b.getPosition().getY(), alpha, false);
             bs.direction = (float) b.getDirection();
             bs.ownerId = b.getOwnerId();
             bs.weaponType = b.getWeaponType();
@@ -97,5 +119,18 @@ public final class WorldSnapshotMapper {
         }
 
         return snap;
+    }
+
+    static float interpolate(double prevX, double prevY, double x, double y, float alpha, boolean xAxis) {
+        double current = xAxis ? x : y;
+        if (alpha >= 1f) return (float) current;
+        double dx = x - prevX;
+        double dy = y - prevY;
+        if (dx * dx + dy * dy > MAX_INTERPOLATION_DISTANCE * MAX_INTERPOLATION_DISTANCE) {
+            return (float) current;
+        }
+        double previous = xAxis ? prevX : prevY;
+        double a = Math.max(0f, alpha);
+        return (float) (previous + (current - previous) * a);
     }
 }

@@ -68,6 +68,19 @@ class ClientInputProcessorTest {
         assertEquals(3, callbacks.shots, "Releasing Space must stop automatic fire");
     }
 
+    @Test
+    void enterOnResultScreenContinuesWithoutTouchingGameplay() {
+        RecordingCallbacks callbacks = new RecordingCallbacks();
+        ClientInputProcessor input = new ClientInputProcessor(callbacks);
+
+        input.keyDown(Input.Keys.ENTER);
+        assertEquals(0, callbacks.continues, "Enter khi đang chơi không được nhảy màn");
+
+        input.setEnabled(false);
+        input.keyDown(Input.Keys.ENTER);
+        assertEquals(1, callbacks.continues);
+    }
+
     private static final class RecordingCallbacks implements ClientInputProcessor.Callbacks {
         int reversePressed;
         int reverseReleased;
@@ -75,6 +88,7 @@ class ClientInputProcessorTest {
         int openMenu;
         int menuMoves;
         int confirmMenu;
+        int continues;
         int shots;
         boolean menuOpen;
 
@@ -83,6 +97,7 @@ class ClientInputProcessorTest {
         @Override public void onAllReleased() {}
         @Override public void onRestart() {}
         @Override public void onNextLevel() {}
+        @Override public void onContinue() { continues++; }
         @Override public void onReverse(boolean reversing) {
             if (reversing) reversePressed++;
             else reverseReleased++;

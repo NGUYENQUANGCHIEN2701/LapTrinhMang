@@ -22,6 +22,9 @@ public abstract class Tank implements ITank, ICollidable {
     private int shieldResearchLevel;
     protected double width;
     protected double height;
+    /** Vị trí đầu step gần nhất — chỉ dùng để render nội suy giữa hai tick. */
+    private double previousX;
+    private double previousY;
 
     protected Tank(String id, double x, double y, double speed, int hp, int maxHp, double width, double height) {
         this.id = id;
@@ -32,7 +35,17 @@ public abstract class Tank implements ITank, ICollidable {
         this.maxHp = maxHp;
         this.width = width;
         this.height = height;
+        this.previousX = x;
+        this.previousY = y;
     }
+
+    /** Gọi đầu mỗi fixed step, trước khi tank di chuyển. */
+    public void capturePreviousPosition() {
+        previousX = position.getX();
+        previousY = position.getY();
+    }
+    public double getPreviousX() { return previousX; }
+    public double getPreviousY() { return previousY; }
 
     @Override
     public void move(Direction direction, double deltaTime) {

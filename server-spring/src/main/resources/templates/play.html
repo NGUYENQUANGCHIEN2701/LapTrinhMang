@@ -10,10 +10,19 @@
 <section th:fragment="content" class="page-wide play-page">
     <div class="play-header">
         <h2 class="page-title">TANKZORS BATTLEFIELD</h2>
-        <div class="play-mission-badge">
-            <span class="badge-label">Mission:</span>
-            <strong th:text="${levelName}">Màn 1</strong>
-            <code th:text="${selectedLevelId}">campaign_1</code>
+        <div class="play-header-right">
+            <div class="play-mission-badge">
+                <span class="badge-label">Mission:</span>
+                <strong th:text="${levelName}">Màn 1</strong>
+            </div>
+            <div class="play-actions">
+                <button type="button" class="btn btn-ghost" id="btn-fullscreen" title="Phóng to toàn màn hình (F11 cho cả trình duyệt)">
+                    ⛶ Toàn màn hình
+                </button>
+                <a class="btn btn-secondary" th:href="@{/campaigns}">
+                    ← Chiến dịch
+                </a>
+            </div>
         </div>
     </div>
 
@@ -41,21 +50,13 @@
 
     <div class="play-toolbar">
         <div class="controls-hint">
-            <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / mũi tên: Di chuyển &middot;
-            <kbd>Space</kbd> / <kbd>J</kbd>: Bắn &middot;
-            <kbd>X</kbd>: Đi lùi &middot;
-            <kbd>Q</kbd>: Chọn đạn / vật phẩm &middot;
-            <kbd>B</kbd>: Workshop &middot;
-            <kbd>M</kbd>: Âm thanh &middot;
-            <kbd>↑</kbd><kbd>↓</kbd> + <kbd>Enter</kbd>: Chọn trong menu
-        </div>
-        <div class="play-actions">
-            <button type="button" class="btn btn-ghost" id="btn-fullscreen" title="Phóng to toàn màn hình">
-                ⛶ Toàn màn hình
-            </button>
-            <a class="btn btn-secondary" th:href="@{/campaigns}">
-                ← Chiến dịch
-            </a>
+            <span><kbd>WASD</kbd> / <kbd>↑↓←→</kbd> Di chuyển</span>
+            <span><kbd>Space</kbd> / <kbd>J</kbd> Bắn</span>
+            <span><kbd>X</kbd> Lùi</span>
+            <span><kbd>Q</kbd> Vật phẩm</span>
+            <span><kbd>B</kbd> Workshop</span>
+            <span><kbd>M</kbd> Âm thanh</span>
+            <span><kbd>Enter</kbd> Xác nhận / Màn tiếp</span>
         </div>
     </div>
 
@@ -107,6 +108,9 @@
                     }
                 });
             }
+
+            // Sau khi vào/thoát fullscreen, nút vừa bấm giữ focus — trả phím về game.
+            document.addEventListener('fullscreenchange', focusGame);
 
             document.querySelectorAll('.play-actions a').forEach(function (btn) {
                 btn.addEventListener('click', playClick);

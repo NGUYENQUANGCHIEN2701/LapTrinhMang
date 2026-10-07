@@ -9,9 +9,17 @@
             margin: 0;
             padding: 0;
             height: 100%;
-            background: #1a1a2e;
+            background: #0d0505;
             overflow: hidden;
             font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+
+        /* LibGDX gán width/height inline cho body theo kích thước lúc khởi động
+           và không cập nhật khi resize/fullscreen; kết hợp overflow:hidden sẽ cắt
+           mất phần canvas mới. Ép body luôn theo khung iframe. */
+        body {
+            width: 100% !important;
+            height: 100% !important;
         }
         #loading {
             position: absolute;

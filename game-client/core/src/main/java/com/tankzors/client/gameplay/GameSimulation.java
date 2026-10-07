@@ -341,9 +341,21 @@ public class GameSimulation {
 
     private double accumulator = 0;
 
+    /**
+     * Tỉ lệ thời gian đã trôi qua giữa step trước và step kế (0..1). Renderer
+     * dùng để nội suy vị trí, tránh hình giật khi FPS màn hình khác 30Hz.
+     */
+    public float getInterpolationAlpha() {
+        double alpha = accumulator / GameplayConfig.STEP_SECONDS;
+        return (float) Math.max(0, Math.min(1, alpha));
+    }
+
     // ========== Canonical fixed simulation step ==========
     public void step(double dt) {
         if (!Double.isFinite(dt) || dt <= 0) return;
+        for (ITank tank : world.getAllTanks()) {
+            if (tank instanceof Tank) ((Tank) tank).capturePreviousPosition();
+        }
         processCommands();
         if (world.isPlaying()) {
             // Tích lũy simulation time chỉ khi đang chơi (pause không tăng).

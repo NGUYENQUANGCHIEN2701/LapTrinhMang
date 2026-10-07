@@ -119,6 +119,28 @@ class LocalCampaignSessionTest {
     }
 
     @Test
+    void hasNextLevelOnlyAfterVictoryWhenAnotherLevelExists() {
+        FakeAsyncMapSource source = new FakeAsyncMapSource();
+        LocalCampaignSession session = new LocalCampaignSession(
+                "player", "campaign_1", source, result -> true);
+        session.start();
+        source.pending.onLevelLoaded("campaign_1", MAP_JSON_VICTORY_REWARDS, "run-1", "v1");
+        assertFalse(session.hasNextLevel(), "Đang chơi thì Enter không được sang màn");
+
+        session.update((float) GameplayConfig.STEP_SECONDS);
+        assertTrue(session.hasNextLevel(), "campaign_1 thắng → còn campaign_2");
+
+        FakeAsyncMapSource lastSource = new FakeAsyncMapSource();
+        LocalCampaignSession last = new LocalCampaignSession(
+                "player", "campaign_3", lastSource, result -> true);
+        last.start();
+        lastSource.pending.onLevelLoaded("campaign_3", MAP_JSON_VICTORY_REWARDS, "run-3", "v1");
+        last.update((float) GameplayConfig.STEP_SECONDS);
+        assertEquals("VICTORY", last.status());
+        assertFalse(last.hasNextLevel(), "Màn cuối: Enter quay về chọn màn");
+    }
+
+    @Test
     void snapshotCarriesRewardAndDebriefFieldsOnVictory() {
         FakeAsyncMapSource source = new FakeAsyncMapSource();
         LocalCampaignSession session = new LocalCampaignSession(

@@ -27,8 +27,13 @@ public class HtmlLauncher extends GwtApplication {
 
     @Override
     public GwtApplicationConfiguration getConfig() {
-        GwtApplicationConfiguration config = new GwtApplicationConfiguration(800, 600);
-        config.antialiasing = true;
+        // Không truyền kích thước: canvas lấp đầy iframe và tự resize (kể cả fullscreen).
+        GwtApplicationConfiguration config = new GwtApplicationConfiguration();
+        // Mặc định LibGDX chừa 10px mỗi chiều, để lộ viền nền iframe quanh canvas.
+        config.padHorizontal = 0;
+        config.padVertical = 0;
+        // Pixel art vẽ đúng lưới tile: MSAA không làm đẹp hơn mà tốn GPU mỗi frame.
+        config.antialiasing = false;
         return config;
     }
 

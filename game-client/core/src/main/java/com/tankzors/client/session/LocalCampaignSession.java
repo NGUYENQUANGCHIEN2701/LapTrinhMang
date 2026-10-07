@@ -280,7 +280,8 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
     @Override public GameStateSnapshot snapshot() {
         GameWorld w = sim.getWorld();
         int elapsedSec = (int) Math.max(0, sim.getElapsedSeconds());
-        GameStateSnapshot snap = WorldSnapshotMapper.snapshot(w, playerId, w.getScore(), elapsedSec);
+        GameStateSnapshot snap = WorldSnapshotMapper.snapshot(w, playerId, w.getScore(), elapsedSec,
+                sim.getInterpolationAlpha());
         // Khi đang transition, báo renderer giữ overlay cũ + hiện trạng tải.
         if (phase == Phase.LOADING_NEXT) {
             snap.transitionStatus = "LOADING";
@@ -397,6 +398,13 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         }
         // Re-bootstrap để nhận runId + mapVersion mới (chống trùng idempotency).
         requestBootstrap(levelId);
+    }
+
+    @Override
+    public boolean hasNextLevel() {
+        return phase != Phase.LOADING_NEXT
+                && sim.getWorld().getStatus() == GameWorld.Status.VICTORY
+                && nextCampaignLevel(levelId) != null;
     }
 
     @Override

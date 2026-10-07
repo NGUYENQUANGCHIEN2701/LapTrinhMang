@@ -132,6 +132,15 @@ public class GameClient implements ApplicationListener {
                 if (audio != null) audio.playUiClick();
                 if (session != null) session.nextLevel();
             }
+            @Override public void onContinue() {
+                if (session == null || !"VICTORY".equalsIgnoreCase(session.status())) return;
+                if (audio != null) audio.playUiClick();
+                if (session.hasNextLevel()) {
+                    session.nextLevel();
+                } else if (session.canOpenShop() && backToCampaignsHandler != null) {
+                    backToCampaignsHandler.run();
+                }
+            }
             @Override public void onToggleShop() {
                 if (shopOverlay != null && session != null && session.canOpenShop()) {
                     shopOverlay.toggle();

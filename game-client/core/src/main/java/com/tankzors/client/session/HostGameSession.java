@@ -253,7 +253,7 @@ public class HostGameSession implements GameSession {
     @Override public GameStateSnapshot snapshot() {
         if (!started) return null;
         return WorldSnapshotMapper.snapshot(sim.getWorld(), hostPlayerId,
-                sim.getWorld().getScore(), (int) sim.getElapsedSeconds());
+                sim.getWorld().getScore(), (int) sim.getElapsedSeconds(), sim.getInterpolationAlpha());
     }
     @Override public String localPlayerId() { return hostPlayerId; }
     @Override public String status() { return status; }

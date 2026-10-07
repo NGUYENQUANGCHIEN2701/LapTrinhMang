@@ -37,6 +37,8 @@ public final class ClientInputProcessor implements InputProcessor {
         default void onOpenInventoryMenu() {}
         default void onMoveInventorySelection(int delta) {}
         default void onConfirmInventorySelection() {}
+        /** Enter ở màn hình kết quả: sang màn kế (hoặc về chọn màn nếu hết). */
+        default void onContinue() {}
         /** Bật/tắt nhanh âm thanh (mute/unmute). */
         default void onToggleMute() {}
         default void onBackToCampaigns() {}
@@ -142,6 +144,10 @@ public final class ClientInputProcessor implements InputProcessor {
             }
             if (keycode == Input.Keys.N) {
                 callbacks.onNextLevel();
+                return true;
+            }
+            if (keycode == Input.Keys.ENTER) {
+                callbacks.onContinue();
                 return true;
             }
             if (keycode == Input.Keys.ESCAPE) {

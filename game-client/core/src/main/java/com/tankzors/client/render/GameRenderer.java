@@ -38,6 +38,20 @@ public class GameRenderer implements Disposable {
     private MapSnapshot cachedMap;
     private int lastMapHash = 0;
     private float animTime = 0f;
+    private final TrackMarks trackMarks = new TrackMarks();
+    private VisibilityMask cachedVisibility;
+    private int cachedVisibilityCol;
+    private int cachedVisibilityRow;
+    private int cachedVisibilityWidth;
+    private int cachedVisibilityHeight;
+    private final com.badlogic.gdx.graphics.Texture whitePixel;
+
+    /** Khoảng cách từ tâm tank tới mỗi dải xích, và kích thước một vạch xích. */
+    private static final float TRACK_OFFSET = 12f;
+    /** Chiều cao vùng world nhìn thấy, bằng canvas 800x600 gốc. */
+    static final float WORLD_VIEW_HEIGHT = 600f;
+    private static final float TRACK_DASH_LENGTH = 7f;
+    private static final float TRACK_DASH_THICKNESS = 2f;
 
     public GameRenderer(AssetRepository assets) {
         this.assets = assets;
@@ -51,12 +65,21 @@ public class GameRenderer implements Disposable {
         // Font mặc định không có đầy đủ glyph tiếng Việt; overlay dùng ASCII để
         // tránh ô vuông trên cả desktop và GWT HTML5.
         this.font = new BitmapFont(true);
+        com.badlogic.gdx.graphics.Pixmap pixmap =
+                new com.badlogic.gdx.graphics.Pixmap(1, 1, com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888);
+        pixmap.setColor(Color.WHITE);
+        pixmap.fill();
+        this.whitePixel = new com.badlogic.gdx.graphics.Texture(pixmap);
+        pixmap.dispose();
     }
 
     public void resize(int width, int height) {
         int viewportWidth = Math.max(1, width);
         int viewportHeight = Math.max(1, height);
         worldCamera.setToOrtho(true, viewportWidth, viewportHeight);
+        // Canvas co giãn theo trang/fullscreen nhưng luôn thấy cùng một vùng map
+        // (WORLD_VIEW_HEIGHT đơn vị theo chiều cao) — phóng to thay vì lộ thêm map.
+        worldCamera.zoom = WORLD_VIEW_HEIGHT / viewportHeight;
         hudCamera.setToOrtho(true, viewportWidth, viewportHeight);
         worldCamera.update();
         hudCamera.update();
@@ -68,7 +91,8 @@ public class GameRenderer implements Disposable {
         Gdx.gl.glClear(com.badlogic.gdx.graphics.GL20.GL_COLOR_BUFFER_BIT);
 
         if (state == null) return;
-        animTime += Gdx.graphics.getDeltaTime();
+        float delta = Gdx.graphics.getDeltaTime();
+        animTime += delta;
 
         updateWorldCamera(state);
         useWorldProjection();
@@ -77,17 +101,20 @@ public class GameRenderer implements Disposable {
         boolean transitioning = state.transitionStatus != null;
 
         VisibilityMask visibility = createVisibility(state);
+        updateTrackMarks(state, transitioning, delta);
 
         // 1. Map
         if (state.map != null) {
             drawMap(state.map, visibility);
         }
 
-        // 2. Tanks
+        // 2. Tanks (vết xích nằm dưới thân xe)
         batch.begin();
-        for (TankSnapshot tank : state.tanks) {
-            drawTank(tank);
-        }
+        drawTrackMarks(state.map, visibility);
+        // Theo lượt để giữ cùng texture: vòng đội → khiên → thân xe.
+        for (TankSnapshot tank : state.tanks) drawTankRing(tank);
+        for (TankSnapshot tank : state.tanks) drawTankShield(tank);
+        for (TankSnapshot tank : state.tanks) drawTankBody(tank);
         // 2.5 Aim preview khi trang bị Artillery
         drawArtilleryAimPreview(state);
         // 3. Bullets
@@ -120,8 +147,9 @@ public class GameRenderer implements Disposable {
 
         if (state.inventoryMenuOpen) drawInventoryMenu(state);
 
-        if ("VICTORY".equalsIgnoreCase(state.gameStatus)
-            || "DEFEAT".equalsIgnoreCase(state.gameStatus)) {
+        if ("VICTORY".equalsIgnoreCase(state.gameStatus)) {
+            drawVictoryBanner(state);
+        } else if ("DEFEAT".equalsIgnoreCase(state.gameStatus)) {
             drawResultOverlay(state);
         }
     }
@@ -163,6 +191,43 @@ public class GameRenderer implements Disposable {
         font.setColor(Color.WHITE);
     }
 
+    private void updateTrackMarks(GameStateSnapshot state, boolean transitioning, float delta) {
+        // Đang tải màn mới / chơi lại: xoá vết của màn cũ.
+        if (transitioning) {
+            trackMarks.clear();
+            return;
+        }
+        trackMarks.beginFrame(delta);
+        for (TankSnapshot tank : state.tanks) {
+            if (tank.alive && tank.hp > 0) trackMarks.track(tank.id, tank.x, tank.y);
+        }
+        trackMarks.endFrame();
+    }
+
+    private void drawTrackMarks(MapSnapshot map, VisibilityMask visibility) {
+        int count = trackMarks.size();
+        for (int i = 0; i < count; i++) {
+            float x = trackMarks.x(i);
+            float y = trackMarks.y(i);
+            if (!isVisible(visibility, map, x, y)) continue;
+            batch.setColor(0.10f, 0.08f, 0.04f, 0.5f * trackMarks.opacity(i));
+            if (trackMarks.isHorizontal(i)) {
+                // Đi ngang: hai dải xích trên/dưới, mỗi vạch dựng đứng.
+                float w = TRACK_DASH_THICKNESS;
+                float h = TRACK_DASH_LENGTH;
+                batch.draw(whitePixel, x - w / 2f, y - TRACK_OFFSET - h / 2f, w, h);
+                batch.draw(whitePixel, x - w / 2f, y + TRACK_OFFSET - h / 2f, w, h);
+            } else {
+                // Đi dọc: hai dải xích trái/phải, mỗi vạch nằm ngang.
+                float w = TRACK_DASH_LENGTH;
+                float h = TRACK_DASH_THICKNESS;
+                batch.draw(whitePixel, x - TRACK_OFFSET - w / 2f, y - h / 2f, w, h);
+                batch.draw(whitePixel, x + TRACK_OFFSET - w / 2f, y - h / 2f, w, h);
+            }
+        }
+        batch.setColor(Color.WHITE);
+    }
+
     private VisibilityMask createVisibility(GameStateSnapshot state) {
         if (state.map == null) return null;
         // Radar in Builds reveals the whole operational map, including enemies
@@ -172,7 +237,16 @@ public class GameRenderer implements Disposable {
         for (TankSnapshot tank : state.tanks) if (tank.isPlayer) { player = tank; break; }
         int col = player != null ? (int) (player.x / state.map.tileSize) : state.map.width / 2;
         int row = player != null ? (int) (player.y / state.map.tileSize) : state.map.height / 2;
-        return VisibilityMask.coveringTwoThirds(state.map.width, state.map.height, col, row);
+        // Mask chỉ đổi khi xe sang ô khác; tránh sort lại toàn map mỗi frame.
+        if (cachedVisibility == null || cachedVisibilityCol != col || cachedVisibilityRow != row
+                || cachedVisibilityWidth != state.map.width || cachedVisibilityHeight != state.map.height) {
+            cachedVisibility = VisibilityMask.coveringTwoThirds(state.map.width, state.map.height, col, row);
+            cachedVisibilityCol = col;
+            cachedVisibilityRow = row;
+            cachedVisibilityWidth = state.map.width;
+            cachedVisibilityHeight = state.map.height;
+        }
+        return cachedVisibility;
     }
 
     private boolean isVisible(VisibilityMask mask, MapSnapshot map, float x, float y) {
@@ -188,56 +262,78 @@ public class GameRenderer implements Disposable {
 
         int ts = map.tileSize;
         batch.begin();
+        // SpriteBatch flush mỗi lần đổi texture; vẽ xen kẽ nền/tường theo từng ô
+        // tạo ra hàng trăm draw call mỗi frame (rất chậm trên WebGL/ANGLE).
+        // Vì vậy vẽ theo lượt: toàn bộ nền trước, rồi từng nhóm cùng sprite sheet.
         for (int r = 0; r < map.height; r++) {
             for (int c = 0; c < map.width; c++) {
                 if (visibility != null && !visibility.isVisible(c, r)) continue;
-                int tile = map.grid[r][c];
                 int visualTile = visualTileAt(map, r, c);
-                int px = c * ts;
-                int py = r * ts;
                 if (visualTile > 0) {
-                    batch.draw(assets.groundFrameById(legacyGroundTileId(visualTile)), px, py, ts, ts);
+                    batch.draw(assets.groundFrameById(legacyGroundTileId(visualTile)), c * ts, r * ts, ts, ts);
                 } else {
-                    batch.draw(assets.groundFrame(r, c), px, py, ts, ts);
+                    batch.draw(assets.groundFrame(r, c), c * ts, r * ts, ts, ts);
                 }
-                switch (tile) {
-                    case 0: // GROUND
-                        break;
-                    case 3: case 4: // SPAWN_PLAYER xanh / SPAWN_ENEMY đỏ
-                        batch.draw(assets.spawnBaseFrame(tile == 3), px, py, ts, ts);
-                        break;
-                    case 1: // WALL
-                        int hitPoints = wallHitPointsAt(map, r, c);
-                        int legacyWall = legacyWallTileId(visualTile);
-                        batch.draw(hitPoints >= 4 && legacyWall >= 1 && legacyWall <= 8
-                                        ? assets.wallFrameById(legacyWall)
-                                        : assets.wallFrame(hitPoints),
-                                px, py, ts, ts);
-                        break;
-                    case 2: // WATER/SPIKES overlay lên ground
-                        batch.draw(assets.spikesFrame(r, c), px, py, ts, ts);
-                        break;
-                    case 5: // bê tông trắng, không thể phá
-                        int legacyConcrete = legacyWallTileId(visualTile);
-                        batch.draw(legacyConcrete >= 9 && legacyConcrete <= 10
-                                        ? assets.wallFrameById(legacyConcrete)
-                                        : assets.whiteWallFrame(r, c),
-                                px, py, ts, ts);
-                        break;
-                    case 6: // bụi/cỏ xanh, vỡ sau 1 hit
-                        batch.draw(assets.bushFrame(r, c), px, py, ts, ts);
-                        break;
-                    case 7: case 8: // pickup trên nền
-                        batch.draw(assets.pickupFrame(tile == 7), px + 6, py + 6, ts - 12, ts - 12);
-                        break;
-                    case 9: // cờ đích của campaign_1
-                        batch.draw(assets.flagFrame(), px, py, ts, ts);
-                        break;
+            }
+        }
+        for (int[] pass : MAP_OVERLAY_PASSES) {
+            for (int r = 0; r < map.height; r++) {
+                for (int c = 0; c < map.width; c++) {
+                    int tile = map.grid[r][c];
+                    if (!passContains(pass, tile)) continue;
+                    if (visibility != null && !visibility.isVisible(c, r)) continue;
+                    drawTileOverlay(map, tile, r, c, ts);
                 }
             }
         }
         drawSpawnOverlays(map, visibility, ts);
         batch.end();
+    }
+
+    /** Nhóm mã tile theo sprite sheet: tường/bê tông/bụi, gai, bệ spawn, vật phẩm, cờ. */
+    private static final int[][] MAP_OVERLAY_PASSES = {{1, 5, 6}, {2}, {3, 4}, {7, 8}, {9}};
+
+    private static boolean passContains(int[] pass, int tile) {
+        for (int code : pass) if (code == tile) return true;
+        return false;
+    }
+
+    private void drawTileOverlay(MapSnapshot map, int tile, int r, int c, int ts) {
+        int px = c * ts;
+        int py = r * ts;
+        int visualTile = visualTileAt(map, r, c);
+        switch (tile) {
+            case 3: case 4: // SPAWN_PLAYER xanh / SPAWN_ENEMY đỏ
+                batch.draw(assets.spawnBaseFrame(tile == 3), px, py, ts, ts);
+                break;
+            case 1: // WALL
+                int hitPoints = wallHitPointsAt(map, r, c);
+                int legacyWall = legacyWallTileId(visualTile);
+                batch.draw(hitPoints >= 4 && legacyWall >= 1 && legacyWall <= 8
+                                ? assets.wallFrameById(legacyWall)
+                                : assets.wallFrame(hitPoints),
+                        px, py, ts, ts);
+                break;
+            case 2: // WATER/SPIKES overlay lên ground
+                batch.draw(assets.spikesFrame(r, c), px, py, ts, ts);
+                break;
+            case 5: // bê tông trắng, không thể phá
+                int legacyConcrete = legacyWallTileId(visualTile);
+                batch.draw(legacyConcrete >= 9 && legacyConcrete <= 10
+                                ? assets.wallFrameById(legacyConcrete)
+                                : assets.whiteWallFrame(r, c),
+                        px, py, ts, ts);
+                break;
+            case 6: // bụi/cỏ xanh, vỡ sau 1 hit
+                batch.draw(assets.bushFrame(r, c), px, py, ts, ts);
+                break;
+            case 7: case 8: // pickup trên nền
+                batch.draw(assets.pickupFrame(tile == 7), px + 6, py + 6, ts - 12, ts - 12);
+                break;
+            case 9: // cờ đích của campaign_1
+                batch.draw(assets.flagFrame(), px, py, ts, ts);
+                break;
+        }
     }
 
     private int visualTileAt(MapSnapshot map, int row, int col) {
@@ -297,9 +393,9 @@ public class GameRenderer implements Disposable {
         float mapWidth = state.map.width * state.map.tileSize;
         float mapHeight = state.map.height * state.map.tileSize;
         float cameraX = WorldCameraBounds.centerForAxis(
-                targetX, mapWidth, worldCamera.viewportWidth);
+                targetX, mapWidth, worldCamera.viewportWidth * worldCamera.zoom);
         float cameraY = WorldCameraBounds.centerForAxis(
-                targetY, mapHeight, worldCamera.viewportHeight);
+                targetY, mapHeight, worldCamera.viewportHeight * worldCamera.zoom);
         worldCamera.position.set(cameraX, cameraY, 0f);
         worldCamera.update();
     }
@@ -344,12 +440,16 @@ public class GameRenderer implements Disposable {
         return map.wallHitPoints[row][col];
     }
 
-    private void drawTank(TankSnapshot tank) {
+    private void drawTankRing(TankSnapshot tank) {
         if (!tank.alive || tank.hp <= 0) return;
         com.badlogic.gdx.graphics.g2d.TextureRegion teamRing = assets.teamRingFrame(tank.isPlayer);
         if (teamRing != null) {
             batch.draw(teamRing, tank.x - 26f, tank.y - 26f, 52f, 52f);
         }
+    }
+
+    private void drawTankShield(TankSnapshot tank) {
+        if (!tank.alive || tank.hp <= 0) return;
         if (tank.maxShieldHp > 0) {
             com.badlogic.gdx.graphics.g2d.TextureRegion shield = assets.shieldRingFrame();
             if (shield != null) {
@@ -358,6 +458,10 @@ public class GameRenderer implements Disposable {
                 batch.setColor(Color.WHITE);
             }
         }
+    }
+
+    private void drawTankBody(TankSnapshot tank) {
+        if (!tank.alive || tank.hp <= 0) return;
         com.badlogic.gdx.graphics.g2d.TextureRegion frame = assets.tankFrame(tank.isPlayer, tank.rotation);
         if (frame != null) {
             batch.draw(frame, tank.x - 20, tank.y - 20, 40, 40);
@@ -720,6 +824,67 @@ public class GameRenderer implements Disposable {
         font.setColor(Color.WHITE);
     }
 
+    /**
+     * Thắng màn: không che map, chỉ hiện dải mờ ở đáy màn hình
+     * "✓ Press Enter to continue." như game gốc.
+     */
+    private void drawVictoryBanner(GameStateSnapshot state) {
+        float width = Gdx.graphics.getWidth();
+        float height = Gdx.graphics.getHeight();
+        float barHeight = 78f;
+        float barY = height - barHeight;
+
+        String message = "Press Enter to continue.";
+        String hint = "+" + Math.max(0, state.starsEarned) + " SAO   +" + Math.max(0, state.coinsEarned)
+                + " VANG     B: Workshop     ESC: Chon man";
+
+        font.getData().setScale(1.9f);
+        GlyphLayout messageLayout = new GlyphLayout(font, message);
+        float checkSize = 30f;
+        float gap = 16f;
+        float groupWidth = checkSize + gap + messageLayout.width;
+        float groupX = (width - groupWidth) / 2f;
+        float messageTop = barY + 14f;
+        float checkCenterY = messageTop + messageLayout.height / 2f;
+
+        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(com.badlogic.gdx.graphics.GL20.GL_SRC_ALPHA,
+                com.badlogic.gdx.graphics.GL20.GL_ONE_MINUS_SRC_ALPHA);
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(0f, 0f, 0f, 0.6f);
+        shapes.rect(0, barY, width, barHeight);
+        shapes.setColor(1f, 1f, 1f, 0.28f);
+        shapes.rect(0, barY, width, 1.5f);
+        drawCheckMark(groupX, checkCenterY, checkSize);
+        shapes.end();
+        Gdx.gl.glDisable(com.badlogic.gdx.graphics.GL20.GL_BLEND);
+
+        batch.begin();
+        font.setColor(Color.WHITE);
+        font.draw(batch, message, groupX + checkSize + gap, messageTop);
+        font.getData().setScale(0.85f);
+        font.setColor(0.72f, 0.72f, 0.68f, 1f);
+        GlyphLayout hintLayout = new GlyphLayout(font, hint);
+        font.draw(batch, hint, (width - hintLayout.width) / 2f, messageTop + messageLayout.height + 14f);
+        batch.end();
+
+        font.getData().setScale(1f);
+        font.setColor(Color.WHITE);
+    }
+
+    /** Dấu ✓ xanh lá; font mặc định không có glyph này nên vẽ bằng nét. */
+    private void drawCheckMark(float left, float centerY, float size) {
+        float x1 = left, y1 = centerY + size * 0.05f;
+        float x2 = left + size * 0.35f, y2 = centerY + size * 0.45f;
+        float x3 = left + size, y3 = centerY - size * 0.6f;
+        shapes.setColor(0.05f, 0.2f, 0.05f, 0.9f);
+        shapes.rectLine(x1, y1, x2, y2, 7.5f);
+        shapes.rectLine(x2, y2, x3, y3, 7.5f);
+        shapes.setColor(0.42f, 0.86f, 0.22f, 1f);
+        shapes.rectLine(x1, y1, x2, y2, 4.5f);
+        shapes.rectLine(x2, y2, x3, y3, 4.5f);
+    }
+
     public void renderShop(com.tankzors.client.ui.ShopOverlay shopOverlay) {
         if (shopOverlay != null && shopOverlay.isVisible()) {
             useHudProjection();
@@ -740,5 +905,6 @@ public class GameRenderer implements Disposable {
         batch.dispose();
         shapes.dispose();
         font.dispose();
+        whitePixel.dispose();
     }
 }
