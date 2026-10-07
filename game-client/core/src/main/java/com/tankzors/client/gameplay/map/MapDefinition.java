@@ -26,6 +26,8 @@ public class MapDefinition implements IMap {
     private int[][] visualGrid;
     private List<EnemyConfig> enemies = new ArrayList<>();
     private RewardsConfig rewards;
+    /** Kịch bản màn Builds (đợt địch, đồng minh, ụ súng, trigger); null với map cũ. */
+    private MissionConfig mission;
 
     private final List<Wall> walls = new ArrayList<>();
     private final List<Position> spawnPoints = new ArrayList<>();
@@ -96,7 +98,8 @@ public class MapDefinition implements IMap {
                 double pixelX = col * tileSize;
                 double pixelY = row * tileSize;
 
-                if (type == TileType.WALL || type == TileType.WHITE_WALL || type == TileType.BUSH) {
+                if (type == TileType.WALL || type == TileType.WHITE_WALL || type == TileType.BUSH
+                        || type == TileType.STONE_WALL) {
                     walls.add(new Wall(pixelX, pixelY, tileSize, tileSize, col, row, type));
                 } else if (type == TileType.SPAWN_PLAYER) {
                     playerSpawn = new Position(pixelX + tileSize / 2.0, pixelY + tileSize / 2.0);
@@ -160,7 +163,54 @@ public class MapDefinition implements IMap {
         if (col < 0 || col >= width || row < 0 || row >= height) return false;
         TileType type = getTileAt(col, row);
         return type != TileType.WALL && type != TileType.WHITE_WALL
-                && type != TileType.BUSH && type != TileType.WATER;
+                && type != TileType.BUSH && type != TileType.WATER && type != TileType.STONE_WALL;
+    }
+
+    /**
+     * Builds gán speedRatio theo id nền (Tilemap props): cát 0.45, đường 1.2,
+     * tuyết 1.0, còn lại (cỏ) 0.8. Tốc độ engine được chỉnh cho cỏ nên trả tỉ lệ so với 0.8.
+     */
+    @Override
+    public double speedFactorAt(double pixelX, double pixelY) {
+        int col = (int) Math.floor(pixelX / tileSize);
+        int row = (int) Math.floor(pixelY / tileSize);
+        if (visualGrid == null || row < 0 || row >= visualGrid.length || visualGrid[row] == null
+                || col < 0 || col >= visualGrid[row].length) {
+            return 1.0;
+        }
+        return groundSpeedRatio(groundIdForCode(visualGrid[row][col])) / 0.8;
+    }
+
+    /** Id nền 1-based mà OldMap.parseMap của Builds gán cho một mã map_arr. */
+    public static int groundIdForCode(int code) {
+        if (code > 0 && code < 91) return code;
+        if (code >= 250) return code - 149;
+        int[] theme = {1, 34, 56};
+        if (code >= 100 && code < 115) return theme[Math.min(2, (code - 100) / 5)];
+        if (code >= 115 && code < 130) return theme[Math.min(2, (code - 115) / 5)];
+        if (code >= 130 && code < 250) return theme[Math.min(2, (code - 130) / 40)];
+        return 1;
+    }
+
+    static double groundSpeedRatio(int groundId) {
+        if (groundId >= 11 && groundId <= 14) return 0.45;
+        if (groundId >= 24 && groundId <= 33) return 1.2;
+        if (groundId >= 34 && groundId <= 52) return 1.0;
+        if (groundId >= 56 && groundId <= 90) return 0.45;
+        if (groundId >= 91 && groundId <= 100) return 1.2;
+        return 0.8;
+    }
+
+    /** Ô nền cát (Builds kéo dài tăng tốc gấp đôi khi xe đứng trên cát). */
+    public boolean isSandAt(double pixelX, double pixelY) {
+        int col = (int) Math.floor(pixelX / tileSize);
+        int row = (int) Math.floor(pixelY / tileSize);
+        if (visualGrid == null || row < 0 || row >= visualGrid.length || visualGrid[row] == null
+                || col < 0 || col >= visualGrid[row].length) {
+            return false;
+        }
+        int ground = groundIdForCode(visualGrid[row][col]);
+        return ground >= 56 && ground <= 90;
     }
 
     /** Ghi một ô động (phá vật cản/nhặt vật phẩm) mà không reset HP các tường khác. */
@@ -189,10 +239,36 @@ public class MapDefinition implements IMap {
         int col = (int) Math.floor(pixelX / tileSize);
         int row = (int) Math.floor(pixelY / tileSize);
         TileType type = getTileAt(col, row);
-        if (type != TileType.REPAIR_PICKUP && type != TileType.SPEED_PICKUP) return null;
+        if (!type.isPickup()) return null;
         setTileAt(col, row, TileType.GROUND);
         return type;
     }
+
+    /** Loại pickup tại ô mà không nhặt (Builds giữ Repair khi xe còn đầy máu). */
+    public TileType pickupAt(double pixelX, double pixelY) {
+        TileType type = getTileAt((int) Math.floor(pixelX / tileSize), (int) Math.floor(pixelY / tileSize));
+        return type.isPickup() ? type : null;
+    }
+
+    /** Vụ nổ xoá hẳn một vật cản (khối đá, bụi, gạch) khỏi lưới. */
+    public void removeWall(Wall wall) {
+        if (wall == null || !walls.remove(wall)) return;
+        setTileAt(wall.getCol(), wall.getRow(), TileType.GROUND);
+    }
+
+    public Wall wallAt(int col, int row) {
+        for (Wall wall : walls) {
+            if (wall.getCol() == col && wall.getRow() == row) return wall;
+        }
+        return null;
+    }
+
+    public boolean isBoundary(int col, int row) {
+        return col == 0 || row == 0 || col == width - 1 || row == height - 1;
+    }
+
+    public MissionConfig getMission() { return mission; }
+    public void setMission(MissionConfig mission) { this.mission = mission; }
 
     public int[][] getGrid() { return grid; }
     public void setGrid(int[][] grid) { this.grid = grid; initializeMap(); }

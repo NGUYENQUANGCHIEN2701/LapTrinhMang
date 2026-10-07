@@ -71,12 +71,85 @@ public final class MapLoader {
             if (visualGridArray != null && visualGridArray.isArray()) {
                 map.setVisualGrid(readGrid(visualGridArray));
             }
+            JsonValue missionObj = root.get("mission");
+            if (missionObj != null && missionObj.isObject()) {
+                map.setMission(parseMission(missionObj));
+            }
             map.initializeMap();
             return map;
         } catch (Exception e) {
             // GWT không dùng logger; in stderr để debug desktop
             System.err.println("MapParser lỗi: " + e.getMessage());
             return null;
+        }
+    }
+
+    static MissionConfig parseMission(JsonValue root) {
+        MissionConfig mission = new MissionConfig();
+        mission.setObjective(parseEnum(root.getString("objective", null)));
+        mission.setBriefing(root.getString("briefing", null));
+        mission.setDebriefing(root.getString("debriefing", null));
+        mission.setEnemyWaves(parseWaves(root.get("enemyWaves")));
+        mission.setAllies(parseWaves(root.get("allies")));
+        JsonValue turrets = root.get("turrets");
+        if (turrets != null) {
+            for (JsonValue t = turrets.child; t != null; t = t.next) {
+                mission.getTurrets().add(new MissionConfig.TurretConfig(
+                        t.getInt("x", 0), t.getInt("y", 0), parseDirection(t.getString("direction", "DOWN")),
+                        t.getInt("range", 4), t.getInt("hitPoints", 8)));
+            }
+        }
+        JsonValue boxes = root.get("boxes");
+        if (boxes != null) {
+            for (JsonValue b = boxes.child; b != null; b = b.next) {
+                mission.getBoxes().add(new MissionConfig.BoxConfig(
+                        b.getInt("x", 0), b.getInt("y", 0), b.getInt("itemId", -1), b.getInt("count", 0)));
+            }
+        }
+        JsonValue triggers = root.get("triggers");
+        if (triggers != null) {
+            for (JsonValue t = triggers.child; t != null; t = t.next) {
+                MissionConfig.TriggerAction action;
+                try {
+                    action = MissionConfig.TriggerAction.valueOf(t.getString("action", "NONE"));
+                } catch (IllegalArgumentException e) {
+                    action = MissionConfig.TriggerAction.NONE;
+                }
+                mission.getTriggers().add(new MissionConfig.TriggerConfig(
+                        t.getInt("x", 0), t.getInt("y", 0), t.getBoolean("active", true), action,
+                        t.getString("text", null), t.getDouble("seconds", 2), t.getInt("target", -1)));
+            }
+        }
+        return mission;
+    }
+
+    private static MissionConfig.Waves parseWaves(JsonValue obj) {
+        if (obj == null || !obj.isObject()) return null;
+        List<MissionConfig.SpawnBase> bases = new ArrayList<>();
+        JsonValue array = obj.get("bases");
+        if (array != null) {
+            for (JsonValue b = array.child; b != null; b = b.next) {
+                bases.add(new MissionConfig.SpawnBase(b.getInt("x", 0), b.getInt("y", 0), b.getInt("count", 0)));
+            }
+        }
+        return new MissionConfig.Waves(obj.getInt("maxOnField", 1), obj.getDouble("intervalSeconds", 1.0),
+                obj.getString("difficulty", "EASY"), obj.getBoolean("followPlayer", false), bases);
+    }
+
+    private static MissionConfig.Objective parseEnum(String value) {
+        if (value == null) return MissionConfig.Objective.DESTROY_TANKS;
+        try {
+            return MissionConfig.Objective.valueOf(value);
+        } catch (IllegalArgumentException e) {
+            return MissionConfig.Objective.DESTROY_TANKS;
+        }
+    }
+
+    private static com.tankzors.client.gameplay.entity.Direction parseDirection(String value) {
+        try {
+            return com.tankzors.client.gameplay.entity.Direction.valueOf(value);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            return com.tankzors.client.gameplay.entity.Direction.DOWN;
         }
     }
 

@@ -3,7 +3,7 @@ package com.tankzors.client.gameplay.entity;
 import com.tankzors.client.gameplay.interfaces.ICollidable;
 import com.tankzors.client.gameplay.map.TileType;
 
-/** Vật cản theo ô: gạch 4 hit, tường trắng bất tử, bụi cây 1 hit. */
+/** Vật cản theo ô: gạch 4 hit, tường trắng bất tử, bụi cây 1 hit, khối đá chỉ vỡ khi nổ. */
 public class Wall implements ICollidable {
     private final Position position;
     private final double width;
@@ -28,7 +28,8 @@ public class Wall implements ICollidable {
         this.row = row;
         this.tileType = tileType != null ? tileType : TileType.WALL;
         this.hitPoints = this.tileType == TileType.BUSH ? 1
-                : this.tileType == TileType.WHITE_WALL ? Integer.MAX_VALUE : 4;
+                : this.tileType == TileType.WHITE_WALL || this.tileType == TileType.STONE_WALL
+                ? Integer.MAX_VALUE : 4;
     }
 
     public Wall(Position position, double width, double height) {
@@ -43,7 +44,9 @@ public class Wall implements ICollidable {
     public int getRow() { return row; }
     public TileType getTileType() { return tileType; }
     public int getHitPoints() { return hitPoints; }
-    public boolean isDestructible() { return tileType != TileType.WHITE_WALL; }
+    public boolean isDestructible() {
+        return tileType != TileType.WHITE_WALL && tileType != TileType.STONE_WALL;
+    }
 
     /** @return true khi hit này phá hủy vật cản. */
     public boolean hit() {

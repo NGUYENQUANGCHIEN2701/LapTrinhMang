@@ -15,4 +15,10 @@ public interface IMap {
     List<Wall> getWalls();
     List<Position> getSpawnPoints();
     boolean isWalkable(int col, int row);
+
+    /**
+     * Hệ số tốc độ theo nền tại toạ độ pixel (Builds: cát chậm, đường nhanh).
+     * Mặc định 1 cho map không có dữ liệu nền gốc.
+     */
+    default double speedFactorAt(double pixelX, double pixelY) { return 1.0; }
 }
