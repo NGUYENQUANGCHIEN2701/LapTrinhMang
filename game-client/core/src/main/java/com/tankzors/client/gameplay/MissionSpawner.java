@@ -16,6 +16,7 @@ final class MissionSpawner {
 
     private final MissionConfig.Waves waves;
     private final int[] remaining;
+    private final int[] typeCounts;
     private double cooldown;
 
     MissionSpawner(MissionConfig.Waves waves, double initialDelaySeconds) {
@@ -23,6 +24,26 @@ final class MissionSpawner {
         this.remaining = new int[waves.bases.size()];
         for (int i = 0; i < remaining.length; i++) remaining[i] = Math.max(0, waves.bases.get(i).count);
         this.cooldown = Math.max(0, initialDelaySeconds);
+        this.typeCounts = java.util.Arrays.copyOf(waves.types, waves.types.length);
+    }
+
+    /**
+     * Builds Base.getTankType: lấy loại đầu tiên còn lượt (hoặc ngẫu nhiên nếu
+     * randomTypes) rồi trừ đi; không khai báo loại thì là loại 0.
+     */
+    int takeTankType(java.util.Random rng) {
+        int options = 0;
+        for (int count : typeCounts) if (count > 0) options++;
+        if (options == 0) return 0;
+        int pick = waves.randomTypes ? rng.nextInt(options) : 0;
+        for (int i = 0; i < typeCounts.length; i++) {
+            if (typeCounts[i] <= 0) continue;
+            if (pick-- == 0) {
+                typeCounts[i]--;
+                return i;
+            }
+        }
+        return 0;
     }
 
     MissionConfig.Waves waves() { return waves; }

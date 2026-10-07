@@ -43,15 +43,29 @@ public final class MissionConfig {
         public final String difficulty;
         public final boolean followPlayer;
         public final List<SpawnBase> bases;
+        /** Số xe mỗi loại Builds 0..7 (teamCounts); rỗng = toàn loại 0. */
+        public final int[] types;
+        /** Cấp độ khó Builds (enemyDifficulty 1..5). */
+        public final int level;
+        /** Builds enemyAIType & 8: chọn loại ngẫu nhiên thay vì lần lượt. */
+        public final boolean randomTypes;
 
         public Waves(int maxOnField, double intervalSeconds, String difficulty,
                      boolean followPlayer, List<SpawnBase> bases) {
+            this(maxOnField, intervalSeconds, difficulty, followPlayer, bases, new int[0], 1, false);
+        }
+
+        public Waves(int maxOnField, double intervalSeconds, String difficulty, boolean followPlayer,
+                     List<SpawnBase> bases, int[] types, int level, boolean randomTypes) {
             this.maxOnField = Math.max(1, maxOnField);
             this.intervalSeconds = Math.max(0, intervalSeconds);
             this.difficulty = difficulty != null ? difficulty : "EASY";
             this.followPlayer = followPlayer;
             this.bases = bases != null ? Collections.unmodifiableList(new ArrayList<>(bases))
                     : Collections.<SpawnBase>emptyList();
+            this.types = types != null ? java.util.Arrays.copyOf(types, types.length) : new int[0];
+            this.level = Math.max(1, Math.min(5, level));
+            this.randomTypes = randomTypes;
         }
 
         public int total() {

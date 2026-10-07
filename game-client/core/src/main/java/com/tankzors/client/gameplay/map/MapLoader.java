@@ -132,8 +132,12 @@ public final class MapLoader {
                 bases.add(new MissionConfig.SpawnBase(b.getInt("x", 0), b.getInt("y", 0), b.getInt("count", 0)));
             }
         }
+        int[] types = new int[0];
+        JsonValue typeArray = obj.get("types");
+        if (typeArray != null && typeArray.isArray()) types = typeArray.asIntArray();
         return new MissionConfig.Waves(obj.getInt("maxOnField", 1), obj.getDouble("intervalSeconds", 1.0),
-                obj.getString("difficulty", "EASY"), obj.getBoolean("followPlayer", false), bases);
+                obj.getString("difficulty", "EASY"), obj.getBoolean("followPlayer", false), bases,
+                types, obj.getInt("level", 1), obj.getBoolean("randomTypes", false));
     }
 
     private static MissionConfig.Objective parseEnum(String value) {

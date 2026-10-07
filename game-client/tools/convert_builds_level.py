@@ -194,7 +194,8 @@ def convert(src, level_index):
     if total_allies > 0 and player_bases:
         x, y = player_bases[0]
         allies = {"maxOnField": p[9], "intervalSeconds": 1.0,
-                  "followPlayer": p[85] == 1, "bases": [{"x": x, "y": y, "count": total_allies}]}
+                  "followPlayer": p[85] == 1, "bases": [{"x": x, "y": y, "count": total_allies}],
+                  "types": p[10:18], "level": p[23]}
 
     triggers = []
     messages = texts["messages"]
@@ -218,7 +219,9 @@ def convert(src, level_index):
         "briefing": texts["briefing"],
         "debriefing": texts["debriefing"],
         "enemyWaves": {"maxOnField": p[0], "intervalSeconds": 1.0,
-                       "difficulty": DIFFICULTY.get(p[23], "EASY"), "bases": wave_bases},
+                       "difficulty": DIFFICULTY.get(p[23], "EASY"), "bases": wave_bases,
+                       # Loại xe 0..7 theo teamCounts, cấp độ enemyDifficulty, enemyAIType & 8 = ngẫu nhiên.
+                       "types": p[1:9], "level": p[23], "randomTypes": (p[24] & 8) != 0},
         "turrets": turrets,
         "boxes": boxes,
         "triggers": triggers,
