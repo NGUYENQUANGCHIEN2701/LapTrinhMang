@@ -147,10 +147,14 @@ public class GameRenderer implements Disposable {
 
         if (state.inventoryMenuOpen) drawInventoryMenu(state);
 
-        if ("VICTORY".equalsIgnoreCase(state.gameStatus)) {
+        if (state.briefingOpen) {
+            drawBriefing(state);
+        } else if ("VICTORY".equalsIgnoreCase(state.gameStatus)) {
             drawVictoryBanner(state);
         } else if ("DEFEAT".equalsIgnoreCase(state.gameStatus)) {
             drawResultOverlay(state);
+        } else if (state.hintText != null) {
+            drawHintBar(state.hintText);
         }
     }
 
@@ -291,7 +295,7 @@ public class GameRenderer implements Disposable {
     }
 
     /** Nhóm mã tile theo sprite sheet: tường/bê tông/bụi, gai, bệ spawn, vật phẩm, cờ. */
-    private static final int[][] MAP_OVERLAY_PASSES = {{1, 5, 6}, {2}, {3, 4}, {7, 8}, {9}};
+    private static final int[][] MAP_OVERLAY_PASSES = {{1, 5, 6, 15}, {2}, {3, 4}, {7, 8, 10, 11, 12, 13, 14}, {9}, {16}};
 
     private static boolean passContains(int[] pass, int tile) {
         for (int code : pass) if (code == tile) return true;
@@ -317,9 +321,9 @@ public class GameRenderer implements Disposable {
             case 2: // WATER/SPIKES overlay lên ground
                 batch.draw(assets.spikesFrame(r, c), px, py, ts, ts);
                 break;
-            case 5: // bê tông trắng, không thể phá
+            case 5: // bê tông trắng / tấm thép, không thể phá
                 int legacyConcrete = legacyWallTileId(visualTile);
-                batch.draw(legacyConcrete >= 9 && legacyConcrete <= 10
+                batch.draw(legacyConcrete >= 9 && legacyConcrete <= 13 && legacyConcrete != 11
                                 ? assets.wallFrameById(legacyConcrete)
                                 : assets.whiteWallFrame(r, c),
                         px, py, ts, ts);
@@ -327,8 +331,15 @@ public class GameRenderer implements Disposable {
             case 6: // bụi/cỏ xanh, vỡ sau 1 hit
                 batch.draw(assets.bushFrame(r, c), px, py, ts, ts);
                 break;
-            case 7: case 8: // pickup trên nền
-                batch.draw(assets.pickupFrame(tile == 7), px + 6, py + 6, ts - 12, ts - 12);
+            case 7: case 8: case 10: case 11: case 12: case 13: case 14: // vật phẩm Builds
+                batch.draw(assets.powerupFrame(tile, animTime), px + 6, py + 6, ts - 12, ts - 12);
+                break;
+            case 15: // khối đá (tile 11 Builds): chỉ vụ nổ mới phá được
+                batch.draw(assets.wallFrameById(11), px, py, ts, ts);
+                break;
+            case 16: // thuốc nổ đang cháy ngòi
+                com.badlogic.gdx.graphics.g2d.TextureRegion dynamite = assets.dynamiteFrame(animTime);
+                if (dynamite != null) batch.draw(dynamite, px, py, ts, ts);
                 break;
             case 9: // cờ đích của campaign_1
                 batch.draw(assets.flagFrame(), px, py, ts, ts);
@@ -441,8 +452,8 @@ public class GameRenderer implements Disposable {
     }
 
     private void drawTankRing(TankSnapshot tank) {
-        if (!tank.alive || tank.hp <= 0) return;
-        com.badlogic.gdx.graphics.g2d.TextureRegion teamRing = assets.teamRingFrame(tank.isPlayer);
+        if (!tank.alive || tank.hp <= 0 || tank.turret) return;
+        com.badlogic.gdx.graphics.g2d.TextureRegion teamRing = assets.teamRingFrame(tank.isPlayer || tank.ally);
         if (teamRing != null) {
             batch.draw(teamRing, tank.x - 26f, tank.y - 26f, 52f, 52f);
         }
@@ -462,7 +473,13 @@ public class GameRenderer implements Disposable {
 
     private void drawTankBody(TankSnapshot tank) {
         if (!tank.alive || tank.hp <= 0) return;
-        com.badlogic.gdx.graphics.g2d.TextureRegion frame = assets.tankFrame(tank.isPlayer, tank.rotation);
+        if (tank.turret) {
+            // Sprite ụ súng 22x26 cùng tỉ lệ phóng như xe (24px -> 40 đơn vị).
+            com.badlogic.gdx.graphics.g2d.TextureRegion turret = assets.turretFrame(tank.rotation);
+            if (turret != null) batch.draw(turret, tank.x - 18f, tank.y - 24f, 36f, 43f);
+            return;
+        }
+        com.badlogic.gdx.graphics.g2d.TextureRegion frame = assets.tankFrame(tank.isPlayer || tank.ally, tank.rotation);
         if (frame != null) {
             batch.draw(frame, tank.x - 20, tank.y - 20, 40, 40);
         }
@@ -660,7 +677,7 @@ public class GameRenderer implements Disposable {
 
         // Thanh máu
         float pct = MathUtils.clamp((float) tank.hp / tank.maxHp, 0, 1);
-        shapes.setColor(tank.isPlayer ? Color.GREEN : Color.RED);
+        shapes.setColor(tank.isPlayer || tank.ally ? Color.GREEN : Color.RED);
 
         shapes.rect(bx, by, barW * pct, barH);
         if (tank.maxShieldHp > 0) {
@@ -724,6 +741,7 @@ public class GameRenderer implements Disposable {
             font.draw(batch, "FREEZE " + (int) Math.ceil(state.freezeSecondsRemaining) + "s", 18, panelHeight - 24);
         }
         batch.end();
+        if (state.enemiesRemaining >= 0) drawEnemyCounter(state);
     }
 
     private void drawInventoryMenu(GameStateSnapshot state) {
@@ -829,22 +847,126 @@ public class GameRenderer implements Disposable {
      * "✓ Press Enter to continue." như game gốc.
      */
     private void drawVictoryBanner(GameStateSnapshot state) {
+        if (state.debriefing != null) drawTextPanel("HOAN THANH", state.debriefing, 0f);
+        String hint = "+" + Math.max(0, state.starsEarned) + " SAO   +" + Math.max(0, state.coinsEarned)
+                + " VANG     B: Workshop     ESC: Chon man";
+        drawPromptBar("Press Enter to continue.", hint, true);
+    }
+
+    /** Góc phải trên: số xe địch còn phải hạ trong màn có đợt địch. */
+    private void drawEnemyCounter(GameStateSnapshot state) {
+        float width = Gdx.graphics.getWidth();
+        String text = "DICH: " + state.enemiesRemaining + "/" + state.enemiesTotal;
+        font.getData().setScale(1.1f);
+        GlyphLayout layout = new GlyphLayout(font, text);
+        float panelW = layout.width + 24f;
+        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(com.badlogic.gdx.graphics.GL20.GL_SRC_ALPHA,
+                com.badlogic.gdx.graphics.GL20.GL_ONE_MINUS_SRC_ALPHA);
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(0f, 0f, 0f, 0.65f);
+        shapes.rect(width - panelW - 8f, 8f, panelW, 30f);
+        shapes.end();
+        Gdx.gl.glDisable(com.badlogic.gdx.graphics.GL20.GL_BLEND);
+        batch.begin();
+        font.setColor(1f, 0.45f, 0.35f, 1f);
+        font.draw(batch, text, width - panelW + 4f, 16f);
+        batch.end();
+        font.getData().setScale(1f);
+        font.setColor(Color.WHITE);
+    }
+
+    /** Dải gợi ý từ trigger/thùng đồ ở đáy màn hình (Builds addTextHint). */
+    private void drawHintBar(String text) {
+        float width = Gdx.graphics.getWidth();
+        float height = Gdx.graphics.getHeight();
+        float barHeight = 46f;
+        float barY = height - barHeight;
+        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(com.badlogic.gdx.graphics.GL20.GL_SRC_ALPHA,
+                com.badlogic.gdx.graphics.GL20.GL_ONE_MINUS_SRC_ALPHA);
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(0f, 0f, 0f, 0.6f);
+        shapes.rect(0, barY, width, barHeight);
+        shapes.setColor(1f, 1f, 1f, 0.28f);
+        shapes.rect(0, barY, width, 1.5f);
+        shapes.end();
+        Gdx.gl.glDisable(com.badlogic.gdx.graphics.GL20.GL_BLEND);
+        font.getData().setScale(1.25f);
+        font.setColor(1f, 0.92f, 0.55f, 1f);
+        GlyphLayout layout = new GlyphLayout(font, text);
+        batch.begin();
+        font.draw(batch, text, (width - layout.width) / 2f, barY + (barHeight - layout.height) / 2f);
+        batch.end();
+        font.getData().setScale(1f);
+        font.setColor(Color.WHITE);
+    }
+
+    /** Builds hiện briefing trước khi màn chạy; Enter để bắt đầu. */
+    private void drawBriefing(GameStateSnapshot state) {
+        drawTextPanel("NHIEM VU", state.briefing, 0.82f);
+        drawPromptBar("Press Enter to start.", null, false);
+    }
+
+    /**
+     * Panel chữ giữa màn hình, tự xuống dòng theo bề rộng. Font mặc định không có
+     * dấu tiếng Việt nên nội dung mission được viết không dấu.
+     */
+    private void drawTextPanel(String title, String body, float dim) {
+        if (body == null) return;
+        float width = Gdx.graphics.getWidth();
+        float height = Gdx.graphics.getHeight();
+        float panelW = Math.min(620f, width - 48f);
+        float textW = panelW - 48f;
+        font.getData().setScale(1.05f);
+        GlyphLayout bodyLayout = new GlyphLayout(font, body, Color.WHITE, textW,
+                com.badlogic.gdx.utils.Align.left, true);
+        float panelH = bodyLayout.height + 92f;
+        float panelX = (width - panelW) / 2f;
+        float panelY = Math.max(16f, (height - 78f - panelH) / 2f);
+
+        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(com.badlogic.gdx.graphics.GL20.GL_SRC_ALPHA,
+                com.badlogic.gdx.graphics.GL20.GL_ONE_MINUS_SRC_ALPHA);
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        if (dim > 0) {
+            shapes.setColor(0f, 0f, 0f, dim * 0.6f);
+            shapes.rect(0, 0, width, height);
+        }
+        shapes.setColor(0.08f, 0.07f, 0.06f, 0.92f);
+        shapes.rect(panelX, panelY, panelW, panelH);
+        shapes.setColor(0.95f, 0.76f, 0.15f, 1f);
+        shapes.rect(panelX, panelY, panelW, 4f);
+        shapes.end();
+        Gdx.gl.glDisable(com.badlogic.gdx.graphics.GL20.GL_BLEND);
+
+        batch.begin();
+        font.getData().setScale(1.5f);
+        font.setColor(1f, 0.78f, 0.12f, 1f);
+        GlyphLayout titleLayout = new GlyphLayout(font, title);
+        font.draw(batch, title, (width - titleLayout.width) / 2f, panelY + 22f);
+        font.getData().setScale(1.05f);
+        font.setColor(0.92f, 0.92f, 0.88f, 1f);
+        font.draw(batch, body, panelX + 24f, panelY + 64f, textW, com.badlogic.gdx.utils.Align.left, true);
+        batch.end();
+        font.getData().setScale(1f);
+        font.setColor(Color.WHITE);
+    }
+
+    /** Dải "Press Enter ..." ở đáy màn hình, tuỳ chọn dấu ✓ và dòng phụ. */
+    private void drawPromptBar(String message, String subline, boolean check) {
         float width = Gdx.graphics.getWidth();
         float height = Gdx.graphics.getHeight();
         float barHeight = 78f;
         float barY = height - barHeight;
 
-        String message = "Press Enter to continue.";
-        String hint = "+" + Math.max(0, state.starsEarned) + " SAO   +" + Math.max(0, state.coinsEarned)
-                + " VANG     B: Workshop     ESC: Chon man";
-
         font.getData().setScale(1.9f);
         GlyphLayout messageLayout = new GlyphLayout(font, message);
-        float checkSize = 30f;
-        float gap = 16f;
+        float checkSize = check ? 30f : 0f;
+        float gap = check ? 16f : 0f;
         float groupWidth = checkSize + gap + messageLayout.width;
         float groupX = (width - groupWidth) / 2f;
-        float messageTop = barY + 14f;
+        float messageTop = barY + (subline != null ? 14f : (barHeight - messageLayout.height) / 2f);
         float checkCenterY = messageTop + messageLayout.height / 2f;
 
         Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND);
@@ -855,17 +977,19 @@ public class GameRenderer implements Disposable {
         shapes.rect(0, barY, width, barHeight);
         shapes.setColor(1f, 1f, 1f, 0.28f);
         shapes.rect(0, barY, width, 1.5f);
-        drawCheckMark(groupX, checkCenterY, checkSize);
+        if (check) drawCheckMark(groupX, checkCenterY, checkSize);
         shapes.end();
         Gdx.gl.glDisable(com.badlogic.gdx.graphics.GL20.GL_BLEND);
 
         batch.begin();
         font.setColor(Color.WHITE);
         font.draw(batch, message, groupX + checkSize + gap, messageTop);
-        font.getData().setScale(0.85f);
-        font.setColor(0.72f, 0.72f, 0.68f, 1f);
-        GlyphLayout hintLayout = new GlyphLayout(font, hint);
-        font.draw(batch, hint, (width - hintLayout.width) / 2f, messageTop + messageLayout.height + 14f);
+        if (subline != null) {
+            font.getData().setScale(0.85f);
+            font.setColor(0.72f, 0.72f, 0.68f, 1f);
+            GlyphLayout subLayout = new GlyphLayout(font, subline);
+            font.draw(batch, subline, (width - subLayout.width) / 2f, messageTop + messageLayout.height + 14f);
+        }
         batch.end();
 
         font.getData().setScale(1f);

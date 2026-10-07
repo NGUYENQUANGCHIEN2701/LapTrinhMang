@@ -119,6 +119,29 @@ class LocalCampaignSessionTest {
     }
 
     @Test
+    void briefingHoldsSimulationUntilDismissed() {
+        String mapJson = "{\"name\":\"brief\",\"width\":4,\"height\":3,\"tileSize\":40,"
+                + "\"grid\":[[1,1,1,1],[1,3,0,1],[1,1,1,1]],"
+                + "\"mission\":{\"briefing\":\"Nhiem vu\",\"objective\":\"DESTROY_ALL\","
+                + "\"turrets\":[{\"x\":2,\"y\":1,\"direction\":\"UP\",\"range\":1,\"hitPoints\":8}]}}";
+        FakeAsyncMapSource source = new FakeAsyncMapSource();
+        LocalCampaignSession session = new LocalCampaignSession(
+                "player", "campaign_2", source, result -> true);
+        session.start();
+        source.pending.onLevelLoaded("campaign_2", mapJson, "run-b", "v1");
+
+        assertEquals("BRIEFING", session.status());
+        assertTrue(session.snapshot().briefingOpen);
+        session.update(1f);
+        assertEquals(0, session.snapshot().elapsedSeconds, "Briefing giữ simulation đứng yên");
+
+        session.dismissBriefing();
+        assertEquals("PLAYING", session.status());
+        for (int i = 0; i < 30; i++) session.update(0.05f);
+        assertEquals(1, session.snapshot().elapsedSeconds);
+    }
+
+    @Test
     void hasNextLevelOnlyAfterVictoryWhenAnotherLevelExists() {
         FakeAsyncMapSource source = new FakeAsyncMapSource();
         LocalCampaignSession session = new LocalCampaignSession(

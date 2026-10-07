@@ -34,6 +34,18 @@ public final class GameStateSnapshot {
     public int[] inventoryItemIds = new int[0];
     public int[] inventoryItemCounts = new int[0];
 
+    // ===== Mission (kịch bản màn Builds) =====
+    /** Dòng gợi ý từ trigger/thùng đồ; null khi không có. */
+    public String hintText;
+    /** Lời dặn đầu màn; hiển thị khi {@link #briefingOpen}. */
+    public String briefing;
+    public boolean briefingOpen;
+    /** Lời tổng kết hiện cùng màn hình thắng. */
+    public String debriefing;
+    /** Xe địch còn phải hạ (sống + chờ sinh); -1 khi màn không đếm đợt. */
+    public int enemiesRemaining = -1;
+    public int enemiesTotal;
+
     public void clearEntities() {
         tanks.clear();
         bullets.clear();

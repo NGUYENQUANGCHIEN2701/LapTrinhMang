@@ -87,6 +87,8 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
     private boolean inventoryMenuOpen;
     private int inventorySelectionIndex;
     private boolean shopOpen;
+    /** Builds hiện briefing trước khi màn chạy; simulation đứng yên tới khi Enter. */
+    private boolean briefingOpen;
 
     public interface ShopSyncHandler {
         void onSyncShop(int coins, int stars, String researchJson, String inventoryJson);
@@ -232,6 +234,7 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
             audioManager.playBattleMusic(levelId);
         }
         sim.startCampaignLevel(loadedMap, levelId, playerId);
+        openBriefing();
         return true;
     }
 
@@ -266,7 +269,7 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
 
     // ===== UPDATE =====
     @Override public void update(float rawDeltaTime) {
-        if (phase == Phase.PLAYING && !inventoryMenuOpen && !shopOpen) sim.advance(rawDeltaTime);
+        if (phase == Phase.PLAYING && !inventoryMenuOpen && !shopOpen && !briefingOpen) sim.advance(rawDeltaTime);
         if (sim != null && sim.consumeShopStateDirty()) {
             // Consumables and installed Force Field state are account progress;
             // a restart must not recreate anything already spent or destroyed.
@@ -324,6 +327,17 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         snap.radarActive = sim.isRadarActive();
         snap.inventoryMenuOpen = inventoryMenuOpen;
         snap.inventorySelectionIndex = inventorySelectionIndex;
+        com.tankzors.client.gameplay.map.MissionConfig mission = sim.getMission();
+        if (mission != null) {
+            snap.briefing = mission.getBriefing();
+            snap.debriefing = mission.getDebriefing();
+            if (mission.getEnemyWaves() != null) {
+                snap.enemiesRemaining = sim.getEnemyTanksRemaining();
+                snap.enemiesTotal = sim.getEnemyTanksTotal();
+            }
+        }
+        snap.briefingOpen = briefingOpen && phase == Phase.PLAYING;
+        snap.hintText = sim.getHintText();
         return snap;
     }
 
@@ -350,7 +364,7 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         if (!items.isEmpty()) {
             int index = Math.max(0, Math.min(inventorySelectionIndex, items.size() - 1));
             int itemId = items.get(index);
-            if (itemId >= 0 && itemId <= ShopItem.ROCKET.getId()) {
+            if (com.tankzors.client.shop.PlayerShopState.isWeaponSlot(itemId)) {
                 selectWeapon(itemId);
             } else {
                 sim.useInventoryItem(itemId);
@@ -368,6 +382,9 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         for (int id = ShopItem.ARTILLERY.getId(); id <= ShopItem.ROCKET.getId(); id++) {
             if (shopState.getItemCount(id) > 0) ids.add(id);
         }
+        for (int id = ShopItem.DYNAMITE.getId(); id <= ShopItem.DYNAMITE3.getId(); id++) {
+            if (shopState.getItemCount(id) > 0) ids.add(id);
+        }
         if (shopState.getItemCount(ShopItem.REPAIR.getId()) > 0) ids.add(ShopItem.REPAIR.getId());
         if (shopState.getItemCount(ShopItem.SPEED_UP.getId()) > 0) ids.add(ShopItem.SPEED_UP.getId());
         if (shopState.getItemCount(ShopItem.FREEZE.getId()) > 0) ids.add(ShopItem.FREEZE.getId());
@@ -382,9 +399,24 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
             case INIT: return "WAITING";
             case LOADING_NEXT: return "LOADING";
             case LOAD_ERROR: return "LOAD_ERROR";
-            case PLAYING: default: return sim.getWorld().getStatus().name();
+            case PLAYING: default:
+                if (briefingOpen) return "BRIEFING";
+                return sim.getWorld().getStatus().name();
         }
     }
+
+    /** Builds hiện briefing mỗi lần vào (hoặc chơi lại) một màn có lời dặn. */
+    private void openBriefing() {
+        com.tankzors.client.gameplay.map.MissionConfig mission = loadedMap != null ? loadedMap.getMission() : null;
+        briefingOpen = mission != null && mission.getBriefing() != null && !mission.getBriefing().isEmpty();
+    }
+
+    @Override
+    public void dismissBriefing() {
+        briefingOpen = false;
+    }
+
+    public boolean isBriefingOpen() { return briefingOpen; }
 
     // ===== RESTART / NEXT =====
     @Override
@@ -508,6 +540,7 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
             audioManager.playBattleMusic(levelId);
         }
         sim.startCampaignLevel(loadedMap, levelId, playerId);
+        openBriefing();
         levelStartInventory = shopState.snapshotInventory();
         levelStartWeaponId = shopState.getActiveWeaponId();
         inventoryMenuOpen = false;
@@ -547,6 +580,7 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         matchResultFired = false;
         sim.setMatchEndHandler(this::onMatchEnd);
         sim.startCampaignLevel(loadedMap, levelId, playerId);
+        openBriefing();
         levelStartInventory = shopState.snapshotInventory();
         levelStartWeaponId = shopState.getActiveWeaponId();
         inventoryMenuOpen = false;

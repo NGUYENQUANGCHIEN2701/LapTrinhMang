@@ -133,6 +133,11 @@ public class GameClient implements ApplicationListener {
                 if (session != null) session.nextLevel();
             }
             @Override public void onContinue() {
+                if (session != null && "BRIEFING".equalsIgnoreCase(session.status())) {
+                    if (audio != null) audio.playUiClick();
+                    session.dismissBriefing();
+                    return;
+                }
                 if (session == null || !"VICTORY".equalsIgnoreCase(session.status())) return;
                 if (audio != null) audio.playUiClick();
                 if (session.hasNextLevel()) {

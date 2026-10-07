@@ -34,6 +34,8 @@ public class AssetRepository implements Disposable {
     private Texture buildingsSheet;
     private Texture triggersSheet;
     private Texture shieldRingsSheet;
+    private Texture turretSheet;
+    private Texture minesSheet;
     private Texture spawnOverlayTexture;
 
     // Shop GUI Textures
@@ -60,6 +62,8 @@ public class AssetRepository implements Disposable {
     private TextureRegion[] bigPlasmaExplosionFrames;
     private TextureRegion[] bigRedExplosionFrames;
     private TextureRegion[] powerupFrames;
+    private TextureRegion[] turretFrames;
+    private TextureRegion[] minesFrames;
     private TextureRegion[] buildingFrames;
     private TextureRegion campaignFlagFrame;
     private TextureRegion[] triggerFrames;
@@ -125,6 +129,15 @@ public class AssetRepository implements Disposable {
         campaignFlagFrame.flip(false, flagRequiresVerticalFlip());
         triggerFrames = split(triggersSheet, 20, 20, 10, false);
         if (shieldRingsSheet != null) shieldRingFrames = split(shieldRingsSheet, 28, 28, 6, true);
+        // Ụ súng Builds: 16 hướng 22x26; mines.png: 3 mìn + 2 khung thuốc nổ đang cháy ngòi.
+        if (Gdx.files.internal("tanks/turret.png").exists()) {
+            turretSheet = new Texture(Gdx.files.internal("tanks/turret.png"));
+            turretFrames = split(turretSheet, 22, 26, 16, true);
+        }
+        if (Gdx.files.internal("effects/mines.png").exists()) {
+            minesSheet = new Texture(Gdx.files.internal("effects/mines.png"));
+            minesFrames = split(minesSheet, 20, 20, 5, false);
+        }
 
         // Shop GUI
         if (Gdx.files.internal("gui/icons.png").exists()) {
@@ -283,6 +296,45 @@ public class AssetRepository implements Disposable {
         return powerupFrames[repair ? 10 : 0];
     }
 
+    /**
+     * powerups.png của Builds: mỗi loại 3 khung động theo thứ tự tăng tốc, mạng,
+     * đóng băng, sửa xe, sao, xu; thùng đồ chiếm 2 khung cuối.
+     */
+    public TextureRegion powerupFrame(int tileCode, float animTime) {
+        int base = powerupBaseFrame(tileCode);
+        int frames = base == 18 ? 2 : 3;
+        int index = base + ((int) (animTime * 6f)) % frames;
+        return powerupFrames[Math.min(powerupFrames.length - 1, index)];
+    }
+
+    /** Khung đầu tiên trong powerups.png cho mã tile vật phẩm của client. */
+    public static int powerupBaseFrame(int tileCode) {
+        switch (tileCode) {
+            case 8: return 0;   // tăng tốc
+            case 14: return 3;  // mạng
+            case 10: return 6;  // đóng băng
+            case 7: return 9;   // sửa xe
+            case 11: return 12; // sao
+            case 12: return 15; // xu
+            case 13: return 18; // thùng đồ
+            default: return 0;
+        }
+    }
+
+    /** Thuốc nổ đang cháy ngòi: hai khung cuối mines.png luân phiên. */
+    public TextureRegion dynamiteFrame(float animTime) {
+        if (minesFrames == null || minesFrames.length < 5) return null;
+        return minesFrames[3 + ((int) (animTime * 8f)) % 2];
+    }
+
+    /** Cùng quy ước khung với xe tăng (Renderer.ts cũ). */
+    public TextureRegion turretFrame(float rotation) {
+        if (turretFrames == null || turretFrames.length == 0) return null;
+        float normalized = ((rotation % 360f) + 360f) % 360f;
+        int frame = (int) (Math.floor((normalized + 11.25) / 22.5) + 8) % 16;
+        return turretFrames[frame % turretFrames.length];
+    }
+
     /** Cờ vàng gốc trong buildings.png (frame 3), lật dọc riêng cho camera y-down. */
     public TextureRegion flagFrame() { return campaignFlagFrame; }
 
@@ -351,6 +403,8 @@ public class AssetRepository implements Disposable {
         if (buildingsSheet != null) buildingsSheet.dispose();
         if (triggersSheet != null) triggersSheet.dispose();
         if (shieldRingsSheet != null) shieldRingsSheet.dispose();
+        if (turretSheet != null) turretSheet.dispose();
+        if (minesSheet != null) minesSheet.dispose();
         if (spawnOverlayTexture != null) spawnOverlayTexture.dispose();
         if (iconsSheet != null) iconsSheet.dispose();
         if (billetsTexture != null) billetsTexture.dispose();

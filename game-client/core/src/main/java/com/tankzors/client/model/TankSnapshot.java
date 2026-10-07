@@ -12,4 +12,8 @@ public final class TankSnapshot {
     public int maxShieldHp;
     public boolean alive;
     public boolean isPlayer;
+    /** Xe AI đồng minh của người chơi. */
+    public boolean ally;
+    /** Ụ súng cố định (vẽ bằng sprite turret). */
+    public boolean turret;
 }

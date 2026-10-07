@@ -59,6 +59,8 @@ public interface GameSession {
     default boolean canOpenShop() { return false; }
     /** Đã thắng và còn màn kế để Enter chuyển tiếp. */
     default boolean hasNextLevel() { return false; }
+    /** Đóng màn hình briefing đầu màn để bắt đầu chơi. */
+    default void dismissBriefing() {}
     default void setShopOpen(boolean open) {}
     default void onWorkshopItemBought(com.tankzors.client.shop.ShopItem item) {}
     default void onWorkshopItemSold(com.tankzors.client.shop.ShopItem item) {}

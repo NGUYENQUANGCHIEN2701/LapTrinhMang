@@ -93,6 +93,10 @@ public final class WorldSnapshotMapper {
             }
             ts.alive = tank.isAlive();
             ts.isPlayer = tank instanceof PlayerTank;
+            if (tank instanceof AITank) {
+                ts.ally = ((AITank) tank).isAlly();
+                ts.turret = ((AITank) tank).isTurret();
+            }
             snap.tanks.add(ts);
         }
 
