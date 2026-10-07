@@ -44,7 +44,8 @@ public final class ChaseBehavior implements IAIBehavior {
         } else {
             holding = false;
         }
-        double budget = self.getSpeed() * deltaTime;
+        double budget = self.getSpeed() * deltaTime
+                * state.getCurrentMap().speedFactorAt(self.getPosition().getX(), self.getPosition().getY());
         if (visible) budget = Math.min(budget, Math.max(0, distance - 100));
         AINavigator.Result result = navigator.move(self, state.getCurrentMap(), target, budget, deltaTime);
         searchFinished = !visible && result != AINavigator.Result.MOVING;

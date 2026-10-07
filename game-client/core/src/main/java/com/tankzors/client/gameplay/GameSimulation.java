@@ -15,6 +15,7 @@ import com.tankzors.client.gameplay.interfaces.IAIBehavior;
 import com.tankzors.client.gameplay.interfaces.IMap;
 import com.tankzors.client.gameplay.interfaces.ITank;
 import com.tankzors.client.gameplay.map.MapDefinition;
+import com.tankzors.client.gameplay.map.MissionConfig;
 import com.tankzors.client.gameplay.map.TileType;
 import com.tankzors.client.model.EffectSnapshot;
 import com.tankzors.client.model.GameStateSnapshot;
@@ -63,6 +64,29 @@ public class GameSimulation {
     private final Map<String, RespawnPoint> respawnPoints = new HashMap<>();
     /** Runtime state for the three special rounds; snapshots still use Bullet. */
     private final Map<String, SpecialShot> specialShots = new HashMap<>();
+
+    // Kịch bản màn Builds (mission): đợt địch, đồng minh, trigger, thuốc nổ.
+    private MissionConfig mission;
+    private MissionSpawner enemySpawner;
+    private MissionSpawner allySpawner;
+    private final List<TriggerState> triggerStates = new ArrayList<>();
+    private final List<Dynamite> dynamites = new ArrayList<>();
+    private int lastTriggerCol = Integer.MIN_VALUE;
+    private int lastTriggerRow = Integer.MIN_VALUE;
+    private String hintText;
+    private double hintRemaining;
+    private int missionSerial;
+
+    /** Builds: useFreezeBonus(1800) ở 60 Hz khi nhặt vật phẩm đóng băng. */
+    public static final double FREEZE_PICKUP_SECONDS = 30.0;
+    /** Builds: xu trên map cộng 35 xu. */
+    public static final int COIN_PICKUP_VALUE = 35;
+    /** Builds: thuốc nổ người chơi đặt cháy ngòi 180 frame. */
+    public static final double DYNAMITE_FUSE_SECONDS = 3.0;
+    /** Builds: thùng bẫy nổ sau 120 frame. */
+    public static final double TRAP_FUSE_SECONDS = 2.0;
+    /** Builds: gợi ý văn bản mặc định 120 frame. */
+    public static final double HINT_SECONDS = 2.0;
 
     public static final double SPEED_BOOST_MULTIPLIER = 1.30;
     /** 2700 ticks at the reference build's 60 Hz rate. */
@@ -143,6 +167,7 @@ public class GameSimulation {
         resetMatch();
         spawnPlayer(playerId);
         spawnMapEnemies();
+        setupMission();
         world.setStatus(GameWorld.Status.PLAYING);
     }
 
@@ -167,6 +192,7 @@ public class GameSimulation {
             world.addTank(player);
         }
         spawnMapEnemies();
+        setupMission();
         world.setStatus(GameWorld.Status.PLAYING);
     }
 
@@ -197,6 +223,7 @@ public class GameSimulation {
         if (map != null) {
             spawnPlayer(localPlayerId);
             spawnMapEnemies();
+            setupMission();
             world.setStatus(GameWorld.Status.PLAYING);
         }
     }
@@ -214,6 +241,293 @@ public class GameSimulation {
         effects.clear();
         specialShots.clear();
         respawnPoints.clear();
+        mission = null;
+        enemySpawner = null;
+        allySpawner = null;
+        triggerStates.clear();
+        dynamites.clear();
+        lastTriggerCol = Integer.MIN_VALUE;
+        lastTriggerRow = Integer.MIN_VALUE;
+        hintText = null;
+        hintRemaining = 0;
+        missionSerial = 0;
+    }
+
+    // ========== MISSION (Builds campaign script) ==========
+    private void setupMission() {
+        IMap map = world.getCurrentMap();
+        mission = map instanceof MapDefinition ? ((MapDefinition) map).getMission() : null;
+        if (mission == null) return;
+        // Builds: mỗi base chờ ngẫu nhiên 0..SPAWN_TIMEOUT trước lần sinh đầu.
+        if (mission.getEnemyWaves() != null) {
+            enemySpawner = new MissionSpawner(mission.getEnemyWaves(),
+                    matchRng.nextDouble() * mission.getEnemyWaves().intervalSeconds);
+        }
+        if (mission.getAllies() != null) {
+            allySpawner = new MissionSpawner(mission.getAllies(),
+                    matchRng.nextDouble() * mission.getAllies().intervalSeconds);
+        }
+        int tileSize = map.getTileSize();
+        for (MissionConfig.TurretConfig cfg : mission.getTurrets()) {
+            AITank turret = AITank.turret("turret-" + cfg.x + "-" + cfg.y,
+                    (cfg.x + 0.5) * tileSize, (cfg.y + 0.5) * tileSize, cfg.direction, cfg.range, cfg.hitPoints);
+            wireAiBulletIds(turret);
+            world.addTank(turret);
+        }
+        for (MissionConfig.TriggerConfig cfg : mission.getTriggers()) {
+            triggerStates.add(new TriggerState(cfg));
+        }
+    }
+
+    private void updateMission(double dt) {
+        if (hintRemaining > 0) {
+            hintRemaining = Math.max(0, hintRemaining - dt);
+            if (hintRemaining == 0) hintText = null;
+        }
+        updateDynamites(dt);
+        if (mission == null) return;
+        checkTriggers();
+        if (enemySpawner != null) {
+            MissionConfig.SpawnBase base = enemySpawner.update(dt, countOnField(false), this::isCellFree);
+            if (base != null) spawnWaveTank(base, enemySpawner.waves(), false);
+        }
+        if (allySpawner != null) {
+            MissionConfig.SpawnBase base = allySpawner.update(dt, countOnField(true), this::isCellFree);
+            if (base != null) spawnWaveTank(base, allySpawner.waves(), true);
+        }
+    }
+
+    private void spawnWaveTank(MissionConfig.SpawnBase base, MissionConfig.Waves waves, boolean ally) {
+        int tileSize = world.getCurrentMap().getTileSize();
+        String id = (ally ? "ally-" : "ai-wave-") + (missionSerial++);
+        AITank tank = new AITank(id, (base.x + 0.5) * tileSize, (base.y + 0.5) * tileSize,
+                parseDifficulty(waves.difficulty));
+        if (ally) {
+            tank.setTeam(AITank.Team.ALLY);
+            tank.setFollowPlayer(waves.followPlayer);
+        }
+        wireAiBulletIds(tank);
+        world.addTank(tank);
+    }
+
+    /** Xe AI đang sống của một phe (không tính ụ súng). */
+    private int countOnField(boolean ally) {
+        int count = 0;
+        for (ITank t : world.getAllTanks()) {
+            if (t instanceof AITank && t.isAlive() && !((AITank) t).isTurret()
+                    && ((AITank) t).isAlly() == ally) count++;
+        }
+        return count;
+    }
+
+    /** Builds teamsGrid: base chỉ sinh khi không có xe nào chiếm ô. */
+    private boolean isCellFree(int col, int row) {
+        int tileSize = world.getCurrentMap().getTileSize();
+        com.tankzors.client.gameplay.entity.Rectangle cell =
+                new com.tankzors.client.gameplay.entity.Rectangle(col * tileSize, row * tileSize, tileSize, tileSize);
+        for (ITank t : world.getAllTanks()) {
+            if (t.isAlive() && t instanceof Tank && ((Tank) t).getBoundingBox().intersects(cell)) return false;
+        }
+        return true;
+    }
+
+    /** Số xe địch còn phải hạ (đang sống + còn chờ sinh), không tính ụ súng. */
+    public int getEnemyTanksRemaining() {
+        int pending = enemySpawner != null ? enemySpawner.pending() : 0;
+        return pending + countOnField(false);
+    }
+
+    public int getEnemyTanksTotal() {
+        return mission != null && mission.getEnemyWaves() != null ? mission.getEnemyWaves().total() : 0;
+    }
+
+    public MissionConfig getMission() { return mission; }
+    public String getHintText() { return hintText; }
+    public double getHintRemaining() { return hintRemaining; }
+
+    private void showHint(String text, double seconds) {
+        if (text == null || text.isEmpty()) return;
+        hintText = text;
+        hintRemaining = Math.max(0.5, seconds);
+    }
+
+    private void checkTriggers() {
+        PlayerTank player = localPlayer();
+        IMap map = world.getCurrentMap();
+        if (player == null || !player.isAlive() || map == null || triggerStates.isEmpty()) return;
+        int col = (int) Math.floor(player.getPosition().getX() / map.getTileSize());
+        int row = (int) Math.floor(player.getPosition().getY() / map.getTileSize());
+        if (col == lastTriggerCol && row == lastTriggerRow) return;
+        lastTriggerCol = col;
+        lastTriggerRow = row;
+        for (int i = 0; i < triggerStates.size(); i++) {
+            MissionConfig.TriggerConfig cfg = triggerStates.get(i).config;
+            if (cfg.x == col && cfg.y == row) pressTrigger(i, 0);
+        }
+    }
+
+    /** Builds Trigger: chỉ phản hồi khi đang bật, không có cờ reusable nên chỉ một lần. */
+    private void pressTrigger(int index, int depth) {
+        if (index < 0 || index >= triggerStates.size() || depth > 8) return;
+        TriggerState state = triggerStates.get(index);
+        if (!state.active || state.fired) return;
+        state.fired = true;
+        MissionConfig.TriggerConfig cfg = state.config;
+        switch (cfg.action) {
+            case TEXT:
+                showHint(cfg.text, cfg.seconds);
+                break;
+            case PRESS:
+                pressTrigger(cfg.target, depth + 1);
+                break;
+            case ENABLE:
+                if (cfg.target >= 0 && cfg.target < triggerStates.size()) triggerStates.get(cfg.target).active = true;
+                break;
+            default:
+                break;
+        }
+    }
+
+    // ---- Dynamite (Builds game.effects.Dynamite + game.Explosion) ----
+    private static boolean isDynamiteItem(int itemId) {
+        return itemId == ShopItem.DYNAMITE.getId() || itemId == ShopItem.DYNAMITE2.getId()
+                || itemId == ShopItem.DYNAMITE3.getId();
+    }
+
+    private boolean placeDynamite(PlayerTank player, int itemId) {
+        IMap map = world.getCurrentMap();
+        if (!(map instanceof MapDefinition)) return false;
+        MapDefinition md = (MapDefinition) map;
+        int col = (int) Math.floor(player.getPosition().getX() / md.getTileSize());
+        int row = (int) Math.floor(player.getPosition().getY() / md.getTileSize());
+        // Builds chỉ cho đặt lên ô không có vật gì ở lớp trên.
+        if (md.getTileAt(col, row) != TileType.GROUND) return false;
+        int type = itemId == ShopItem.DYNAMITE3.getId() ? 2 : itemId == ShopItem.DYNAMITE2.getId() ? 1 : 0;
+        md.setTileAt(col, row, TileType.DYNAMITE);
+        dynamites.add(new Dynamite(col, row, type, DYNAMITE_FUSE_SECONDS));
+        return true;
+    }
+
+    private void updateDynamites(double dt) {
+        if (dynamites.isEmpty()) return;
+        List<Dynamite> exploding = new ArrayList<>();
+        for (Iterator<Dynamite> it = dynamites.iterator(); it.hasNext();) {
+            Dynamite d = it.next();
+            d.remaining -= dt;
+            if (d.remaining <= 0) {
+                it.remove();
+                exploding.add(d);
+            }
+        }
+        for (Dynamite d : exploding) {
+            IMap map = world.getCurrentMap();
+            if (map instanceof MapDefinition && map.getTileAt(d.col, d.row) == TileType.DYNAMITE) {
+                ((MapDefinition) map).setTileAt(d.col, d.row, TileType.GROUND);
+            }
+            int radius = d.type == 2 ? 4 : 3;
+            int power = d.type == 2 ? 19 : d.type == 1 ? 10 : 7;
+            explodeArea(d.col, d.row, radius, power);
+        }
+    }
+
+    /**
+     * Builds game.Explosion: lan hình thoi tới radius-1 ô, sức nổ giảm 1 mỗi ô.
+     * Phá gạch/bụi theo sức nổ, phá khối đá bất kể sức nổ, xoá vật phẩm, huỷ đạn,
+     * và gây sát thương gấp đôi (isExpl) cho mọi xe trong vùng, kể cả người chơi.
+     */
+    private void explodeArea(int cx, int cy, int radius, int power) {
+        IMap map = world.getCurrentMap();
+        if (map == null) return;
+        MapDefinition md = map instanceof MapDefinition ? (MapDefinition) map : null;
+        int tileSize = map.getTileSize();
+        int reach = radius - 1;
+        for (int dy = -reach; dy <= reach; dy++) {
+            for (int dx = -reach; dx <= reach; dx++) {
+                int dist = Math.abs(dx) + Math.abs(dy);
+                if (dist > reach) continue;
+                int tx = cx + dx;
+                int ty = cy + dy;
+                if (tx < 0 || ty < 0 || tx >= map.getWidth() || ty >= map.getHeight()) continue;
+                int cellPower = Math.max(0, power - dist);
+                double px = (tx + 0.5) * tileSize;
+                double py = (ty + 0.5) * tileSize;
+                effects.add(dist == reach ? new WorldEffect(px, py, false, false, 0.40, 0, 0)
+                        : new WorldEffect(px, py, false, false, 0.65, 6, 0));
+                if (md != null) {
+                    Wall wall = md.wallAt(tx, ty);
+                    if (wall != null && !md.isBoundary(tx, ty)) {
+                        if (wall.getTileType() == TileType.STONE_WALL) {
+                            md.removeWall(wall);
+                        } else if (cellPower > 0 && wall.getTileType() == TileType.BUSH) {
+                            md.removeWall(wall);
+                        } else if (cellPower > 0 && wall.getTileType() == TileType.WALL) {
+                            for (int h = 0; h < cellPower && md.getWalls().contains(wall); h++) {
+                                if (md.hitWall(wall) != null) break;
+                            }
+                        }
+                    }
+                    if (cellPower > 0 && md.getTileAt(tx, ty).isPickup()) md.setTileAt(tx, ty, TileType.GROUND);
+                }
+                if (cellPower == 0) continue;
+                for (IBullet b : world.getAllBullets()) {
+                    if (b.isActive() && cellOf(b.getPosition().getX(), tileSize) == tx
+                            && cellOf(b.getPosition().getY(), tileSize) == ty) {
+                        b.deactivate();
+                    }
+                }
+                for (ITank tank : world.getAllTanks()) {
+                    if (!tank.isAlive() || cellOf(tank.getPosition().getX(), tileSize) != tx
+                            || cellOf(tank.getPosition().getY(), tileSize) != ty) continue;
+                    tank.takeDamage(cellPower * 2);
+                    reportTankHit(tank);
+                }
+            }
+        }
+        if (eventListener != null) eventListener.onSpecialExplosion(ShopItem.DYNAMITE.getId(), radius);
+    }
+
+    private static int cellOf(double pixel, int tileSize) {
+        return (int) Math.floor(pixel / tileSize);
+    }
+
+    private void reportTankHit(ITank tank) {
+        boolean killed = !tank.isAlive();
+        boolean isPlayer = tank instanceof PlayerTank;
+        if (eventListener != null) {
+            if (killed) eventListener.onTankDestroyed(isPlayer); else eventListener.onHitTank(isPlayer);
+        }
+        if (killed && isEnemySide(tank)) {
+            world.addScore(100);
+            aiKilledThisMatch++;
+        }
+    }
+
+    /** Phe địch: AI không phải đồng minh. Người chơi và đồng minh cùng một phe. */
+    private static boolean isEnemySide(ITank tank) {
+        return tank instanceof AITank && !((AITank) tank).isAlly();
+    }
+
+    private boolean isEnemyOwner(String ownerId) {
+        return Boolean.TRUE.equals(ownerSide(ownerId));
+    }
+
+    /**
+     * Phe của chủ đạn: TRUE địch, FALSE phe người chơi, null khi không xác định
+     * (chủ đã bị xoá và id không mang tiền tố do simulation cấp).
+     */
+    private Boolean ownerSide(String ownerId) {
+        if (ownerId == null) return null;
+        ITank owner = world.getTank(ownerId);
+        if (owner != null) return isEnemySide(owner);
+        if (ownerId.startsWith("ai-") || ownerId.startsWith("turret-")) return Boolean.TRUE;
+        if (ownerId.startsWith("ally-")) return Boolean.FALSE;
+        return null;
+    }
+
+    /** Đạn không gây sát thương cho xe cùng phe (đồng minh, AI với AI, player với player). */
+    private boolean isSameSide(IBullet bullet, ITank tank) {
+        Boolean side = ownerSide(bullet.getOwnerId());
+        return side != null && side == isEnemySide(tank);
     }
 
     private void spawnPlayer(String playerId) {
@@ -252,6 +566,11 @@ public class GameSimulation {
     private void spawnMapEnemies() {
         IMap map = world.getCurrentMap();
         if (map == null) return;
+        // Màn Builds có đợt địch: ô base chỉ là nơi sinh theo lượt, không đặt xe tĩnh.
+        if (map instanceof MapDefinition && ((MapDefinition) map).getMission() != null
+                && ((MapDefinition) map).getMission().getEnemyWaves() != null) {
+            return;
+        }
         // Đã có AI rồi thì không spawn lại
         for (ITank t : world.getAllTanks()) {
             if (t instanceof AITank) return;
@@ -413,6 +732,13 @@ public class GameSimulation {
                             }
                             if (count <= 0) break;
                             player.setActiveWeaponId(wid);
+                            if (isDynamiteItem(wid)) {
+                                if (placeDynamite(player, wid)) {
+                                    shopState.setItemCount(wid, count - 1);
+                                    shopStateDirty = true;
+                                }
+                                break;
+                            }
                             if (wid >= ShopItem.ARTILLERY.getId() && wid <= ShopItem.ROCKET.getId()) {
                                 if (wid == ShopItem.ROCKET.getId() && detonateGuidedRocket()) break;
                                 if (fireSpecialShot(player, wid)) {
@@ -535,11 +861,14 @@ public class GameSimulation {
             }
         }
         collectLocalPickup();
-        // (b) AI
+        updateMission(dt);
+        // (b) AI — đóng băng chỉ tác dụng lên phe địch, đồng minh vẫn hoạt động.
         int bulletsBefore = world.getBulletCount();
         if (freezeRemaining > 0) freezeRemaining = Math.max(0, freezeRemaining - dt);
-        for (ITank tank : world.getAllTanks()) {
-            if (tank instanceof AITank && freezeRemaining <= 0) ((AITank) tank).update(world, dt);
+        for (ITank tank : new ArrayList<>(world.getAllTanks())) {
+            if (tank instanceof AITank && (freezeRemaining <= 0 || ((AITank) tank).isAlly())) {
+                ((AITank) tank).update(world, dt);
+            }
         }
         if (eventListener != null && world.getBulletCount() > bulletsBefore) {
             eventListener.onShoot(false, 0);
@@ -547,7 +876,7 @@ public class GameSimulation {
         // (c) bullets
         for (IBullet bullet : world.getAllBullets()) {
             // Builds freezes hostile ammunition together with tanks/turrets.
-            boolean enemyBullet = bullet.getOwnerId() != null && world.getTank(bullet.getOwnerId()) instanceof AITank;
+            boolean enemyBullet = isEnemyOwner(bullet.getOwnerId());
             if (bullet.isActive() && !(freezeRemaining > 0 && enemyBullet)) {
                 bullet.update(dt);
                 if (bullet instanceof Bullet) {
@@ -564,7 +893,12 @@ public class GameSimulation {
 
     private void updateTimedEffects(double dt) {
         if (speedBoostRemaining > 0) {
-            speedBoostRemaining = Math.max(0, speedBoostRemaining - dt);
+            // Builds: trên cát hiệu ứng tăng tốc kéo dài gấp đôi.
+            PlayerTank boosted = localPlayer();
+            boolean onSand = boosted != null && world.getCurrentMap() instanceof MapDefinition
+                    && ((MapDefinition) world.getCurrentMap()).isSandAt(
+                            boosted.getPosition().getX(), boosted.getPosition().getY());
+            speedBoostRemaining = Math.max(0, speedBoostRemaining - (onSand ? dt / 2 : dt));
             if (speedBoostRemaining == 0) {
                 PlayerTank player = localPlayer();
                 if (player != null) {
@@ -584,15 +918,64 @@ public class GameSimulation {
         if (!(world.getCurrentMap() instanceof MapDefinition) || shopState == null) return;
         PlayerTank player = localPlayer();
         if (player == null) return;
-        TileType pickup = ((MapDefinition) world.getCurrentMap()).collectPickupAt(
-                player.getPosition().getX(), player.getPosition().getY());
-        if (pickup == TileType.REPAIR_PICKUP) {
-            if (eventListener != null) eventListener.onPickup();
-            applyRepair(player);
-        } else if (pickup == TileType.SPEED_PICKUP) {
-            if (eventListener != null) eventListener.onPickup();
-            applySpeedBoost(player);
+        MapDefinition md = (MapDefinition) world.getCurrentMap();
+        double x = player.getPosition().getX();
+        double y = player.getPosition().getY();
+        TileType pickup = md.pickupAt(x, y);
+        if (pickup == null) return;
+        // Builds giữ bộ sửa trên map khi xe còn đầy máu.
+        if (pickup == TileType.REPAIR_PICKUP && player.getHP() >= player.getMaxHP()) return;
+        md.collectPickupAt(x, y);
+        if (eventListener != null) eventListener.onPickup();
+        switch (pickup) {
+            case REPAIR_PICKUP:
+                applyRepair(player);
+                break;
+            case SPEED_PICKUP:
+                applySpeedBoost(player);
+                break;
+            case FREEZE_PICKUP:
+                freezeRemaining = Math.max(freezeRemaining, FREEZE_PICKUP_SECONDS);
+                if (eventListener != null) eventListener.onUseFreeze();
+                break;
+            case STAR_PICKUP:
+                shopState.addStars(1);
+                shopStateDirty = true;
+                break;
+            case COIN_PICKUP:
+                shopState.addCoins(COIN_PICKUP_VALUE);
+                shopStateDirty = true;
+                break;
+            case LIFE_PICKUP:
+                shopState.setItemCount(ShopItem.ADD_LIFE.getId(),
+                        shopState.getItemCount(ShopItem.ADD_LIFE.getId()) + 1);
+                shopStateDirty = true;
+                break;
+            case BOX_PICKUP:
+                openBox(md, cellOf(x, md.getTileSize()), cellOf(y, md.getTileSize()));
+                break;
+            default:
+                break;
         }
+    }
+
+    /** Builds Player.getCellItem case 32/33: cộng vật phẩm vào kho và báo tên. */
+    private void openBox(MapDefinition md, int col, int row) {
+        MissionConfig.BoxConfig box = mission != null ? mission.boxAt(col, row) : null;
+        if (box == null || box.itemId == -1) {
+            showHint("Thung rong.", HINT_SECONDS);
+            return;
+        }
+        if (box.itemId == -2) {
+            showHint("Thung bay! Tranh xa!", HINT_SECONDS);
+            md.setTileAt(col, row, TileType.DYNAMITE);
+            dynamites.add(new Dynamite(col, row, 0, TRAP_FUSE_SECONDS));
+            return;
+        }
+        shopState.setItemCount(box.itemId, shopState.getItemCount(box.itemId) + box.count);
+        shopStateDirty = true;
+        ShopItem item = ShopItem.findById(box.itemId);
+        showHint((item != null ? item.getDisplayName() : "Vat pham") + " (" + box.count + ")", HINT_SECONDS);
     }
 
     private void applyRepair(PlayerTank player) {
@@ -639,9 +1022,8 @@ public class GameSimulation {
                 continue;
             }
             for (ITank tank : world.getAllTanks()) {
-                // Đạn AI xuyên qua đồng đội AI; chỉ player mới là mục tiêu của AI.
-                if (isAiFriendlyFire(bullet, tank)) continue;
-                if (coopMode && isFriendlyFire(bullet, tank)) continue;
+                // Đạn xuyên qua xe cùng phe (AI với AI, người chơi với đồng minh/co-op).
+                if (isSameSide(bullet, tank)) continue;
                 if (Collision.checkBulletTankCollision(bullet, tank)) {
                     tank.takeDamage(bullet.getDamage());
                     bullet.deactivate();
@@ -657,7 +1039,7 @@ public class GameSimulation {
                     }
                     if (killed) {
                         world.addScore(100);
-                        if (tank instanceof AITank) aiKilledThisMatch++;
+                        if (isEnemySide(tank)) aiKilledThisMatch++;
                     }
                     break; // 1 đạn 1 tank
                 }
@@ -723,6 +1105,9 @@ public class GameSimulation {
                                 }
                             } else if (wall.getTileType() == TileType.BUSH) {
                                 md.hitWall(wall);
+                            } else if (wall.getTileType() == TileType.STONE_WALL && !md.isBoundary(tx, ty)) {
+                                // Builds Explosion xoá khối đá (tile 11) bất kể sức nổ.
+                                md.removeWall(wall);
                             }
                         }
                     }
@@ -757,7 +1142,7 @@ public class GameSimulation {
             if (eventListener != null) {
                 if (killed) eventListener.onTankDestroyed(player); else eventListener.onHitTank(player);
             }
-            if (killed && tank instanceof AITank) {
+            if (killed && isEnemySide(tank)) {
                 world.addScore(100);
                 aiKilledThisMatch++;
             }
@@ -823,30 +1208,15 @@ public class GameSimulation {
     }
 
     private boolean sameBulletTeam(IBullet first, IBullet second) {
-        ITank firstOwner = world.getTank(first.getOwnerId());
-        ITank secondOwner = world.getTank(second.getOwnerId());
-        if (firstOwner == null || secondOwner == null) return false;
-        return (firstOwner instanceof AITank && secondOwner instanceof AITank)
-                || (firstOwner instanceof PlayerTank && secondOwner instanceof PlayerTank);
+        Boolean a = ownerSide(first.getOwnerId());
+        Boolean b = ownerSide(second.getOwnerId());
+        return a != null && a.equals(b);
     }
 
     private static int weaponTypeOf(IBullet bullet) {
         return bullet instanceof Bullet ? ((Bullet) bullet).getWeaponType() : 0;
     }
 
-    private boolean isFriendlyFire(IBullet bullet, ITank tank) {
-        // Co-op: đạn của player không gây damage lên player khác (chỉ chặn cross-player,
-        // tự-bắn-mình đã chặn trong Collision.checkBulletTankCollision).
-        if (tank instanceof PlayerTank && bullet.getOwnerId() != null) {
-            return world.getTank(bullet.getOwnerId()) instanceof PlayerTank;
-        }
-        return false;
-    }
-
-    private boolean isAiFriendlyFire(IBullet bullet, ITank tank) {
-        if (!(tank instanceof AITank) || bullet.getOwnerId() == null) return false;
-        return world.getTank(bullet.getOwnerId()) instanceof AITank;
-    }
 
     private void cleanupDeadTanks() {
         if (isCaptureFlagMode()) {
@@ -881,11 +1251,14 @@ public class GameSimulation {
         for (String id : deadIds) world.removeTank(id);
 
         boolean hasPlayer = false, hasAI = false;
+        boolean turretsCount = mission == null || mission.getObjective() == MissionConfig.Objective.DESTROY_ALL;
         for (ITank t : world.getAllTanks()) {
             if (!t.isAlive()) continue;
             if (t instanceof PlayerTank) hasPlayer = true;
-            if (t instanceof AITank) hasAI = true;
+            if (isEnemySide(t) && (turretsCount || !((AITank) t).isTurret())) hasAI = true;
         }
+        // Địch còn chờ ở base cũng tính là chưa hạ xong.
+        if (enemySpawner != null && enemySpawner.pending() > 0) hasAI = true;
 
         // Tiebreak: player chết ưu tiên DEFEAT (cùng tick).
         if (!hasPlayer) {
@@ -1155,6 +1528,29 @@ public class GameSimulation {
             this.remainingRange = remainingRange;
             this.radius = radius;
             this.power = power;
+        }
+    }
+
+    private static final class TriggerState {
+        final MissionConfig.TriggerConfig config;
+        boolean active;
+        boolean fired;
+        TriggerState(MissionConfig.TriggerConfig config) {
+            this.config = config;
+            this.active = config.active;
+        }
+    }
+
+    private static final class Dynamite {
+        final int col;
+        final int row;
+        final int type;
+        double remaining;
+        Dynamite(int col, int row, int type, double remaining) {
+            this.col = col;
+            this.row = row;
+            this.type = type;
+            this.remaining = remaining;
         }
     }
 

@@ -66,7 +66,9 @@ public final class PatrolBehavior implements IAIBehavior {
             target = new GridPathfinder.Cell(current.col + DIRECTIONS[heading][0],
                     current.row + DIRECTIONS[heading][1]).center(map);
         }
-        AINavigator.Result result = navigator.move(self, map, target, self.getSpeed() * deltaTime, deltaTime);
+        double budget = self.getSpeed() * deltaTime
+                * map.speedFactorAt(self.getPosition().getX(), self.getPosition().getY());
+        AINavigator.Result result = navigator.move(self, map, target, budget, deltaTime);
         if (result != AINavigator.Result.MOVING) {
             target = null;
             navigator.reset();

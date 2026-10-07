@@ -37,9 +37,15 @@ public class PlayerShopState {
     public void setActiveWeaponId(int id) { this.activeWeaponId = id; }
 
     public void selectWeapon(int weaponId) {
-        if (weaponId >= 0 && weaponId <= ShopItem.ROCKET.getId() && getItemCount(weaponId) > 0) {
+        if (isWeaponSlot(weaponId) && getItemCount(weaponId) > 0) {
             this.activeWeaponId = weaponId;
         }
+    }
+
+    /** Vật phẩm dùng bằng phím bắn: đạn (0-5), đạn đặc biệt (6-8), thuốc nổ (12-14). */
+    public static boolean isWeaponSlot(int itemId) {
+        return (itemId >= 0 && itemId <= ShopItem.ROCKET.getId())
+                || (itemId >= ShopItem.DYNAMITE.getId() && itemId <= ShopItem.DYNAMITE3.getId());
     }
 
     public void cycleNextWeapon() {

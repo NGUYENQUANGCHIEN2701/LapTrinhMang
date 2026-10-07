@@ -4,7 +4,7 @@ import com.tankzors.client.gameplay.GameWorld;
 import com.tankzors.client.gameplay.WeaponProfile;
 import com.tankzors.client.gameplay.entity.AITank;
 import com.tankzors.client.gameplay.entity.Bullet;
-import com.tankzors.client.gameplay.entity.PlayerTank;
+import com.tankzors.client.gameplay.interfaces.ITank;
 import com.tankzors.client.gameplay.entity.Position;
 import com.tankzors.client.gameplay.interfaces.IAIBehavior;
 
@@ -43,14 +43,19 @@ public final class ShootBehavior implements IAIBehavior {
 
         if (cooldownRemaining > 0) cooldownRemaining = Math.max(0.0, cooldownRemaining - deltaTime);
 
-        // Player sống gần nhất; tiebreak theo id (deterministic).
-        PlayerTank target = null;
+        if (self.isTurret()) {
+            updateTurret(self, state);
+            return;
+        }
+
+        // Xe thù địch sống gần nhất; tiebreak theo id (deterministic).
+        ITank target = null;
         double bestDist = Double.MAX_VALUE;
-        for (com.tankzors.client.gameplay.interfaces.ITank t : state.getAllTanks()) {
-            if (!(t instanceof PlayerTank) || !t.isAlive()) continue;
+        for (ITank t : state.getAllTanks()) {
+            if (!self.isHostileTo(t)) continue;
             double d = distance(self.getPosition(), t.getPosition());
             if (d < bestDist || (d == bestDist && (target == null || t.getId().compareTo(target.getId()) < 0))) {
-                bestDist = d; target = (PlayerTank) t;
+                bestDist = d; target = t;
             }
         }
         if (target == null) return;
@@ -70,16 +75,44 @@ public final class ShootBehavior implements IAIBehavior {
                 self.rotate(baseAngle);
                 return;
             }
-            String id = bulletIdSource != null ? bulletIdSource.nextId(self.getId()) : "b-0";
-            WeaponProfile weapon = WeaponProfile.fromItemId(self.getDifficulty().getReferenceWeaponType());
-            boolean horizontal = baseAngle == 90 || baseAngle == 270;
-            Bullet bullet = new Bullet(id, self.getId(),
-                    new Position(self.getPosition().getX(), self.getPosition().getY()), baseAngle,
-                    weapon.speedPixelsPerSecond(), weapon.getDamage(), horizontal ? 8 : 4, horizontal ? 4 : 8,
-                    weapon.getItemId());
-            state.addBullet(bullet);
+            fire(self, state, baseAngle);
             cooldownRemaining = self.getDifficulty().getShootCooldown();
         }
+    }
+
+    /**
+     * Builds Turret.findEnemy với isStatic: chỉ quét thẳng theo hướng nòng tới
+     * distance+1 ô; thấy xe thù địch thì bắn, nạp lại sau AITank.TURRET_RELOAD_SECONDS.
+     */
+    private void updateTurret(AITank self, GameWorld state) {
+        if (cooldownRemaining > 1e-9) return;
+        int tileSize = state.getCurrentMap().getTileSize();
+        double facing = normalizedRotation(self.getRotation());
+        double dirX = facing == 90 ? 1 : facing == 270 ? -1 : 0;
+        double dirY = facing == 180 ? 1 : facing == 0 ? -1 : 0;
+        double reach = (self.getTurretRangeTiles() + 1) * tileSize;
+        for (ITank t : state.getAllTanks()) {
+            if (!self.isHostileTo(t)) continue;
+            double dx = t.getPosition().getX() - self.getPosition().getX();
+            double dy = t.getPosition().getY() - self.getPosition().getY();
+            double along = dx * dirX + dy * dirY;
+            double across = Math.abs(dx * dirY - dy * dirX);
+            if (along <= 0 || along > reach || across >= tileSize / 2.0) continue;
+            fire(self, state, facing);
+            cooldownRemaining = AITank.TURRET_RELOAD_SECONDS;
+            return;
+        }
+    }
+
+    private void fire(AITank self, GameWorld state, double angle) {
+        String id = bulletIdSource != null ? bulletIdSource.nextId(self.getId()) : "b-0";
+        WeaponProfile weapon = WeaponProfile.fromItemId(self.getDifficulty().getReferenceWeaponType());
+        boolean horizontal = angle == 90 || angle == 270;
+        Bullet bullet = new Bullet(id, self.getId(),
+                new Position(self.getPosition().getX(), self.getPosition().getY()), angle,
+                weapon.speedPixelsPerSecond(), weapon.getDamage(), horizontal ? 8 : 4, horizontal ? 4 : 8,
+                weapon.getItemId());
+        state.addBullet(bullet);
     }
 
     private static double distance(Position a, Position b) {

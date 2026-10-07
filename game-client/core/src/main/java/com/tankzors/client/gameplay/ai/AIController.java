@@ -21,7 +21,10 @@ public final class AIController {
     private final ShootBehavior defaultShootBehavior = new ShootBehavior();
     private IAIBehavior behavior = idle;
     private IAIBehavior shootBehavior = defaultShootBehavior;
-    private PlayerTank target;
+    /** Đồng minh dừng bám khi đã ở trong khoảng này quanh người chơi (2 ô). */
+    static final double FOLLOW_DISTANCE = 80.0;
+
+    private ITank target;
     private Position lastSeen;
     private double reactionElapsed;
     private boolean hadSight;
@@ -62,22 +65,26 @@ public final class AIController {
         }
         if (map == null) return;
 
-        // Giữ cùng player đến khi chết/rời; tiebreak deterministic.
-        if (target == null || !target.isAlive() || state.getTank(target.getId()) != target) {
-            reset();
-            map = state.getCurrentMap();
-            double bestDist = Double.MAX_VALUE;
-            PlayerTank found = null;
-            for (ITank t : state.getAllTanks()) {
-                if (!(t instanceof PlayerTank) || !t.isAlive()) continue;
-                double d = distance(self.getPosition(), t.getPosition());
-                if (d < bestDist || (d == bestDist && (found == null || t.getId().compareTo(found.getId()) < 0))) {
-                    bestDist = d; found = (PlayerTank) t;
-                }
-            }
-            target = found;
+        if (self.isTurret()) {
+            // Ụ súng Builds không di chuyển; chỉ khối bắn quyết định hành vi.
+            if (shootBehavior != null) shootBehavior.update(self, state, dt);
+            return;
         }
-        if (target == null) return;
+
+        // Giữ cùng mục tiêu đến khi chết/rời; tiebreak deterministic.
+        boolean targetLost = target != null
+                && (!target.isAlive() || state.getTank(target.getId()) != target);
+        if (target == null || targetLost) {
+            if (targetLost) {
+                reset();
+                map = state.getCurrentMap();
+            }
+            target = nearestHostile(self, state);
+        }
+        if (target == null) {
+            if (self.isFollowPlayer()) followPlayer(self, state, dt);
+            return;
+        }
 
         boolean visible = distance(self.getPosition(), target.getPosition()) < self.getDifficulty().getVisionRange()
                 && LineOfSight.hasClearShot(map, self.getPosition(), target.getPosition());
@@ -96,6 +103,11 @@ public final class AIController {
                 chase.reset();
                 chase.setTarget(lastSeen, false);
                 behavior = chase;
+            } else if (self.isFollowPlayer()) {
+                // Đồng minh chưa thấy địch thì bám người chơi thay vì tuần tra.
+                hadSight = false;
+                followPlayer(self, state, dt);
+                return;
             } else if (behavior != patrol) {
                 // Chưa phát hiện player: tuần tra nhỏ quanh vị trí spawn thay vì đứng yên.
                 patrol.start(self.getPosition());
@@ -117,6 +129,47 @@ public final class AIController {
             patrol.start(lastSeen);
             behavior = patrol;
         }
+    }
+
+    private static ITank nearestHostile(AITank self, GameWorld state) {
+        double bestDist = Double.MAX_VALUE;
+        ITank found = null;
+        for (ITank t : state.getAllTanks()) {
+            if (!self.isHostileTo(t)) continue;
+            double d = distance(self.getPosition(), t.getPosition());
+            if (d < bestDist || (d == bestDist && (found == null || t.getId().compareTo(found.getId()) < 0))) {
+                bestDist = d;
+                found = t;
+            }
+        }
+        return found;
+    }
+
+    /** Builds BotAiType.FollowPlayer: đi theo người chơi, vẫn bắn địch lọt tầm. */
+    private void followPlayer(AITank self, GameWorld state, double dt) {
+        if (shootBehavior != null) shootBehavior.update(self, state, dt);
+        if (shootBehavior instanceof ShootBehavior
+                && ((ShootBehavior) shootBehavior).isReservingMovement()) {
+            return;
+        }
+        PlayerTank leader = null;
+        double bestDist = Double.MAX_VALUE;
+        for (ITank t : state.getAllTanks()) {
+            if (!(t instanceof PlayerTank) || !t.isAlive()) continue;
+            double d = distance(self.getPosition(), t.getPosition());
+            if (d < bestDist) {
+                bestDist = d;
+                leader = (PlayerTank) t;
+            }
+        }
+        if (leader == null || bestDist <= FOLLOW_DISTANCE) {
+            behavior = idle;
+            return;
+        }
+        if (behavior != chase) chase.reset();
+        behavior = chase;
+        chase.setTarget(leader.getPosition(), false);
+        chase.update(self, state, dt);
     }
 
     private static double distance(Position a, Position b) {

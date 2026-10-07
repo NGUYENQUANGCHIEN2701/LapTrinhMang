@@ -147,7 +147,9 @@ public class PlayerTank extends Tank {
             case RIGHT: dx = 1; dy = 0; break;
             default: return;
         }
-        double travelBudget = Math.min(speed * dt, remainingTileDistance);
+        // Builds speedRatio theo nền: cát làm chậm, đường làm nhanh.
+        double terrain = map.speedFactorAt(position.getX(), position.getY());
+        double travelBudget = Math.min(speed * dt * terrain, remainingTileDistance);
         while (travelBudget > 1e-9) {
             double step = Math.min(5, travelBudget);
             Position target = new Position(position.getX() + dx * step, position.getY() + dy * step);
