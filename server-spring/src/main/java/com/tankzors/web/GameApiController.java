@@ -83,6 +83,13 @@ public class GameApiController {
         if (grid != null) {
             mapPayload.put("grid", grid);
         }
+        // Mã tile hình ảnh Builds + kịch bản màn: dữ liệu thuần, client tự diễn giải.
+        if (map.getVisualGrid() != null) {
+            mapPayload.put("visualGrid", map.getVisualGrid());
+        }
+        if (map.getMission() != null) {
+            mapPayload.put("mission", map.getMission());
+        }
         // enemies
         if (map.getEnemies() != null) {
             List<Map<String, Object>> enemies = map.getEnemies().stream()

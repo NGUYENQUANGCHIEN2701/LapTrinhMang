@@ -2,6 +2,7 @@ package com.tankzors.map;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Data contract for a campaign map returned to the LibGDX client.
@@ -23,6 +24,11 @@ public class GameMap {
     private int[][] visualGrid;
     private List<EnemyConfig> enemies = new ArrayList<>();
     private RewardsConfig rewards;
+    /**
+     * Kịch bản màn (đợt địch, đồng minh, ụ súng, trigger, briefing). Spring chỉ
+     * chuyển nguyên khối này cho client; gameplay diễn giải trong game-client.
+     */
+    private Map<String, Object> mission;
 
     public static class EnemyConfig {
         private String type = "AI";
@@ -76,4 +82,6 @@ public class GameMap {
     }
     public RewardsConfig getRewards() { return rewards; }
     public void setRewards(RewardsConfig rewards) { this.rewards = rewards; }
+    public Map<String, Object> getMission() { return mission; }
+    public void setMission(Map<String, Object> mission) { this.mission = mission; }
 }

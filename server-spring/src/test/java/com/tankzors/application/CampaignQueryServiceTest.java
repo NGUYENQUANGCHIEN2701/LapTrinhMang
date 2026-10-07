@@ -28,7 +28,7 @@ class CampaignQueryServiceTest {
     void getLevelReturnsMetadataForKnownLevel() {
         CampaignLevelView level = service.getLevel("campaign_2").orElseThrow();
         assertEquals("campaign_2", level.getId());
-        assertEquals("Màn 2 - Chiến hào", level.getName());
+        assertEquals("Màn 2 - Tường thành", level.getName());
         assertEquals("MEDIUM", level.getDifficulty());
     }
 

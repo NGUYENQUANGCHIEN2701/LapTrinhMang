@@ -34,17 +34,40 @@ class MapLoaderTest {
                         "Player phải có lộ trình tới cờ sau khi phá vật cản nâu/bụi");
                 assertTrue(isReachable(map, 4, 3),
                         "AI phải có lộ trình tới khu player sau khi phá vật cản nâu/bụi");
+                assertFalse(map.getEnemies().isEmpty());
             } else {
-                assertEquals(20, map.getWidth());
-                assertEquals(15, map.getHeight());
+                // Màn 2/3 chuyển từ Builds 001/002: địch ra theo đợt từ mission.
+                assertNotNull(map.getVisualGrid(), levelId + " phải giữ mã tile Builds");
+                assertNotNull(map.getMission(), levelId + " phải có kịch bản mission");
+                assertTrue(map.getEnemies().isEmpty(), levelId + " không đặt địch tĩnh");
             }
             assertEquals(40, map.getTileSize());
             assertNotNull(map.getGrid());
             assertEquals(map.getHeight(), map.getGrid().length);
             assertNotNull(map.getRewards());
-            assertFalse(map.getEnemies().isEmpty());
         }
     }
+
+    @Test
+    void convertsBuildsLevelsTwoAndThree() {
+        GameMap walls = MapLoader.load("campaign_2");
+        assertEquals(19, walls.getWidth());
+        assertEquals(19, walls.getHeight());
+        assertEquals(3, walls.getGrid()[12][1], "Base người chơi Builds ở (1,12)");
+        assertEquals(4, walls.getGrid()[3][15], "Base địch thứ nhất ở (15,3)");
+        assertEquals(4, walls.getGrid()[15][15], "Base địch thứ hai ở (15,15)");
+        assertEquals(DESTROY_TANKS, walls.getMission().get("objective"));
+        assertTrue(walls.getMission().containsKey("allies"), "Màn 2 có xe đồng minh");
+
+        GameMap sandbox = MapLoader.load("campaign_3");
+        assertEquals(16, sandbox.getWidth());
+        assertEquals(22, sandbox.getHeight());
+        assertEquals(15, sandbox.getGrid()[12][0], "Khối đá (tile 11 Builds) chặn khoang ụ súng");
+        assertEquals("DESTROY_ALL", sandbox.getMission().get("objective"));
+        assertEquals(1, ((java.util.List<?>) sandbox.getMission().get("turrets")).size());
+    }
+
+    private static final String DESTROY_TANKS = "DESTROY_TANKS";
 
     @Test
     void keepsMapMetadataNeededByClientAndResultValidation() {

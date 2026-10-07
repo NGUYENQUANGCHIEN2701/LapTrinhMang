@@ -19,10 +19,10 @@ public class StaticCampaignQueryService implements CampaignQueryService {
     private static final List<CampaignLevelView> LEVELS = List.of(
         new CampaignLevelView("campaign_1", "Màn 1 - Huấn luyện", "EASY", "Dễ", 1,
             "Bản đồ mở rộng, làm quen điều khiển và ngắm bắn."),
-        new CampaignLevelView("campaign_2", "Màn 2 - Chiến hào", "MEDIUM", "Trung bình", 2,
-            "Chiến hào quanh co và chướng ngại vật chông sắt chống tăng."),
-        new CampaignLevelView("campaign_3", "Màn 3 - Pháo đài", "HARD", "Khó", 3,
-            "Pháo đài kiên cố, kẻ địch tinh nhuệ bao vây 3 hướng.")
+        new CampaignLevelView("campaign_2", "Màn 2 - Tường thành", "MEDIUM", "Trung bình", 2,
+            "Cùng xe đồng minh tiêu diệt 6 xe địch xuất hiện lần lượt từ hai căn cứ."),
+        new CampaignLevelView("campaign_3", "Màn 3 - Sa mạc", "HARD", "Khó", 3,
+            "Vùng cát làm chậm xe; hạ 7 xe địch và tháp pháo bằng thuốc nổ.")
     );
 
     @Override
