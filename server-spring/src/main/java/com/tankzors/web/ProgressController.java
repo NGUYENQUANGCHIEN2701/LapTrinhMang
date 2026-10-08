@@ -11,24 +11,25 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.tankzors.application.PlayerProgressService;
 
+import com.tankzors.identity.PlayerIdentityResolver;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
 
 /**
  * REST endpoint cho progression phía client query.
  *
- * <p>Cần WebSocket sessionId của player (được client submit trong login flow).
- * Tạm thời dùng HttpSession ID làm surrogate. Khi LibGDX HTML5 rendelkezja
- * cookie JSESSIONID sẽ tự đồng nhất.</p>
+ * <p>Danh tính người chơi lấy qua {@link PlayerIdentityResolver}: đã đăng nhập
+ * thì là {@code user:<tên>}, giống API bootstrap/result nơi màn được mở khoá.</p>
  */
 @RestController
 @RequestMapping("/api/progress")
 public class ProgressController {
 
     private final PlayerProgressService progressService;
+    private final PlayerIdentityResolver identity;
 
-    public ProgressController(PlayerProgressService progressService) {
+    public ProgressController(PlayerProgressService progressService, PlayerIdentityResolver identity) {
         this.progressService = progressService;
+        this.identity = identity;
     }
 
     /**
@@ -37,7 +38,7 @@ public class ProgressController {
      */
     @GetMapping
     public Map<String, Object> getProgress(HttpServletRequest request) {
-        String sid = resolveSid(request);
+        String sid = identity.resolve(request);
         List<String> unlocked = progressService.getUnlocked(sid);
         return Map.of(
             "sessionId", sid,
@@ -50,21 +51,8 @@ public class ProgressController {
      */
     @PostMapping("/reset")
     public Map<String, Object> reset(HttpServletRequest request) {
-        String sid = resolveSid(request);
+        String sid = identity.resolve(request);
         progressService.reset(sid);
         return Map.of("status", "OK", "unlockedLevels", progressService.getUnlocked(sid));
-    }
-
-    /**
-     * Lấy SID dùng để tracking. Ưu tiên header X-Player-Session,
-     * fallback HttpSession.
-     */
-    private static String resolveSid(HttpServletRequest request) {
-        String sid = request.getHeader("X-Player-Session");
-        if (sid != null && !sid.isBlank()) return sid;
-        HttpSession session = request.getSession(false);
-        if (session != null) return session.getId();
-        // Auto-create nếu chưa có
-        return request.getSession(true).getId();
     }
 }

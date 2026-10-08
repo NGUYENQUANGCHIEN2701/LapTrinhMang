@@ -23,8 +23,8 @@ import com.tankzors.application.LeaderboardService;
 import com.tankzors.application.PlayerProgressService;
 import com.tankzors.leaderboard.LeaderboardEntry;
 
+import com.tankzors.identity.PlayerIdentityResolver;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
 
 /**
  * Thymeleaf page controller for the website shell.
@@ -63,17 +63,20 @@ public class PageController {
     private final PlayerProgressService progressService;
     private final SettingsService settingsService;
     private final PageModelFactory pageModelFactory;
+    private final PlayerIdentityResolver identity;
 
     public PageController(CampaignQueryService campaignQueryService,
                           LeaderboardService leaderboardService,
                           PlayerProgressService progressService,
                           SettingsService settingsService,
-                          PageModelFactory pageModelFactory) {
+                          PageModelFactory pageModelFactory,
+                          PlayerIdentityResolver identity) {
         this.campaignQueryService = campaignQueryService;
         this.leaderboardService = leaderboardService;
         this.progressService = progressService;
         this.settingsService = settingsService;
         this.pageModelFactory = pageModelFactory;
+        this.identity = identity;
     }
 
     @GetMapping({"/", "/menu"})
@@ -208,8 +211,9 @@ public class PageController {
      */
     private List<String> resolveUnlockedLevels(HttpServletRequest request) {
         try {
-            String sid = resolveSid(request);
-            return progressService.getUnlocked(sid);
+            // Cùng khoá người chơi với API bootstrap/result (user:<tên> khi đã đăng nhập),
+            // nếu không trang chọn màn sẽ đọc tiến trình của session ẩn danh.
+            return progressService.getUnlocked(identity.resolve(request));
         } catch (Exception ex) {
             logger.warn("[PageController] progress service unavailable, unlock all levels: {}",
                 ex.getMessage());
@@ -236,18 +240,5 @@ public class PageController {
             rows.add(row);
         }
         return rows;
-    }
-
-    /**
-     * Resolve player session ID cho progression tracking.
-     * Ưu tiên header {@code X-Player-Session} do game client gửi ws sessionId
-     * (từ CONNECT packet). Fallback HttpSession khi không có.
-     */
-    private static String resolveSid(HttpServletRequest request) {
-        String sid = request.getHeader("X-Player-Session");
-        if (sid != null && !sid.isBlank()) return sid;
-        HttpSession session = request.getSession(false);
-        if (session != null) return session.getId();
-        return request.getSession(true).getId();
     }
 }

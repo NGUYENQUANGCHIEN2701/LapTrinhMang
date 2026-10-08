@@ -7,11 +7,16 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.security.test.context.support.WithMockUser;
+import com.tankzors.application.PlayerProgressService;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -30,6 +35,9 @@ class PageControllerTest {
 
     @Autowired
     private MockMvc mvc;
+
+    @Autowired
+    private PlayerProgressService progressService;
 
     @Test
     void getRootReturnsMenuPage() throws Exception {
@@ -66,6 +74,20 @@ class PageControllerTest {
             .andExpect(content().string(containsString("campaign_2")))
             .andExpect(content().string(containsString("campaign_3")))
             .andExpect(content().string(containsString("/play?levelId=campaign_1")));
+    }
+
+    @Test
+    @WithMockUser(username = "page-unlock")
+    void campaignsPageReadsProgressOfLoggedInAccount() throws Exception {
+        // Kết quả thắng được lưu theo user:<tên>; trang chọn màn phải đọc cùng khoá đó.
+        progressService.markVictory("user:page-unlock", "campaign_1");
+        mvc.perform(get("/campaigns"))
+            .andExpect(status().isOk())
+            .andExpect(model().attribute("unlockedLevels", hasItem("campaign_2")));
+        mvc.perform(get("/api/progress"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.sessionId").value("user:page-unlock"))
+            .andExpect(jsonPath("$.unlockedLevels", hasItem("campaign_2")));
     }
 
     @Test
