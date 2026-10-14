@@ -1,5 +1,3 @@
-<!-- GSD:project-start source:PROJECT.md -->
-
 ## Project
 
 **Tankzors**
@@ -19,10 +17,6 @@ Kiến trúc hiện tại là client-authoritative cho campaign và host-authori
 - **Build**: Docker multi-stage là workflow chuẩn — mọi thay đổi tích hợp phải được kiểm tra qua Docker.
 - **Generated output**: Không sửa trực tiếp JavaScript sinh ra trong `server-spring/src/main/resources/static/game/libgdx`.
 
-<!-- GSD:project-end -->
-
-<!-- GSD:stack-start source:codebase/STACK.md -->
-
 ## Technology Stack
 
 | Lớp | Công nghệ |
@@ -37,9 +31,6 @@ Kiến trúc hiện tại là client-authoritative cho campaign và host-authori
 | Co-op | Spring WebSocket `/coop`, JSON envelope v2 |
 | Test | JUnit 5, Spring Boot Test, H2 test profile |
 | Runtime | Docker Compose, multi-stage Dockerfile |
-<!-- GSD:stack-end -->
-
-<!-- GSD:conventions-start source:CONVENTIONS.md -->
 
 ## Conventions
 
@@ -51,10 +42,6 @@ Kiến trúc hiện tại là client-authoritative cho campaign và host-authori
 - Asset nguồn đặt trong `game-client/assets`.
 - Map JSON nguồn cần đồng bộ giữa client assets và Spring resources khi schema thay đổi.
 - Docker build là kiểm tra tích hợp cuối cho thay đổi chạm cả client và server.
-
-<!-- GSD:conventions-end -->
-
-<!-- GSD:architecture-start source:ARCHITECTURE.md -->
 
 ## Architecture
 
@@ -76,35 +63,3 @@ Kiến trúc hiện tại là client-authoritative cho campaign và host-authori
 - Renderer nhận snapshot và không sửa world.
 - Campaign không mở WebSocket.
 - Co-op không được dùng lại protocol v1 hoặc endpoint `/game`.
-
-<!-- GSD:architecture-end -->
-
-<!-- GSD:skills-start source:skills/ -->
-
-## Project Skills
-
-No project skills found. Add skills to any of: `.claude/skills/`, `.agents/skills/`, `.cursor/skills/`, `.github/skills/`, or `.codex/skills/` with a `SKILL.md` index file.
-<!-- GSD:skills-end -->
-
-<!-- GSD:workflow-start source:GSD defaults -->
-
-## GSD Workflow Enforcement
-
-Before using Edit, Write, or other file-changing tools, start work through a GSD command so planning artifacts and execution context stay in sync.
-
-Use these entry points:
-
-- `$gsd-quick` for small fixes, doc updates, and ad-hoc tasks
-- `$gsd-debug` for investigation and bug fixing
-- `$gsd-execute-phase` for planned phase work
-
-Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
-<!-- GSD:workflow-end -->
-
-<!-- GSD:profile-start -->
-
-## Developer Profile
-
-> Profile not yet configured. Run `$gsd-profile-user` to generate your developer profile.
-> This section is managed by `generate-claude-profile` -- do not edit manually.
-<!-- GSD:profile-end -->
