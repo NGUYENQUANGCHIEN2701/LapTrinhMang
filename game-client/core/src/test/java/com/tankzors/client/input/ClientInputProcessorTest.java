@@ -2,10 +2,41 @@ package com.tankzors.client.input;
 
 import com.badlogic.gdx.Input;
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ClientInputProcessorTest {
+
+    @Test
+    void releasingLatestDirectionResumesPreviouslyHeldDirection() {
+        RecordingCallbacks callbacks = new RecordingCallbacks();
+        ClientInputProcessor input = new ClientInputProcessor(callbacks);
+        input.keyDown(Input.Keys.W);
+        input.keyDown(Input.Keys.D);
+        input.keyUp(Input.Keys.D);
+
+        assertEquals(List.of("UP:true", "RIGHT:true", "RIGHT:false", "UP:true"), callbacks.moves);
+        assertEquals(0, callbacks.stops);
+        input.keyUp(Input.Keys.W);
+        assertEquals(1, callbacks.stops);
+    }
+
+    @Test
+    void releasingOneAliasDoesNotReleaseTheOtherHeldKey() {
+        RecordingCallbacks callbacks = new RecordingCallbacks();
+        ClientInputProcessor input = new ClientInputProcessor(callbacks);
+        input.keyDown(Input.Keys.W);
+        input.keyDown(Input.Keys.UP);
+        input.keyUp(Input.Keys.W);
+
+        assertEquals(List.of("UP:true"), callbacks.moves);
+        assertEquals(0, callbacks.stops);
+        input.keyUp(Input.Keys.UP);
+        assertEquals(List.of("UP:true", "UP:false"), callbacks.moves);
+        assertEquals(1, callbacks.stops);
+    }
 
     @Test
     void xEmitsReversePressAndRelease() {
@@ -90,11 +121,15 @@ class ClientInputProcessorTest {
         int confirmMenu;
         int continues;
         int shots;
+        int stops;
+        final List<String> moves = new ArrayList<>();
         boolean menuOpen;
 
-        @Override public void onMove(ClientInputProcessor.Direction direction, boolean moving) {}
+        @Override public void onMove(ClientInputProcessor.Direction direction, boolean moving) {
+            moves.add(direction + ":" + moving);
+        }
         @Override public void onShoot() { shots++; }
-        @Override public void onAllReleased() {}
+        @Override public void onAllReleased() { stops++; }
         @Override public void onRestart() {}
         @Override public void onNextLevel() {}
         @Override public void onContinue() { continues++; }

@@ -89,56 +89,44 @@ class PlayerTankTest {
     }
 
     @Test
-    @DisplayName("Bấm nhanh hướng mới chỉ xoay tại chỗ; bấm lại mới đi")
-    void quickTapOnNewDirectionOnlyTurnsInPlace() {
+    @DisplayName("Bấm hướng mới đi ngay; nhả phím hoàn tất đúng một ô")
+    void newDirectionMovesImmediatelyAndReleaseFinishesOneTile() {
         tank.setMoving(Direction.DOWN, true);
 
         tank.updateMovement(0.05, TestMaps.open());
 
         assertEquals(100.0, tank.getPosition().getX(), 0.001);
-        assertEquals(100.0, tank.getPosition().getY(), 0.001);
+        assertEquals(103.0, tank.getPosition().getY(), 0.001);
         assertEquals(180.0, tank.getRotation(), 0.001);
 
-        // Một lần bấm bình thường kéo dài qua vài frame nhưng chưa phải giữ phím.
-        tank.updateMovement(0.05, TestMaps.open());
-        tank.updateMovement(0.05, TestMaps.open());
-        tank.updateMovement(0.05, TestMaps.open());
         tank.setMoving(Direction.DOWN, false);
-
-        assertEquals(100.0, tank.getPosition().getX(), 0.001);
-        assertEquals(100.0, tank.getPosition().getY(), 0.001);
-
-        tank.setMoving(Direction.DOWN, true);
+        tank.stopMoving();
         tank.updateMovement(1.0, TestMaps.open());
 
         assertEquals(100.0, tank.getPosition().getX(), 0.001);
         assertEquals(140.0, tank.getPosition().getY(), 0.001);
+
+        tank.setMoving(Direction.DOWN, true);
+        tank.updateMovement(1.0, TestMaps.open());
+
+        assertEquals(100.0, tank.getPosition().getX(), 0.001);
+        assertEquals(200.0, tank.getPosition().getY(), 0.001);
         assertEquals(180.0, tank.getRotation(), 0.001);
     }
 
     @Test
-    @DisplayName("Giữ hướng mới đủ lâu thì bắt đầu đi liên tục")
-    void heldNewDirection_startsContinuousMovementAfterHoldDelay() {
+    @DisplayName("Giữ hướng di chuyển liên tục qua ranh giới ô, không mất quãng đường")
+    void heldDirectionMovesContinuouslyAcrossTileBoundaries() {
+        tank.setSpeed(63.0);
         tank.setMoving(Direction.RIGHT, true);
-        tank.updateMovement(0.05, TestMaps.open());
-        tank.updateMovement(0.05, TestMaps.open());
-        tank.updateMovement(0.05, TestMaps.open());
-        tank.updateMovement(0.05, TestMaps.open());
-        assertEquals(100.0, tank.getPosition().getX(), 0.001);
-
-        tank.updateMovement(0.10, TestMaps.open());
-        assertTrue(tank.getPosition().getX() > 100.0,
-                "Giữ phím phải bắt đầu di chuyển sau thời gian nhận biết giữ");
-
         for (int i = 0; i < 20; i++) tank.updateMovement(0.05, TestMaps.open());
-        assertTrue(tank.getPosition().getX() > 140.0,
-                "Sau khi nhận biết giữ, xe phải tiếp tục đi qua nhiều ô");
+        assertEquals(163.0, tank.getPosition().getX(), 0.001);
 
         tank.setMoving(Direction.RIGHT, false);
-        double releasedAt = tank.getPosition().getX();
         tank.updateMovement(1.0, TestMaps.open());
-        assertTrue(tank.getPosition().getX() >= releasedAt,
-                "Nhả phím vẫn được hoàn tất ô đang đi nhưng không đảo hướng");
+        assertEquals(180.0, tank.getPosition().getX(), 0.001);
+        tank.updateMovement(1.0, TestMaps.open());
+        assertEquals(180.0, tank.getPosition().getX(), 0.001);
     }
 
     @Test

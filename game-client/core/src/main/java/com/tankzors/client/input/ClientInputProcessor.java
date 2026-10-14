@@ -1,6 +1,8 @@
 package com.tankzors.client.input;
 
 import java.util.EnumSet;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
@@ -46,6 +48,8 @@ public final class ClientInputProcessor implements InputProcessor {
 
     private final Callbacks callbacks;
     private final EnumSet<Direction> activeDirections = EnumSet.noneOf(Direction.class);
+    /** Physical keys in press order: aliases and fallback directions stay held. */
+    private final List<Integer> movementKeys = new ArrayList<>();
     private boolean reverseActive;
     private boolean spaceActive;
     private float autoFireElapsed;
@@ -129,6 +133,7 @@ public final class ClientInputProcessor implements InputProcessor {
         }
 
         if (keycode == Input.Keys.B) {
+            releaseAll();
             callbacks.onToggleShop();
             return true;
         }
@@ -197,9 +202,11 @@ public final class ClientInputProcessor implements InputProcessor {
 
         Direction direction = mapKeyToDirection(keycode);
         if (direction != null) {
-            if (!activeDirections.contains(direction)) {
+            if (!movementKeys.contains(keycode)) {
+                Direction previous = latestDirection();
+                movementKeys.add(keycode);
                 activeDirections.add(direction);
-                callbacks.onMove(direction, true);
+                if (previous != direction) callbacks.onMove(direction, true);
             }
             return true;
         }
@@ -239,11 +246,21 @@ public final class ClientInputProcessor implements InputProcessor {
         }
         Direction direction = mapKeyToDirection(keycode);
         if (direction != null) {
-            if (activeDirections.contains(direction)) {
-                activeDirections.remove(direction);
-                callbacks.onMove(direction, false);
-                if (activeDirections.isEmpty()) {
+            Direction previous = latestDirection();
+            if (movementKeys.remove(Integer.valueOf(keycode))) {
+                boolean directionStillHeld = false;
+                for (int key : movementKeys) {
+                    if (mapKeyToDirection(key) == direction) directionStillHeld = true;
+                }
+                if (!directionStillHeld) {
+                    activeDirections.remove(direction);
+                    callbacks.onMove(direction, false);
+                }
+                Direction next = latestDirection();
+                if (next == null) {
                     callbacks.onAllReleased();
+                } else if (next != previous) {
+                    callbacks.onMove(next, true);
                 }
             }
             return true;
@@ -253,6 +270,7 @@ public final class ClientInputProcessor implements InputProcessor {
 
     public void releaseAll() {
         boolean releasedAny = !activeDirections.isEmpty();
+        movementKeys.clear();
         for (Direction d : Direction.values()) {
             if (activeDirections.contains(d)) {
                 activeDirections.remove(d);
@@ -268,6 +286,10 @@ public final class ClientInputProcessor implements InputProcessor {
         }
         spaceActive = false;
         autoFireElapsed = 0f;
+    }
+
+    private Direction latestDirection() {
+        return movementKeys.isEmpty() ? null : mapKeyToDirection(movementKeys.get(movementKeys.size() - 1));
     }
 
     // ========== InputProcessor touch/scroll methods ==========

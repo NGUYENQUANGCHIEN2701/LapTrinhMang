@@ -8,7 +8,7 @@ import com.tankzors.client.gameplay.interfaces.IMap;
 /**
  * Xe tăng người chơi. Parity server entity.PlayerTank.
  * Speed 60, HP 5 (reference build), 40x40, cooldown 0.5s. Người chơi chỉ đi theo bốn
- * hướng chính; phím được nhấn gần nhất xác định hướng hiện hành.
+ * hướng chính; mỗi lần bấm đi một ô, giữ phím tiếp tục sang ô kế tiếp.
  * Substep ≤5px, wall-slide qua Collision.resolveCollision.
  */
 public class PlayerTank extends Tank {
@@ -18,21 +18,19 @@ public class PlayerTank extends Tank {
     public static final int DEFAULT_MAX_HP = 5;
     public static final double DEFAULT_WIDTH = 40.0;
     public static final double DEFAULT_HEIGHT = 40.0;
-    /** Phân biệt một cú bấm đổi hướng với thao tác chủ ý giữ để chạy. */
-    static final double TURN_HOLD_DELAY_SECONDS = 0.20;
 
     private double shootCooldown = 0.5;
     private double timeSinceLastShot = 0.5; // được bắn ngay tick đầu
 
-    /** Hướng đang được giữ, bước kế tiếp và bước đang chạy; mỗi bước đúng một ô map. */
+    /** Giữ tối đa một bước chờ; đổi hướng tại tâm ô, không thêm thời gian chờ. */
     private Direction heldDirection;
     private Direction requestedDirection;
     private Direction movingDirection;
-    private Direction turnHoldDirection;
-    private double turnHoldElapsed;
     private boolean reverseHeld;
     private boolean requestedReverse;
     private double remainingTileDistance;
+    private double tileTargetX;
+    private double tileTargetY;
 
     /** Mỗi match cấp cho PlayerTank một idGenerator để tạo bullet id deterministic (thay UUID). */
     private transient BulletIdSource bulletIdSource;
@@ -64,33 +62,22 @@ public class PlayerTank extends Tank {
         if (direction == null) return;
         if (moving) {
             heldDirection = direction;
-            // Nếu hai phím đến trong cùng một frame, lấy phím nhấn sau cùng.
-            // Khi đang hoàn tất một ô, bỏ qua input mới để không cắt ngang bước.
-            if (movingDirection == null) requestedDirection = direction;
+            requestedDirection = direction;
         } else if (direction == heldDirection) {
             heldDirection = null;
-            if (direction == turnHoldDirection) {
-                turnHoldDirection = null;
-                turnHoldElapsed = 0;
-            }
         }
     }
 
     public void stopMoving() {
-        // Không hủy bước đã nhận: xe hoàn tất ô đang đi rồi dừng.
+        // Nhả hết phím: hoàn tất bước đã bấm, nhưng không tự lặp thêm bước.
         heldDirection = null;
-        requestedDirection = null;
-        turnHoldDirection = null;
-        turnHoldElapsed = 0;
         reverseHeld = false;
-        requestedReverse = false;
     }
 
     /** Giữ X để lùi theo hướng ngược đầu xe mà không xoay sprite. */
     public void setReversing(boolean reversing) {
         reverseHeld = reversing;
-        if (reversing && movingDirection == null) requestedReverse = true;
-        if (!reversing) requestedReverse = false;
+        if (reversing) requestedReverse = true;
     }
 
     private static double rotationFor(Direction direction) {
@@ -105,66 +92,54 @@ public class PlayerTank extends Tank {
 
     public void updateMovement(double dt, IMap map) {
         if (!isAlive() || !Double.isFinite(dt) || dt <= 0 || map == null) return;
-        if (movingDirection == null && (requestedDirection != null || heldDirection != null
-                || requestedReverse || reverseHeld)) {
-            if (requestedDirection != null || heldDirection != null) {
-                Direction nextDirection = requestedDirection != null ? requestedDirection : heldDirection;
-                requestedDirection = null;
-                double nextRotation = rotationFor(nextDirection);
-                if (cardinalRotation(rotation) != nextRotation) {
-                    // Một cú bấm hướng mới chỉ xoay tại chỗ. Chỉ khi phím vẫn
-                    // được giữ đủ lâu mới coi là ý định chạy liên tục.
-                    rotate(nextRotation);
-                    turnHoldDirection = heldDirection == nextDirection ? nextDirection : null;
-                    turnHoldElapsed = 0;
-                    return;
-                }
-                if (turnHoldDirection == nextDirection) {
-                    if (heldDirection != nextDirection) {
-                        turnHoldDirection = null;
-                        turnHoldElapsed = 0;
-                        return;
-                    }
-                    turnHoldElapsed += dt;
-                    if (turnHoldElapsed + 1e-9 < TURN_HOLD_DELAY_SECONDS) return;
-                    turnHoldDirection = null;
-                    turnHoldElapsed = 0;
-                }
-                movingDirection = nextDirection;
-            } else {
-                movingDirection = opposite(directionForRotation(rotation));
-                requestedReverse = false;
-            }
-            remainingTileDistance = map.getTileSize();
-        }
-        if (movingDirection == null) return;
-        double dx;
-        double dy;
-        switch (movingDirection) {
-            case UP: dx = 0; dy = -1; break;
-            case DOWN: dx = 0; dy = 1; break;
-            case LEFT: dx = -1; dy = 0; break;
-            case RIGHT: dx = 1; dy = 0; break;
-            default: return;
-        }
-        // Builds speedRatio theo nền: cát làm chậm, đường làm nhanh.
-        double terrain = map.speedFactorAt(position.getX(), position.getY());
-        double travelBudget = Math.min(speed * dt * terrain, remainingTileDistance);
-        while (travelBudget > 1e-9) {
-            double step = Math.min(5, travelBudget);
+        double timeRemaining = dt;
+        while (timeRemaining > 1e-9) {
+            if (movingDirection == null && !beginTileMovement(map)) return;
+            double dx = movingDirection == Direction.RIGHT ? 1 : movingDirection == Direction.LEFT ? -1 : 0;
+            double dy = movingDirection == Direction.DOWN ? 1 : movingDirection == Direction.UP ? -1 : 0;
+            // Dùng thời gian còn lại ở ranh giới ô để không khựng/mất tốc độ.
+            double moveSpeed = speed * map.speedFactorAt(position.getX(), position.getY());
+            if (!Double.isFinite(moveSpeed) || moveSpeed <= 0) return;
+            double step = Math.min(5, Math.min(moveSpeed * timeRemaining, remainingTileDistance));
             Position target = new Position(position.getX() + dx * step, position.getY() + dy * step);
             Position valid = Collision.resolveCollision(this, target, map);
             if (valid.getX() == position.getX() && valid.getY() == position.getY()) {
+                movingDirection = null;
                 remainingTileDistance = 0;
-                break;
+                return;
             }
             position.setX(valid.getX()); position.setY(valid.getY());
-            travelBudget -= step;
+            timeRemaining -= step / moveSpeed;
             remainingTileDistance -= step;
+            if (remainingTileDistance <= 1e-9) {
+                position.setX(tileTargetX);
+                position.setY(tileTargetY);
+                movingDirection = null;
+                remainingTileDistance = 0;
+            }
         }
-        if (remainingTileDistance <= 1e-9) {
-            movingDirection = null;
+    }
+
+    private boolean beginTileMovement(IMap map) {
+        Direction next = requestedDirection != null ? requestedDirection : heldDirection;
+        requestedDirection = null;
+        if (next != null) {
+            rotate(rotationFor(next));
+        } else if (requestedReverse || reverseHeld) {
+            next = opposite(directionForRotation(rotation));
         }
+        requestedReverse = false;
+        if (next == null) return false;
+
+        double dx = next == Direction.RIGHT ? 1 : next == Direction.LEFT ? -1 : 0;
+        double dy = next == Direction.DOWN ? 1 : next == Direction.UP ? -1 : 0;
+        tileTargetX = position.getX() + dx * map.getTileSize();
+        tileTargetY = position.getY() + dy * map.getTileSize();
+        // Ô bị chặn: đứng ở tâm ô hiện tại thay vì dừng lệch lưới sát tường.
+        if (Collision.checkTankWallCollision(this, map, new Position(tileTargetX, tileTargetY))) return false;
+        movingDirection = next;
+        remainingTileDistance = map.getTileSize();
+        return true;
     }
 
     private static Direction directionForRotation(double angle) {
