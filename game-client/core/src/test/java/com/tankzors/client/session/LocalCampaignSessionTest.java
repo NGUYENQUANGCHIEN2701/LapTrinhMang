@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LocalCampaignSessionTest {
@@ -180,23 +181,21 @@ class LocalCampaignSessionTest {
     }
 
     @Test
-    void restartClearsPriorMatchResult() {
+    void restartAfterVictoryIsBlockedBecauseLevelIsPlayedOnce() {
         FakeAsyncMapSource source = new FakeAsyncMapSource();
         LocalCampaignSession session = new LocalCampaignSession(
                 "player", "campaign_1", source, result -> true);
         session.start();
-        source.pending.onLevelLoaded("campaign_1", MAP_JSON_VICTORY_REWARDS, "run-1", "v1");
+        MapSource.LevelCallback first = source.pending;
+        first.onLevelLoaded("campaign_1", MAP_JSON_VICTORY_REWARDS, "run-1", "v1");
         session.update((float) GameplayConfig.STEP_SECONDS);
         assertEquals("VICTORY", session.status());
         assertNotNull(session.matchResult());
 
-        // Restart phải reset matchResult + re-bootstrap (runId mới).
         session.restart();
-        assertNull(session.matchResult(), "Restart phải xóa matchResult cũ (chống reward trùng)");
-        source.pending.onLevelLoaded("campaign_1", MAP_JSON_REWARDS, "run-2", "v1");
-        assertEquals("PLAYING", session.status());
-        assertTrue(session.canOpenShop(), "Workshop phải mở được ngay trong màn mới");
-        assertNull(session.matchResult(), "Chưa kết thúc màn mới → chưa có matchResult");
+        assertSame(first, source.pending, "Thắng màn rồi thì không được bootstrap lại màn đó");
+        assertEquals("VICTORY", session.status());
+        assertNotNull(session.matchResult(), "Kết quả màn đã thắng giữ nguyên");
     }
 
     // ===== Existing tests (compat path: changeLevel sync) =====

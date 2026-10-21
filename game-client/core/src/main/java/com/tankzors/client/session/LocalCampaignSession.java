@@ -421,6 +421,8 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
     // ===== RESTART / NEXT =====
     @Override
     public void restart() {
+        // Mỗi màn chỉ chơi một lần: thắng rồi thì màn bị khoá, không cho chơi lại.
+        if (phase == Phase.PLAYING && sim.getWorld().getStatus() == GameWorld.Status.VICTORY) return;
         matchResult = null;
         matchResultFired = false;
         inventoryMenuOpen = false;
