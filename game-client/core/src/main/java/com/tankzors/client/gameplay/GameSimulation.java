@@ -332,6 +332,24 @@ public class GameSimulation {
         return true;
     }
 
+    /** Không cho xe người chơi đi xuyên xe khác (AI, ụ súng hoặc người chơi co-op). */
+    private boolean isTileOccupiedByOtherTank(PlayerTank mover, int col, int row) {
+        int tileSize = world.getCurrentMap().getTileSize();
+        com.tankzors.client.gameplay.entity.Rectangle cell = new com.tankzors.client.gameplay.entity.Rectangle(
+                col * tileSize + 1, row * tileSize + 1, tileSize - 2, tileSize - 2);
+        for (ITank t : world.getAllTanks()) {
+            if (t == mover || !t.isAlive()) continue;
+            if (t instanceof AITank && !((AITank) t).isTurret()) {
+                if (((AITank) t).getController().occupies(col, row)) return true;
+            } else if (t instanceof PlayerTank) {
+                if (((PlayerTank) t).occupies(col, row, tileSize)) return true;
+            } else if (t instanceof Tank && ((Tank) t).getBoundingBox().intersects(cell)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Số xe địch còn phải hạ (đang sống + còn chờ sinh), không tính ụ súng. */
     public int getEnemyTanksRemaining() {
         int pending = enemySpawner != null ? enemySpawner.pending() : 0;
@@ -855,7 +873,7 @@ public class GameSimulation {
             if (tank instanceof PlayerTank && tank.isAlive()) {
                 PlayerTank player = (PlayerTank) tank;
                 player.updateCooldown(dt);
-                player.updateMovement(dt, world.getCurrentMap());
+                player.updateMovement(dt, world.getCurrentMap(), this::isTileOccupiedByOtherTank);
             }
         }
         collectLocalPickup();

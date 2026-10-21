@@ -91,10 +91,15 @@ public class PlayerTank extends Tank {
     }
 
     public void updateMovement(double dt, IMap map) {
+        updateMovement(dt, map, null);
+    }
+
+    /** {@code blocker} chặn ô đang có xe khác đứng hoặc giữ chỗ (không đi xuyên xe). */
+    public void updateMovement(double dt, IMap map, TileBlocker blocker) {
         if (!isAlive() || !Double.isFinite(dt) || dt <= 0 || map == null) return;
         double timeRemaining = dt;
         while (timeRemaining > 1e-9) {
-            if (movingDirection == null && !beginTileMovement(map)) return;
+            if (movingDirection == null && !beginTileMovement(map, blocker)) return;
             double dx = movingDirection == Direction.RIGHT ? 1 : movingDirection == Direction.LEFT ? -1 : 0;
             double dy = movingDirection == Direction.DOWN ? 1 : movingDirection == Direction.UP ? -1 : 0;
             // Dùng thời gian còn lại ở ranh giới ô để không khựng/mất tốc độ.
@@ -120,7 +125,7 @@ public class PlayerTank extends Tank {
         }
     }
 
-    private boolean beginTileMovement(IMap map) {
+    private boolean beginTileMovement(IMap map, TileBlocker blocker) {
         Direction next = requestedDirection != null ? requestedDirection : heldDirection;
         requestedDirection = null;
         if (next != null) {
@@ -137,9 +142,22 @@ public class PlayerTank extends Tank {
         tileTargetY = position.getY() + dy * map.getTileSize();
         // Ô bị chặn: đứng ở tâm ô hiện tại thay vì dừng lệch lưới sát tường.
         if (Collision.checkTankWallCollision(this, map, new Position(tileTargetX, tileTargetY))) return false;
+        int ts = map.getTileSize();
+        if (blocker != null && blocker.isBlocked(this,
+                (int) Math.floor(tileTargetX / ts), (int) Math.floor(tileTargetY / ts))) return false;
         movingDirection = next;
         remainingTileDistance = map.getTileSize();
         return true;
+    }
+
+    /** Ô xe đang chiếm hoặc đã giữ chỗ để đi tới; xe khác không được vào. */
+    public boolean occupies(int col, int row, int tileSize) {
+        if (!isAlive() || tileSize <= 0) return false;
+        Rectangle cell = new Rectangle(col * tileSize + 1, row * tileSize + 1, tileSize - 2, tileSize - 2);
+        if (getBoundingBox().intersects(cell)) return true;
+        return movingDirection != null
+                && col == (int) Math.floor(tileTargetX / tileSize)
+                && row == (int) Math.floor(tileTargetY / tileSize);
     }
 
     private static Direction directionForRotation(double angle) {
@@ -194,6 +212,11 @@ public class PlayerTank extends Tank {
     public double getShootCooldown() { return shootCooldown; }
     public void setShootCooldown(double cooldown) { this.shootCooldown = cooldown; }
     public boolean canShoot() { return timeSinceLastShot >= shootCooldown; }
+
+    /** Kiểm tra ô đích có bị xe khác chiếm không. */
+    public interface TileBlocker {
+        boolean isBlocked(PlayerTank mover, int col, int row);
+    }
 
     /** Nguồn id deterministic cho bullet — thay UUID.randomUUID (GWT không emulate). */
     public interface BulletIdSource {

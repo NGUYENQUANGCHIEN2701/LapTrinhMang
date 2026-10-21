@@ -502,6 +502,10 @@ public final class BuildsBotBrain {
                 if (((AITank) t).getController().occupies(x, y)) return t;
                 continue;
             }
+            if (t instanceof PlayerTank) {
+                if (((PlayerTank) t).occupies(x, y, ts)) return t;
+                continue;
+            }
             if (t instanceof com.tankzors.client.gameplay.entity.Tank
                     && ((com.tankzors.client.gameplay.entity.Tank) t).getBoundingBox().intersects(cell)) {
                 return t;
