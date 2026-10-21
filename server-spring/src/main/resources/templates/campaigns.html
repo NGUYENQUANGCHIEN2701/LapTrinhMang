@@ -33,10 +33,16 @@
                th:if="${unlockedLevels.contains(lvl.id)}"
                th:href="@{/play(levelId=${lvl.id})}">▶ BẮT ĐẦU</a>
             <span class="btn btn-ghost level-play disabled"
-               th:unless="${unlockedLevels.contains(lvl.id)}"
+               th:if="${completedLevels.contains(lvl.id)}"
+               title="Mỗi màn chỉ được chơi một lần">&#10003; Đã hoàn thành</span>
+            <span class="btn btn-ghost level-play disabled"
+               th:if="${!unlockedLevels.contains(lvl.id) and !completedLevels.contains(lvl.id)}"
                title="Hoàn thành màn trước để mở khóa">&#128274; Đã khóa</span>
         </div>
     </div>
+
+    <p class="page-subtitle" style="text-align: center; margin-top: 1.5rem;"
+       th:if="${unlockedLevels.isEmpty()}">Bạn đã hoàn thành toàn bộ chiến dịch.</p>
 
     <div class="form-actions" style="justify-content: center; margin-top: 2rem;">
         <a class="btn btn-ghost" th:href="@{/game-menu}">← Quay lại Menu Game</a>

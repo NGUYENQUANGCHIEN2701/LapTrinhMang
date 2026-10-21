@@ -43,4 +43,12 @@ class GameApiControllerTest {
             .andExpect(jsonPath("$.map.mission.enemyWaves.maxOnField").value(1))
             .andExpect(jsonPath("$.map.mission.allies.followPlayer").value(true));
     }
+
+    @Test
+    @WithMockUser(username = "bootstrap-once")
+    void bootstrapRejectsLevelAlreadyWon() throws Exception {
+        progress.markVictory("user:bootstrap-once", "campaign_1");
+        mvc.perform(get("/api/game/bootstrap").param("levelId", "campaign_1"))
+            .andExpect(status().isForbidden());
+    }
 }

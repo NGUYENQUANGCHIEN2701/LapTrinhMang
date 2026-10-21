@@ -11,6 +11,7 @@ import jakarta.persistence.Table;
 
 /**
  * Một cặp (sessionId, unlocked_level) — record rằng player đã unlock màn nào.
+ * {@code completed = true} nghĩa là màn đã thắng và bị khoá (mỗi màn chỉ chơi một lần).
  *
  * <p>Primary key composite: không có auto id, vì chỉ cần (sid, level) duy nhất.</p>
  */
@@ -27,6 +28,9 @@ public class PlayerProgress {
     @Column(name = "unlocked_level", length = 30, nullable = false)
     private String unlockedLevel;
 
+    @Column(name = "completed", nullable = false)
+    private boolean completed;
+
     public PlayerProgress() {
     }
 
@@ -39,6 +43,8 @@ public class PlayerProgress {
     public void setSessionId(String sessionId) { this.sessionId = sessionId; }
     public String getUnlockedLevel() { return unlockedLevel; }
     public void setUnlockedLevel(String unlockedLevel) { this.unlockedLevel = unlockedLevel; }
+    public boolean isCompleted() { return completed; }
+    public void setCompleted(boolean completed) { this.completed = completed; }
 
     @Override
     public boolean equals(Object o) {

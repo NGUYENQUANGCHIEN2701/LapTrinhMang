@@ -97,10 +97,9 @@ public class ResultService {
         int totalStars = reward[0];
         int totalCoins = reward[1];
         if ("VICTORY".equalsIgnoreCase(payload.status) && "CAMPAIGN".equalsIgnoreCase(row.getMode())) {
-            String next = progressService.markVictory(playerId, payload.levelId);
-            unlocked = next != null
-                    ? List.of(payload.levelId, next)
-                    : List.of(payload.levelId);
+            // Màn vừa thắng bị khoá; danh sách trả về là các màn còn được chơi.
+            progressService.markVictory(playerId, payload.levelId);
+            unlocked = progressService.getUnlocked(playerId);
             bestScore = leaderboardService.submitScore(
                     playerNameFor(playerId), payload.levelId,
                     payload.score, payload.elapsedSeconds, payload.hpRemain).getScore();

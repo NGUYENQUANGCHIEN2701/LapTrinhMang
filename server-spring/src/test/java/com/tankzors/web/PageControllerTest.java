@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -83,7 +84,10 @@ class PageControllerTest {
         progressService.markVictory("user:page-unlock", "campaign_1");
         mvc.perform(get("/campaigns"))
             .andExpect(status().isOk())
-            .andExpect(model().attribute("unlockedLevels", hasItem("campaign_2")));
+            .andExpect(model().attribute("unlockedLevels", hasItem("campaign_2")))
+            .andExpect(model().attribute("completedLevels", hasItem("campaign_1")))
+            .andExpect(content().string(containsString("Đã hoàn thành")))
+            .andExpect(content().string(not(containsString("/play?levelId=campaign_1"))));
         mvc.perform(get("/api/progress"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.sessionId").value("user:page-unlock"))

@@ -96,6 +96,7 @@ public class PageController {
         pageModelFactory.apply(model, "Campaigns", "campaigns");
         model.addAttribute("levels", campaignQueryService.getAvailableLevels());
         model.addAttribute("unlockedLevels", resolveUnlockedLevels(request));
+        model.addAttribute("completedLevels", resolveCompletedLevels(request));
         return "campaigns";
     }
 
@@ -209,6 +210,15 @@ public class PageController {
      * Unlock state từ {@link PlayerProgressService}; nếu database chưa chạy
      * thì degrade nhẹ nhàng (mở toàn bộ level) thay vì crash page.
      */
+    /** Màn đã thắng (bị khoá vì mỗi màn chỉ chơi một lần); lỗi database → rỗng. */
+    private List<String> resolveCompletedLevels(HttpServletRequest request) {
+        try {
+            return progressService.getCompleted(identity.resolve(request));
+        } catch (Exception ex) {
+            return List.of();
+        }
+    }
+
     private List<String> resolveUnlockedLevels(HttpServletRequest request) {
         try {
             // Cùng khoá người chơi với API bootstrap/result (user:<tên> khi đã đăng nhập),

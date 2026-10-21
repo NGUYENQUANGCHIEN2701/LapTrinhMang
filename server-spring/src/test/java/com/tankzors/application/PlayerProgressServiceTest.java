@@ -35,6 +35,37 @@ class PlayerProgressServiceTest {
     }
 
     @Test
+    void victoryLocksCompletedLevelSoItIsPlayedOnce() {
+        String session = "test-session-once";
+        progressService.reset(session);
+        progressService.markVictory(session, "campaign_1");
+        assertEquals(List.of("campaign_2"), progressService.getUnlocked(session));
+        assertFalse(progressService.isUnlocked(session, "campaign_1"), "Màn đã thắng phải bị khoá");
+        assertEquals(List.of("campaign_1"), progressService.getCompleted(session));
+    }
+
+    @Test
+    void finishingWholeCampaignLeavesNothingPlayable() {
+        String session = "test-session-all-done";
+        progressService.reset(session);
+        progressService.markVictory(session, "campaign_1");
+        progressService.markVictory(session, "campaign_2");
+        progressService.markVictory(session, "campaign_3");
+        assertEquals(List.of(), progressService.getUnlocked(session),
+            "Không được tự mở lại campaign_1 sau khi hoàn thành hết");
+        assertEquals(List.of("campaign_1", "campaign_2", "campaign_3"), progressService.getCompleted(session));
+    }
+
+    @Test
+    void repeatedVictoryReportDoesNotReopenLevel() {
+        String session = "test-session-repeat";
+        progressService.reset(session);
+        progressService.markVictory(session, "campaign_1");
+        assertNull(progressService.markVictory(session, "campaign_1"));
+        assertEquals(List.of("campaign_2"), progressService.getUnlocked(session));
+    }
+
+    @Test
     void victoryLastLevelDoesNotUnlockMore() {
         String session = "test-session-last";
         progressService.reset(session);
