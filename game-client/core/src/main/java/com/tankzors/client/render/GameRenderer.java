@@ -38,6 +38,7 @@ public class GameRenderer implements Disposable {
     private MapSnapshot cachedMap;
     private int lastMapHash = 0;
     private float animTime = 0f;
+    private final RadarOverlay radarOverlay = new RadarOverlay();
     private final TrackMarks trackMarks = new TrackMarks();
     private VisibilityMask cachedVisibility;
     private int cachedVisibilityCol;
@@ -92,7 +93,7 @@ public class GameRenderer implements Disposable {
 
         if (state == null) return;
         float delta = Gdx.graphics.getDeltaTime();
-        animTime += delta;
+        if (!state.radarActive) animTime += delta;
 
         updateWorldCamera(state);
         useWorldProjection();
@@ -101,7 +102,7 @@ public class GameRenderer implements Disposable {
         boolean transitioning = state.transitionStatus != null;
 
         VisibilityMask visibility = createVisibility(state);
-        updateTrackMarks(state, transitioning, delta);
+        if (!state.radarActive) updateTrackMarks(state, transitioning, delta);
 
         // 1. Map
         if (state.map != null) {
@@ -111,18 +112,33 @@ public class GameRenderer implements Disposable {
         // 2. Tanks (vết xích nằm dưới thân xe)
         batch.begin();
         drawTrackMarks(state.map, visibility);
+        for (EffectSnapshot effect : state.effects) {
+            if ((effect.weaponType == 10 || effect.weaponType == 11) && isVisible(visibility, state.map, effect.x, effect.y)) drawEffect(effect);
+        }
         // Theo lượt để giữ cùng texture: vòng đội → khiên → thân xe.
+        for (com.tankzors.client.model.BuildingSnapshot building : state.buildings) {
+            com.badlogic.gdx.graphics.g2d.TextureRegion frame = assets.largeBuildingFrame("reactor".equals(building.type));
+            if (frame != null && building.hp > 0) {
+                float size = state.map.tileSize * 2f;
+                batch.draw(frame, building.col * state.map.tileSize, building.row * state.map.tileSize, size, size);
+            }
+        }
         for (TankSnapshot tank : state.tanks) drawTankRing(tank);
         for (TankSnapshot tank : state.tanks) drawTankShield(tank);
         for (TankSnapshot tank : state.tanks) drawTankBody(tank);
         // 2.5 Aim preview khi trang bị Artillery
         drawArtilleryAimPreview(state);
+        if (state.airAimActive && state.map != null) {
+            com.badlogic.gdx.graphics.g2d.TextureRegion reticle = assets.targetReticleFrame();
+            float size = state.map.tileSize;
+            if (reticle != null) batch.draw(reticle, state.airAimCol * size, state.airAimRow * size, size, size);
+        }
         // 3. Bullets
         for (BulletSnapshot bullet : state.bullets) {
             if (isVisible(visibility, state.map, bullet.x, bullet.y)) drawBullet(bullet);
         }
         for (EffectSnapshot effect : state.effects) {
-            if (isVisible(visibility, state.map, effect.x, effect.y)) drawEffect(effect);
+            if (effect.weaponType != 10 && effect.weaponType != 11 && isVisible(visibility, state.map, effect.x, effect.y)) drawEffect(effect);
         }
         batch.end();
 
@@ -156,6 +172,7 @@ public class GameRenderer implements Disposable {
         } else if (state.hintText != null) {
             drawHintBar(state.hintText);
         }
+        if (state.radarActive) radarOverlay.render(state, shapes, batch, font, assets, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
     }
 
     /**
@@ -234,13 +251,17 @@ public class GameRenderer implements Disposable {
 
     private VisibilityMask createVisibility(GameStateSnapshot state) {
         if (state.map == null) return null;
-        // Radar in Builds reveals the whole operational map, including enemies
-        // and bonuses. The normal fog mask remains active without a radar.
-        if (state.radarActive) return null;
         TankSnapshot player = null;
         for (TankSnapshot tank : state.tanks) if (tank.isPlayer) { player = tank; break; }
         int col = player != null ? (int) (player.x / state.map.tileSize) : state.map.width / 2;
         int row = player != null ? (int) (player.y / state.map.tileSize) : state.map.height / 2;
+        for (BulletSnapshot bullet : state.bullets) {
+            if (bullet.weaponType == 8) {
+                col = (int) (bullet.x / state.map.tileSize);
+                row = (int) (bullet.y / state.map.tileSize);
+                break;
+            }
+        }
         // Mask chỉ đổi khi xe sang ô khác; tránh sort lại toàn map mỗi frame.
         if (cachedVisibility == null || cachedVisibilityCol != col || cachedVisibilityRow != row
                 || cachedVisibilityWidth != state.map.width || cachedVisibilityHeight != state.map.height) {
@@ -313,8 +334,9 @@ public class GameRenderer implements Disposable {
             case 1: // WALL
                 int hitPoints = wallHitPointsAt(map, r, c);
                 int legacyWall = legacyWallTileId(visualTile);
-                batch.draw(hitPoints >= 4 && legacyWall >= 1 && legacyWall <= 8
-                                ? assets.wallFrameById(legacyWall)
+                batch.draw(legacyWall >= 1 && legacyWall <= 8
+                                ? assets.wallFrameById((4 - Math.max(1, Math.min(4, hitPoints))) * 2
+                                        + (legacyWall - 1) % 2 + 1)
                                 : assets.wallFrame(hitPoints),
                         px, py, ts, ts);
                 break;
@@ -401,6 +423,14 @@ public class GameRenderer implements Disposable {
             }
         }
 
+        if (state.airAimActive) {
+            targetX = (state.airAimCol + .5f) * state.map.tileSize;
+            targetY = (state.airAimRow + .5f) * state.map.tileSize;
+        } else {
+            for (BulletSnapshot bullet : state.bullets) {
+                if (bullet.weaponType == 8) { targetX = bullet.x; targetY = bullet.y; break; }
+            }
+        }
         float mapWidth = state.map.width * state.map.tileSize;
         float mapHeight = state.map.height * state.map.tileSize;
         float cameraX = WorldCameraBounds.centerForAxis(
@@ -497,7 +527,7 @@ public class GameRenderer implements Disposable {
         if (player == null) return;
 
         int tileSize = cachedMap != null ? cachedMap.tileSize : 40;
-        float aimDist = 4f * tileSize; // Tầm bắn chuẩn của Artillery là 4 tiles (160px)
+        float aimDist = state.artilleryRange * tileSize; // Tầm bắn chuẩn của Artillery là 4 tiles (160px)
         float rad = player.rotation * MathUtils.degreesToRadians;
         float dirX = MathUtils.sin(rad);
         float dirY = -MathUtils.cos(rad);
@@ -535,83 +565,20 @@ public class GameRenderer implements Disposable {
     private void drawBullet(BulletSnapshot bullet) {
         if (!bullet.active) return;
         if (bullet.weaponType == 6) {
-            // Quỹ đạo Artillery: chuẩn Base Builds + Target Landing Reticle & 3D Perspective Floating Arc
-            float maxDist = bullet.maxRange > 0 ? bullet.maxRange : 160f;
-            float startX = (bullet.startX != 0f || bullet.startY != 0f) ? bullet.startX : bullet.x;
-            float startY = (bullet.startX != 0f || bullet.startY != 0f) ? bullet.startY : bullet.y;
-            float d = (float) Math.hypot(bullet.x - startX, bullet.y - startY);
-            int tileSize = cachedMap != null ? cachedMap.tileSize : 40;
-
+            float distance = (float) Math.hypot(bullet.x - bullet.startX, bullet.y - bullet.startY);
+            float range = bullet.maxRange > 0 ? bullet.maxRange : 160;
+            float tileSize = cachedMap == null ? 40 : cachedMap.tileSize;
             float radians = bullet.direction * MathUtils.degreesToRadians;
-            float dirX = MathUtils.sin(radians);
-            float dirY = -MathUtils.cos(radians);
-
-            // Tọa độ điểm rơi của quả pháo trên mặt đất
-            float targetX = startX + dirX * maxDist;
-            float targetY = startY + dirY * maxDist;
-
-            // 1. Chỉ định điểm rơi: Target Reticle (Frame 17 từ bullets.png) nhấp nháy cảnh báo đỏ
-            com.badlogic.gdx.graphics.g2d.TextureRegion reticle = assets.targetReticleFrame();
-            if (reticle != null) {
-                float progress = Math.min(1.0f, d / maxDist);
-                float pulseFreq = 10f + progress * 8f; // Nhấp nháy nhanh dần khi đạn càng gần đích
-                float pulse = 1.0f + 0.15f * MathUtils.sin(animTime * pulseFreq);
-                float rw = 32f * pulse;
-                float rh = 32f * pulse;
-                float reticleAlpha = 0.75f + 0.25f * MathUtils.sin(animTime * pulseFreq);
-                batch.setColor(1f, 0.15f, 0.15f, reticleAlpha);
-                batch.draw(reticle, targetX - rw / 2f, targetY - rh / 2f, rw, rh);
-                batch.setColor(Color.WHITE);
-            }
-
-            // 2. Bóng đạn trên mặt đất (Frame 12 từ bullets.png)
+            float dx = MathUtils.sin(radians), dy = -MathUtils.cos(radians);
             com.badlogic.gdx.graphics.g2d.TextureRegion shadow = assets.artilleryShadowFrame();
-            if (shadow != null) {
-                // Tỷ lệ độ cao từ 0.0 (mặt đất) đến 1.0 (đỉnh parabol)
-                float currentHeightRatio = (float) Math.sin(Math.min(1.0f, d / maxDist) * Math.PI);
-                // Khi lên cao bóng co nhỏ (scale 0.72x) và mờ dần (alpha 0.40f); khi sắp chạm đất bóng to đậm lại
-                float shadowScale = 1.0f - 0.28f * currentHeightRatio;
-                float shadowAlpha = 0.85f - 0.45f * currentHeightRatio;
-                batch.setColor(1f, 1f, 1f, shadowAlpha);
-                float sw = 24f * shadowScale;
-                float sh = 24f * shadowScale;
-                batch.draw(shadow, bullet.x - sw / 2f, bullet.y - sh / 2f, sw, sh);
-                batch.setColor(Color.WHITE);
+            if (shadow != null) drawBulletFrame(shadow, bullet.x, bullet.y);
+            for (int i = 0; i < 4; i++) {
+                float delay = i * tileSize / 4;
+                if (distance < delay || distance - delay > range) continue;
+                float height = MathUtils.sin((distance - delay) / range * MathUtils.PI) * tileSize * 2;
+                com.badlogic.gdx.graphics.g2d.TextureRegion part = assets.artilleryPartFrame(i);
+                if (part != null) drawBulletFrame(part, bullet.x - dx * delay, bullet.y - dy * delay - height);
             }
-
-            // 3. Quả pháo và vệt khói lửa lơ lửng trên không:
-            // Đỉnh parabol nâng cao lên tileSize * 2.6f (~104px) để tạo cảm giác bay bổng rõ rệt
-            float maxHeight = tileSize * 2.6f;
-            int partCount = 5;
-            float[] alphas = { 1.0f, 0.90f, 0.75f, 0.60f, 0.45f };
-            float[] delaySteps = { 0f, 8f, 16f, 24f, 32f };
-
-            for (int i = 0; i < partCount; i++) {
-                float delay = delaySteps[i];
-                if (d < delay) break;
-                float partX = bullet.x - dirX * delay;
-                float partY = bullet.y - dirY * delay;
-                float partD = Math.max(0f, d - delay);
-                if (partD > maxDist) continue;
-
-                // Vòng cung parabol sin: đỉnh cao nhất ở giữa quãng đường
-                float heightRatio = (float) Math.sin(Math.min(1.0f, partD / maxDist) * Math.PI);
-                float offY = heightRatio * maxHeight;
-
-                // Phối cảnh 3D giả lập: đạn ở đỉnh cao phóng to (lên tới 1.70x ~41px) để nhìn rõ chi tiết trên không
-                float baseScale = (i == 0) ? 1.20f : (1.0f - i * 0.08f);
-                float scale = baseScale + 0.50f * heightRatio;
-                float pw = 24f * scale;
-                float ph = 24f * scale;
-
-                com.badlogic.gdx.graphics.g2d.TextureRegion partFrame = assets.artilleryPartFrame(i);
-                if (partFrame != null) {
-                    batch.setColor(1f, 1f, 1f, alphas[i]);
-                    // camera y-down: trừ offY để nâng vật thể bay lên cao!
-                    batch.draw(partFrame, partX - pw / 2f, (partY - offY) - ph / 2f, pw, ph);
-                }
-            }
-            batch.setColor(Color.WHITE);
             return;
         }
 
@@ -645,6 +612,28 @@ public class GameRenderer implements Disposable {
     }
 
     private void drawEffect(EffectSnapshot effect) {
+        if (effect.weaponType == -7) {
+            com.badlogic.gdx.graphics.g2d.TextureRegion smoke = assets.smallExplosionFrame(.7f + effect.progress * .3f);
+            if (smoke != null) {
+                batch.setColor(1, 1, 1, 1 - effect.progress);
+                batch.draw(smoke, effect.x - 12, effect.y - 12, 24, 24);
+                batch.setColor(Color.WHITE);
+            }
+            return;
+        }
+        if (effect.weaponType == 10 || effect.weaponType == 11) {
+            com.badlogic.gdx.graphics.g2d.TextureRegion mine = assets.mineFrame(effect.weaponType == 10 ? 1 : 2);
+            if (mine != null) batch.draw(mine, effect.x - 20, effect.y - 20, 40, 40);
+            return;
+        }
+        if (effect.weaponType == 9) {
+            com.badlogic.gdx.graphics.g2d.TextureRegion aircraft = assets.aircraftFrame();
+            float size = (cachedMap == null ? 40 : cachedMap.tileSize) * 4.2f;
+            com.badlogic.gdx.graphics.g2d.TextureRegion shadow = assets.aircraftShadowFrame();
+            if (shadow != null) batch.draw(shadow, effect.x - size / 2 + 12, effect.y - size / 2 + 12, size, size);
+            if (aircraft != null) batch.draw(aircraft, effect.x - size / 2, effect.y - size / 2, size, size);
+            return;
+        }
         if (effect.weaponType == 6 && effect.blastRadius == 0) {
             // Nổ lớn từng ô do Artillery tạo ra (big.png / explosion_big)
             com.badlogic.gdx.graphics.g2d.TextureRegion frame = assets.bigExplosionFrame(effect.progress);
@@ -666,24 +655,17 @@ public class GameRenderer implements Disposable {
     private void drawHealthBar(TankSnapshot tank) {
         if (!tank.alive || tank.hp <= 0) return;
 
-        float barW = 36;
-        float barH = 5;
+        float barW = Math.max(36, Math.min(25, tank.maxHp) * 3);
+        float barH = 5 * ((tank.maxHp + 24) / 25);
         float bx = tank.x - barW / 2f;
-        float by = tank.y - 30; // phía trên tank
-
-        // Nền
-        shapes.setColor(0, 0, 0, 0.6f);
-        shapes.rect(bx - 1, by - 1, barW + 2, barH + 2);
-
-        // Thanh máu
-        float pct = MathUtils.clamp((float) tank.hp / tank.maxHp, 0, 1);
-        shapes.setColor(tank.isPlayer || tank.ally ? Color.GREEN : Color.RED);
-
-        shapes.rect(bx, by, barW * pct, barH);
+        // World camera uses y-down: positive Y places the bars below the hull.
+        float by = tank.y + 26;
+        drawHitPointSegments(bx, by, barW, barH, tank.hp, tank.maxHp,
+                tank.isPlayer || tank.ally ? Color.GREEN : Color.RED, tank);
         if (tank.maxShieldHp > 0) {
-            float shieldPct = MathUtils.clamp((float) tank.shieldHp / tank.maxShieldHp, 0, 1);
-            shapes.setColor(0.1f, 0.85f, 1f, 0.95f);
-            shapes.rect(bx, by - 3, barW * shieldPct, 2);
+            float shieldHeight = 4 * ((tank.maxShieldHp + 24) / 25);
+            drawHitPointSegments(bx, by + barH + 2, barW, shieldHeight,
+                    tank.shieldHp, tank.maxShieldHp, Color.CYAN);
         }
     }
 
@@ -693,37 +675,30 @@ public class GameRenderer implements Disposable {
             if (t.isPlayer) { player = t; break; }
         }
         int hp = player != null ? player.hp : 0;
-        int maxHp = player != null ? player.maxHp : 100;
+        int maxHp = player != null ? player.maxHp : 0;
         int shieldHp = player != null ? player.shieldHp : 0;
         int maxShieldHp = player != null ? player.maxShieldHp : 0;
 
         int inventoryCount = inventoryCount(state);
-        float panelHeight = state.inventoryMenuOpen ? 48 + inventoryCount * 34 : 82;
+        int visibleRows = Math.min(inventoryCount, Math.max(1, (Gdx.graphics.getHeight() - 64) / 34));
+        float panelHeight = state.inventoryMenuOpen ? Math.min(Gdx.graphics.getHeight() - 16, 52 + visibleRows * 34) : 82;
 
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         // Bình thường chỉ hiện HP và loại đang dùng; Q mở rộng ngay trong HUD này.
         shapes.setColor(0, 0, 0, 0.65f);
         shapes.rect(8, 8, 158, panelHeight);
 
-        // Thanh HP
-        shapes.setColor(Color.DARK_GRAY);
-        shapes.rect(18, 30, 138, 12);
-
-        float pct = MathUtils.clamp((float) hp / maxHp, 0, 1);
-        shapes.setColor(Color.GREEN);
-        shapes.rect(18, 30, 138 * pct, 12);
-        drawHealthTicks(18, 30, 138, 12, 5);
+        // One segment is one hit point, just as on the tank itself.
+        drawHitPointSegments(18, 30, 138, 12, hp, maxHp, Color.GREEN, player);
         if (maxShieldHp > 0) {
-            shapes.setColor(0.03f, 0.18f, 0.25f, 0.95f);
-            shapes.rect(18, 44, 138, 4);
-            float shieldPct = MathUtils.clamp((float) shieldHp / maxShieldHp, 0, 1);
-            shapes.setColor(0.12f, 0.88f, 1f, 1f);
-            shapes.rect(18, 44, 138 * shieldPct, 4);
+            drawHitPointSegments(18, 44, 138, 4, shieldHp, maxShieldHp, Color.CYAN);
         }
         shapes.end();
 
         // Vẽ Text & Icon trong batch.
         batch.begin();
+        font.setColor(Color.GREEN);
+        font.draw(batch, "HP " + hp + "/" + maxHp, 18, 14);
         if (maxShieldHp > 0) {
             font.setColor(Color.CYAN);
             font.draw(batch, "SH " + shieldHp + "/" + maxShieldHp, 104, 14);
@@ -731,10 +706,6 @@ public class GameRenderer implements Disposable {
 
         if (!state.inventoryMenuOpen) {
             drawInventoryItem(state.activeWeaponId, state.activeWeaponAmmo, 18, 50, false);
-        }
-        if (state.radarActive) {
-            font.setColor(Color.CYAN);
-            font.draw(batch, "RADAR ONLINE", 18, panelHeight - 8);
         }
         if (state.freezeSecondsRemaining > 0) {
             font.setColor(Color.CYAN);
@@ -747,21 +718,84 @@ public class GameRenderer implements Disposable {
     private void drawInventoryMenu(GameStateSnapshot state) {
         int count = inventoryCount(state);
 
+        int first = inventoryFirstVisible(state);
+        int end = Math.min(count, first + Math.max(1, (Gdx.graphics.getHeight() - 64) / 34));
         shapes.begin(ShapeRenderer.ShapeType.Filled);
-        for (int i = 0; i < count; i++) {
+        for (int i = first; i < end; i++) {
             if (i == state.inventorySelectionIndex) {
                 shapes.setColor(0.42f, 0.42f, 0.42f, 0.95f);
-                shapes.rect(14, 48 + i * 34, 104, 32);
+                shapes.rect(14, 48 + (i - first) * 34, 104, 32);
             }
         }
         shapes.end();
 
         batch.begin();
-        for (int i = 0; i < count; i++) {
+        for (int i = first; i < end; i++) {
             drawInventoryItem(state.inventoryItemIds[i], state.inventoryItemCounts[i],
-                    18, 50 + i * 34, i == state.inventorySelectionIndex);
+                    18, 50 + (i - first) * 34, i == state.inventorySelectionIndex);
         }
         batch.end();
+        if (count > 0) drawInventoryInfo(state);
+    }
+
+    /** A persistent card follows the selected Q-inventory row. */
+    private void drawInventoryInfo(GameStateSnapshot state) {
+        if (state.inventorySelectedName == null || state.inventorySelectedName.isEmpty()) return;
+        float screenW = Gdx.graphics.getWidth();
+        float screenH = Gdx.graphics.getHeight();
+        boolean beside = screenW >= 340;
+        float x = beside ? 172 : 8;
+        float width = Math.min(320, screenW - x - 10);
+        if (width <= 40) return;
+        float textWidth = width - 24;
+        font.getData().setScale(1f);
+        String details = state.inventorySelectedDescription == null ? "" : state.inventorySelectedDescription;
+        String usage = state.inventorySelectedUsage == null ? "" : state.inventorySelectedUsage;
+        GlyphLayout detailsLayout = new GlyphLayout(font, details, Color.LIGHT_GRAY, textWidth,
+                com.badlogic.gdx.utils.Align.left, true);
+        GlyphLayout usageLayout = new GlyphLayout(font, usage, Color.WHITE, textWidth,
+                com.badlogic.gdx.utils.Align.left, true);
+        GlyphLayout footerLayout = new GlyphLayout(font, "WASD / Mui ten: xem  |  Enter / Space / J: dung",
+                Color.GRAY, textWidth, com.badlogic.gdx.utils.Align.left, true);
+        float usageHeadingOffset = 88 + detailsLayout.height;
+        float usageOffset = usageHeadingOffset + 22;
+        float footerOffset = usageOffset + usageLayout.height + 18;
+        float height = footerOffset + footerLayout.height + 16;
+        float y = beside ? Math.max(8, Math.min(48 + (state.inventorySelectionIndex - inventoryFirstVisible(state)) * 34,
+                screenH - height - 12)) : Math.max(8, screenH - height - 12);
+
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(0.06f, 0.08f, 0.11f, 0.95f);
+        shapes.rect(x, y, width, height);
+        shapes.setColor(0.85f, 0.65f, 0.20f, 1f);
+        shapes.rect(x, y, 3, height);
+        shapes.rect(x, y, width, 2);
+        shapes.end();
+
+        batch.begin();
+        com.tankzors.client.shop.ShopItem selected = com.tankzors.client.shop.ShopItem.findById(
+                state.inventoryItemIds[Math.max(0, Math.min(state.inventorySelectionIndex, inventoryCount(state) - 1))]);
+        if (selected != null && assets.getIcon(selected.getId()) != null) {
+            batch.draw(assets.getIcon(selected.getId()), x + 10, y + 8, 30, 30);
+        }
+        font.setColor(Color.GOLD);
+        font.draw(batch, state.inventorySelectedName, x + 46, y + 15, width - 56,
+                com.badlogic.gdx.utils.Align.left, true);
+        font.setColor(Color.CYAN);
+        font.draw(batch, "THONG SO & TAC DUNG", x + 12, y + 50);
+        font.draw(batch, detailsLayout, x + 12, y + 70);
+        float usageY = y + usageHeadingOffset;
+        font.setColor(Color.CYAN);
+        font.draw(batch, "CACH SU DUNG", x + 12, usageY);
+        font.draw(batch, usageLayout, x + 12, y + usageOffset);
+        font.setColor(Color.GRAY);
+        font.draw(batch, footerLayout, x + 12, y + footerOffset);
+        batch.end();
+    }
+
+    private int inventoryFirstVisible(GameStateSnapshot state) {
+        int rows = Math.max(1, (Gdx.graphics.getHeight() - 64) / 34);
+        return Math.max(0, state.inventorySelectionIndex - rows + 1);
     }
 
     private int inventoryCount(GameStateSnapshot state) {
@@ -773,16 +807,33 @@ public class GameRenderer implements Disposable {
         com.badlogic.gdx.graphics.g2d.TextureRegion icon = id == 0
                 ? assets.defaultBulletFrame() : assets.getIcon(id);
         if (icon != null) batch.draw(icon, x, y, 30, 30);
+        font.getData().setScale(1f);
         font.setColor(selected ? Color.WHITE : Color.LIGHT_GRAY);
         font.draw(batch, String.valueOf(count), x + 39, y + 8);
     }
 
-    /** Vạch chia 5 mức (mỗi mức 20%) để thanh HP đọc nhanh hơn. */
-    private void drawHealthTicks(float x, float y, float width, float height, int segments) {
-        shapes.setColor(0f, 0f, 0f, 0.55f);
-        for (int i = 1; i < segments; i++) {
-            float tickX = x + width * i / segments;
-            shapes.rect(tickX - 0.5f, y, 1f, height);
+    /** One filled cell = one HP; damage consumes shield cells before hull cells. */
+    private void drawHitPointSegments(float x, float y, float width, float height,
+                                      int hp, int maxHp, Color color) {
+        drawHitPointSegments(x, y, width, height, hp, maxHp, color, null);
+    }
+
+    private void drawHitPointSegments(float x, float y, float width, float height,
+                                      int hp, int maxHp, Color color, TankSnapshot hull) {
+        if (maxHp <= 0) return;
+        int columns = Math.min(25, maxHp);
+        int rows = (maxHp + columns - 1) / columns;
+        float cellWidth = width / columns;
+        float cellHeight = height / rows;
+        float gapX = Math.min(1f, cellWidth * 0.25f);
+        float gapY = Math.min(1f, cellHeight * 0.25f);
+        shapes.setColor(Color.BLACK);
+        shapes.rect(x - 1, y - 1, width + 2, height + 2);
+        for (int i = 0; i < maxHp; i++) {
+            boolean armor = hull != null && hull.isArmorSegment(i);
+            shapes.setColor(i < hp ? (armor ? Color.ORANGE : color) : Color.DARK_GRAY);
+            shapes.rect(x + (i % columns) * cellWidth, y + (i / columns) * cellHeight,
+                    cellWidth - gapX, cellHeight - gapY);
         }
     }
 

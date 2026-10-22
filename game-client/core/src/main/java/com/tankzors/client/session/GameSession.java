@@ -13,6 +13,11 @@ public interface GameSession {
     /** Input từ bàn phím. */
     void onMove(Direction direction, boolean moving);
     void onShoot();
+    default boolean isRadarOpen() { return false; }
+    default boolean isRadarPaused() { return false; }
+    default void closeRadar() {}
+    default void toggleRadarPause() {}
+    default boolean isAiming() { return false; }
     void onAllReleased();
     default void onReverse(boolean reversing) {}
 
@@ -54,7 +59,9 @@ public interface GameSession {
     default void selectWeapon(int weaponId) {}
     default boolean isInventoryMenuOpen() { return false; }
     default void openInventoryMenu() {}
+    default void closeInventoryMenu() {}
     default void moveInventorySelection(int delta) {}
+    default void selectInventoryRow(int relativeRow) {}
     default void confirmInventorySelection() {}
     default boolean canOpenShop() { return false; }
     /** Đã thắng và còn màn kế để Enter chuyển tiếp. */
@@ -66,4 +73,6 @@ public interface GameSession {
     default void onWorkshopItemSold(com.tankzors.client.shop.ShopItem item) {}
     default int workshopMissingHp() { return 0; }
     default boolean repairTankAtWorkshop() { return false; }
+    default int workshopMissingAlliedHp() { return 0; }
+    default boolean repairAlliesAtWorkshop() { return false; }
 }

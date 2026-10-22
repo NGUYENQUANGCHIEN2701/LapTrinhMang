@@ -196,6 +196,7 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
                     }
                 }
             }
+            @Override public void onMinePlaced() { if (audioManager != null) audioManager.playMineDeploy(); }
             @Override public void onPickup() { if (audioManager != null) audioManager.playPickup(); }
             @Override public void onUseRepair() { if (audioManager != null) audioManager.playRepair(); }
             @Override public void onUseSpeed() { if (audioManager != null) audioManager.playSpeed(); }
@@ -240,11 +241,16 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
 
     // ===== INPUT =====
     @Override public void onMove(Direction direction, boolean moving) {
-        if (phase != Phase.PLAYING || inventoryMenuOpen) return;
+        if (phase != Phase.PLAYING || inventoryMenuOpen || isRadarOpen()) return;
         sim.enqueueMove(toGameplayDirection(direction), moving);
     }
+    @Override public boolean isRadarOpen() { return sim != null && sim.isRadarActive(); }
+    @Override public boolean isRadarPaused() { return sim != null && sim.isRadarPaused(); }
+    @Override public void closeRadar() { if (sim != null) sim.closeRadar(); }
+    @Override public void toggleRadarPause() { if (sim != null) sim.toggleRadarPause(); }
+    @Override public boolean isAiming() { return sim.isAirAimActive(); }
     @Override public void onShoot() {
-        if (phase != Phase.PLAYING || inventoryMenuOpen) return;
+        if (phase != Phase.PLAYING || inventoryMenuOpen || isRadarOpen()) return;
         sim.enqueueShoot();
     }
     @Override public void onAllReleased() {
@@ -252,7 +258,7 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         sim.enqueueStopAll();
     }
     @Override public void onReverse(boolean reversing) {
-        if (phase != Phase.PLAYING || inventoryMenuOpen) return;
+        if (phase != Phase.PLAYING || inventoryMenuOpen || isRadarOpen()) return;
         sim.enqueueReverse(reversing);
     }
 
@@ -327,6 +333,15 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         snap.radarActive = sim.isRadarActive();
         snap.inventoryMenuOpen = inventoryMenuOpen;
         snap.inventorySelectionIndex = inventorySelectionIndex;
+        if (inventoryMenuOpen && snap.inventoryItemIds.length > 0) {
+            int index = Math.max(0, Math.min(inventorySelectionIndex, snap.inventoryItemIds.length - 1));
+            ShopItem selected = ShopItem.findById(snap.inventoryItemIds[index]);
+            if (selected != null) {
+                snap.inventorySelectedName = selected.getDisplayName();
+                snap.inventorySelectedDescription = shopState.getItemDescription(selected);
+                snap.inventorySelectedUsage = shopState.getInventoryUsage(selected);
+            }
+        }
         com.tankzors.client.gameplay.map.MissionConfig mission = sim.getMission();
         if (mission != null) {
             snap.briefing = mission.getBriefing();
@@ -344,10 +359,33 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
     @Override public boolean isInventoryMenuOpen() { return inventoryMenuOpen; }
 
     @Override public void openInventoryMenu() {
-        if (phase != Phase.PLAYING || !sim.getWorld().isPlaying()) return;
+        if (inventoryMenuOpen) {
+            closeInventoryMenu();
+            return;
+        }
+        if (phase != Phase.PLAYING || !sim.getWorld().isPlaying() || isRadarOpen()) return;
+        sim.cancelAirAim();
         inventoryMenuOpen = true;
         inventorySelectionIndex = 0;
         sim.enqueueStopAll();
+    }
+
+    @Override public void closeInventoryMenu() {
+        inventoryMenuOpen = false;
+        inventorySelectionIndex = 0;
+    }
+
+    @Override public void selectInventoryRow(int relativeRow) {
+        if (!inventoryMenuOpen) return;
+        List<Integer> items = inventoryMenuItems();
+        if (items.isEmpty()) return;
+        int rows = Math.max(1, (com.badlogic.gdx.Gdx.graphics.getHeight() - 64) / 34);
+        int first = Math.max(0, inventorySelectionIndex - rows + 1);
+        int targetIndex = first + relativeRow;
+        if (targetIndex >= 0 && targetIndex < items.size()) {
+            inventorySelectionIndex = targetIndex;
+            confirmInventorySelection();
+        }
     }
 
     @Override public void moveInventorySelection(int delta) {
@@ -367,7 +405,8 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
             if (com.tankzors.client.shop.PlayerShopState.isWeaponSlot(itemId)) {
                 selectWeapon(itemId);
             } else {
-                sim.useInventoryItem(itemId);
+                if (!sim.useInventoryItem(itemId) && itemId >= ShopItem.ALLY_TANK.getId()
+                        && itemId <= ShopItem.ALLY_TANK3.getId()) return;
             }
         }
         inventoryMenuOpen = false;
@@ -379,7 +418,7 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         for (int id = 0; id <= 5; id++) {
             if (shopState.getItemCount(id) > 0) ids.add(id);
         }
-        for (int id = ShopItem.ARTILLERY.getId(); id <= ShopItem.ROCKET.getId(); id++) {
+        for (int id = ShopItem.ARTILLERY.getId(); id <= ShopItem.MINE2.getId(); id++) {
             if (shopState.getItemCount(id) > 0) ids.add(id);
         }
         for (int id = ShopItem.DYNAMITE.getId(); id <= ShopItem.DYNAMITE3.getId(); id++) {
@@ -390,6 +429,9 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         if (shopState.getItemCount(ShopItem.FREEZE.getId()) > 0) ids.add(ShopItem.FREEZE.getId());
         if (shopState.getItemCount(ShopItem.FORCE_FIELD.getId()) > 0) ids.add(ShopItem.FORCE_FIELD.getId());
         if (shopState.getItemCount(ShopItem.RADAR.getId()) > 0) ids.add(ShopItem.RADAR.getId());
+        for (int id = ShopItem.ALLY_TANK.getId(); id <= ShopItem.ALLY_TANK3.getId(); id++) {
+            if (shopState.getItemCount(id) > 0) ids.add(id);
+        }
         return ids;
     }
 
@@ -636,6 +678,12 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
             levelStartInventory.put(item.getId(), shopState.getItemCount(item.getId()));
         }
         syncShopState();
+    }
+    @Override public int workshopMissingAlliedHp() { return sim == null ? 0 : sim.getMissingAlliedHp(); }
+    @Override public boolean repairAlliesAtWorkshop() {
+        boolean repaired = sim != null && sim.repairAlliesAtWorkshop();
+        if (repaired) syncShopState();
+        return repaired;
     }
     @Override public int workshopMissingHp() { return sim == null ? 0 : sim.getLocalPlayerMissingHp(); }
     @Override public boolean repairTankAtWorkshop() {

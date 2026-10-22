@@ -199,6 +199,7 @@ public class HostGameSession implements GameSession {
               .append(",\"x\":").append(t.x).append(",\"y\":").append(t.y)
               .append(",\"rotation\":").append(t.rotation)
               .append(",\"hp\":").append(t.hp).append(",\"maxHp\":").append(t.maxHp)
+              .append(",\"armorHp\":").append(t.armorHp)
               .append(",\"shieldHp\":").append(t.shieldHp).append(",\"maxShieldHp\":").append(t.maxShieldHp)
               .append(",\"alive\":").append(t.alive).append(",\"isPlayer\":").append(t.isPlayer)
               .append('}');

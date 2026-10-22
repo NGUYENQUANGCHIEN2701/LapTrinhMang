@@ -146,6 +146,7 @@ public class GuestGameSession implements GameSession {
                 ts.rotation = t.getFloat("rotation", 0);
                 ts.hp = t.getInt("hp", 0);
                 ts.maxHp = t.getInt("maxHp", 100);
+                ts.armorHp = t.getInt("armorHp", 0);
                 ts.shieldHp = t.getInt("shieldHp", 0);
                 ts.maxShieldHp = t.getInt("maxShieldHp", 0);
                 ts.alive = t.getBoolean("alive", true);

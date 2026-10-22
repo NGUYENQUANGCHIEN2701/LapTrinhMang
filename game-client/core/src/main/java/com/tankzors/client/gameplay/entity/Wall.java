@@ -48,11 +48,16 @@ public class Wall implements ICollidable {
         return tileType != TileType.WHITE_WALL && tileType != TileType.STONE_WALL;
     }
 
-    /** @return true khi hit này phá hủy vật cản. */
-    public boolean hit() {
-        if (!isDestructible()) return false;
-        hitPoints = Math.max(0, hitPoints - 1);
+    /** Áp sát thương thực tế của projectile; @return true khi vật cản bị phá. */
+    public boolean hit(int damage) {
+        if (!isDestructible() || damage <= 0) return false;
+        hitPoints = Math.max(0, hitPoints - damage);
         return hitPoints == 0;
+    }
+
+    /** Tương thích cho các tác động môi trường cũ: đúng một damage point. */
+    public boolean hit() {
+        return hit(1);
     }
 
     @Override public Rectangle getBoundingBox() { return boundingBox; }

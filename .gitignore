@@ -41,3 +41,7 @@ server-spring/src/main/resources/static/game/libgdx/
 
 # Static analysis caches
 pont.log
+
+# Python cache
+__pycache__/
+*.pyc

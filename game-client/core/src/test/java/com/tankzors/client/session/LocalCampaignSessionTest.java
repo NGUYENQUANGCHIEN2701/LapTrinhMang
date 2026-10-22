@@ -101,6 +101,31 @@ class LocalCampaignSessionTest {
             """;
 
     @Test
+    void boughtSupportTanksAppearInQAndBlockedBaseKeepsTheirInventory() {
+        FakeAsyncMapSource source = new FakeAsyncMapSource();
+        LocalCampaignSession session = new LocalCampaignSession("player", "campaign_1", source, result -> true);
+        session.start();
+        source.pending.onLevelLoaded("campaign_1", MAP_JSON, "run-1", "v1");
+        for (int id = 25; id <= 27; id++) session.getShopState().setItemCount(id, 1);
+        session.openInventoryMenu();
+        assertArrayEquals(new int[]{0,19,17,25,26,27}, session.snapshot().inventoryItemIds);
+        session.moveInventorySelection(3);
+        assertEquals("Ally Tank 1", session.snapshot().inventorySelectedName);
+        assertTrue(session.snapshot().inventorySelectedDescription.contains("8 HP"));
+        session.confirmInventorySelection();
+        assertTrue(session.isInventoryMenuOpen());
+        assertEquals(1, session.getShopState().getItemCount(25));
+        session.moveInventorySelection(1);
+        assertEquals("Ally Tank 2", session.snapshot().inventorySelectedName);
+        session.openInventoryMenu();
+        assertFalse(session.isInventoryMenuOpen());
+        session.openInventoryMenu();
+        assertTrue(session.isInventoryMenuOpen());
+        session.closeInventoryMenu();
+        assertFalse(session.isInventoryMenuOpen());
+    }
+
+    @Test
     void victoryMatchResultCarriesMapReward() {
         FakeAsyncMapSource source = new FakeAsyncMapSource();
         LocalCampaignSession session = new LocalCampaignSession(
@@ -347,13 +372,21 @@ class LocalCampaignSessionTest {
         GameStateSnapshot openMenu = session.snapshot();
         assertArrayEquals(new int[]{0, 19, 17}, openMenu.inventoryItemIds,
                 "HUD Q phải liệt kê Round, Repair, Speed ngay trong túi hiện tại");
-        assertArrayEquals(new int[]{100, 3, 2}, openMenu.inventoryItemCounts);
+        assertArrayEquals(new int[]{99, 3, 2}, openMenu.inventoryItemCounts);
+        assertEquals("Shell", openMenu.inventorySelectedName);
+        assertTrue(openMenu.inventorySelectedDescription.contains("1 HP"));
+        assertTrue(openMenu.inventorySelectedUsage.contains("Space / J"));
         int elapsed = openMenu.elapsedSeconds;
         session.update(5f);
         assertEquals(elapsed, session.snapshot().elapsedSeconds, "Menu Q phải pause simulation");
 
         // Menu mặc định: Round, Repair, Speed.
         session.moveInventorySelection(2);
+        assertEquals("Nitro Speed", session.snapshot().inventorySelectedName);
+        assertTrue(session.snapshot().inventorySelectedUsage.contains("Enter: dung ngay"));
+        session.moveInventorySelection(-1);
+        assertEquals("Repair Kit", session.snapshot().inventorySelectedName);
+        session.moveInventorySelection(1);
         session.confirmInventorySelection();
         assertFalse(session.isInventoryMenuOpen());
         assertEquals(1, session.snapshot().speedCount);

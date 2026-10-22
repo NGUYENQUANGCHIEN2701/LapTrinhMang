@@ -8,6 +8,13 @@ public final class TankSnapshot {
     public float rotation;
     public int hp;
     public int maxHp;
+    /** Installed temporary + permanent armor capacity, included in maxHp. */
+    public int armorHp;
+
+    public boolean isArmorSegment(int index) {
+        return index >= Math.max(0, maxHp - armorHp) && index < maxHp;
+    }
+
     public int shieldHp;
     public int maxShieldHp;
     public boolean alive;

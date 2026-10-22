@@ -69,6 +69,13 @@ public final class WorldSnapshotMapper {
             snap.map = ms;
         }
 
+        for (com.tankzors.client.gameplay.entity.Building building : world.getAllBuildings()) {
+            if (!building.isAlive()) continue;
+            com.tankzors.client.model.BuildingSnapshot b = new com.tankzors.client.model.BuildingSnapshot();
+            b.id = building.id; b.type = building.type; b.col = building.col; b.row = building.row;
+            b.team = building.team; b.hp = building.getHp(); b.maxHp = building.maxHp;
+            snap.buildings.add(b);
+        }
         // Tanks
         for (ITank tank : world.getAllTanks()) {
             TankSnapshot ts = new TankSnapshot();
@@ -86,6 +93,7 @@ public final class WorldSnapshotMapper {
             ts.rotation = (float) tank.getRotation();
             ts.hp = tank.getHP();
             ts.maxHp = tank.getMaxHP();
+            if (tank instanceof PlayerTank) ts.armorHp = ((PlayerTank) tank).getArmorHitPoints();
             if (tank instanceof com.tankzors.client.gameplay.entity.Tank) {
                 com.tankzors.client.gameplay.entity.Tank body = (com.tankzors.client.gameplay.entity.Tank) tank;
                 ts.shieldHp = body.getShieldHp();

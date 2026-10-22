@@ -32,15 +32,22 @@ public class AssetRepository implements Disposable {
     private Texture explosionBigSheet;
     private Texture powerupsSheet;
     private Texture buildingsSheet;
+    private Texture largeBuildingsSheet;
+    private TextureRegion[] largeBuildingFrames;
     private Texture triggersSheet;
     private Texture shieldRingsSheet;
     private Texture turretSheet;
     private Texture minesSheet;
+    private Texture aircraftSheet;
+    private TextureRegion aircraftSprite, aircraftShadow;
     private Texture spawnOverlayTexture;
 
     // Shop GUI Textures
     private Texture iconsSheet;
+    private com.badlogic.gdx.graphics.g2d.BitmapFont shopFont;
+    private Texture shopDigits, shopBottom, shopFade;
     private Texture billetsTexture;
+    private Texture billetTexture;
     private Texture panelTexture;
     private Texture statMoneyTexture;
     private Texture statStarTexture;
@@ -83,6 +90,8 @@ public class AssetRepository implements Disposable {
         palmsSheet = new Texture(Gdx.files.internal("map/palms.png"));
         explosionBigSheet = new Texture(Gdx.files.internal("effects/explosion_big.png"));
         powerupsSheet = new Texture(Gdx.files.internal("effects/powerups.png"));
+        largeBuildingsSheet = new Texture(Gdx.files.internal("map/big_builds.png"));
+        largeBuildingFrames = split(largeBuildingsSheet, 40, 40, 2, false);
         buildingsSheet = new Texture(Gdx.files.internal("map/buildings.png"));
         triggersSheet = new Texture(Gdx.files.internal("map/triggers.png"));
         if (Gdx.files.internal("effects/rings.png").exists()) {
@@ -129,6 +138,12 @@ public class AssetRepository implements Disposable {
         campaignFlagFrame.flip(false, flagRequiresVerticalFlip());
         triggerFrames = split(triggersSheet, 20, 20, 10, false);
         if (shieldRingsSheet != null) shieldRingFrames = split(shieldRingsSheet, 28, 28, 6, true);
+        aircraftSheet = new Texture(Gdx.files.internal("effects/aircrafts.png"));
+        aircraftSprite = new TextureRegion(aircraftSheet, 0, 0, aircraftSheet.getWidth() / 2, aircraftSheet.getHeight());
+        aircraftShadow = new TextureRegion(aircraftSheet, aircraftSheet.getWidth() / 2, 0, aircraftSheet.getWidth() / 2, aircraftSheet.getHeight());
+        // The world camera is y-down; preserve the source sprite's nose toward (+x, -y).
+        aircraftSprite.flip(false, true);
+        aircraftShadow.flip(false, true);
         // Ụ súng Builds: 16 hướng 22x26; mines.png: 3 mìn + 2 khung thuốc nổ đang cháy ngòi.
         if (Gdx.files.internal("tanks/turret.png").exists()) {
             turretSheet = new Texture(Gdx.files.internal("tanks/turret.png"));
@@ -140,6 +155,11 @@ public class AssetRepository implements Disposable {
         }
 
         // Shop GUI
+        shopFont = new com.badlogic.gdx.graphics.g2d.BitmapFont(Gdx.files.internal("fonts/shop-font.fnt"), true);
+        shopFont.getRegion().getTexture().setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        shopDigits = new Texture(Gdx.files.internal("gui/digits.png"));
+        shopBottom = new Texture(Gdx.files.internal("gui/menu_back_2.png"));
+        shopFade = new Texture(Gdx.files.internal("gui/menu_pict_fade.png"));
         if (Gdx.files.internal("gui/icons.png").exists()) {
             iconsSheet = new Texture(Gdx.files.internal("gui/icons.png"));
             iconRegions = new TextureRegion[40];
@@ -154,6 +174,9 @@ public class AssetRepository implements Disposable {
         }
         if (Gdx.files.internal("gui/billets.png").exists()) {
             billetsTexture = new Texture(Gdx.files.internal("gui/billets.png"));
+        }
+        if (Gdx.files.internal("gui/billet.png").exists()) {
+            billetTexture = new Texture(Gdx.files.internal("gui/billet.png"));
         }
         if (Gdx.files.internal("gui/panel.png").exists()) {
             panelTexture = new Texture(Gdx.files.internal("gui/panel.png"));
@@ -171,12 +194,17 @@ public class AssetRepository implements Disposable {
         if (id >= 0 && id < iconRegions.length) {
             return iconRegions[id];
         }
-        if (id == -1) return iconRegions[17]; // ExChassis
-        if (id == -2) return iconRegions[19]; // Extra Life
+        if (id == -1) return iconRegions[25]; // ExChassis: biểu tượng thân xe tăng (Frame 25)
+        if (id == -2) return iconRegions[36]; // Extra Life: biểu tượng mạng sống đỏ (Frame 36)
         return iconRegions[0];
     }
 
+    public com.badlogic.gdx.graphics.g2d.BitmapFont getShopFont() { return shopFont; }
+    public Texture getShopDigits() { return shopDigits; }
+    public Texture getShopBottom() { return shopBottom; }
+    public Texture getShopFade() { return shopFade; }
     public Texture getBillets() { return billetsTexture; }
+    public Texture getBillet() { return billetTexture; }
     public Texture getPanel() { return panelTexture; }
     public Texture getStatMoney() { return statMoneyTexture; }
     public Texture getStatStar() { return statStarTexture; }
@@ -202,7 +230,7 @@ public class AssetRepository implements Disposable {
         int normalized = ((int) Math.floor(((direction % 360 + 360) % 360 + 45) / 90)) % 4;
         int[] directionFrame = {2, 3, 0, 1}; // client UP/RIGHT/DOWN/LEFT -> Builds frames
         int offset = weaponType == 1 || weaponType == 3 ? 4
-                : weaponType == 6 ? 8 : weaponType == 7 ? 9 : weaponType == 8 ? 11
+                : weaponType == 6 || weaponType == 7 || weaponType == 8 ? 8
                 : weaponType == 4 || weaponType == 5 ? 13 : 0;
         int index = Math.min(bulletFrames.length - 1, offset + directionFrame[normalized]);
         return bulletFrames[index];
@@ -321,6 +349,11 @@ public class AssetRepository implements Disposable {
         }
     }
 
+    public TextureRegion aircraftFrame() { return aircraftSprite; }
+    public TextureRegion aircraftShadowFrame() { return aircraftShadow; }
+    public TextureRegion mineFrame(int frame) {
+        return minesFrames == null ? null : minesFrames[Math.max(0, Math.min(2, frame))];
+    }
     /** Thuốc nổ đang cháy ngòi: hai khung cuối mines.png luân phiên. */
     public TextureRegion dynamiteFrame(float animTime) {
         if (minesFrames == null || minesFrames.length < 5) return null;
@@ -337,6 +370,8 @@ public class AssetRepository implements Disposable {
 
     /** Cờ vàng gốc trong buildings.png (frame 3), lật dọc riêng cho camera y-down. */
     public TextureRegion flagFrame() { return campaignFlagFrame; }
+
+    public TextureRegion largeBuildingFrame(boolean reactor) { return largeBuildingFrames[reactor ? 1 : 0]; }
 
     public static int flagFrameIndex() { return 3; }
 
@@ -401,13 +436,20 @@ public class AssetRepository implements Disposable {
         if (explosionBigSheet != null) explosionBigSheet.dispose();
         if (powerupsSheet != null) powerupsSheet.dispose();
         if (buildingsSheet != null) buildingsSheet.dispose();
+        if (largeBuildingsSheet != null) largeBuildingsSheet.dispose();
         if (triggersSheet != null) triggersSheet.dispose();
         if (shieldRingsSheet != null) shieldRingsSheet.dispose();
         if (turretSheet != null) turretSheet.dispose();
         if (minesSheet != null) minesSheet.dispose();
+        if (aircraftSheet != null) aircraftSheet.dispose();
         if (spawnOverlayTexture != null) spawnOverlayTexture.dispose();
         if (iconsSheet != null) iconsSheet.dispose();
+        if (shopFont != null) shopFont.dispose();
+        if (shopDigits != null) shopDigits.dispose();
+        if (shopBottom != null) shopBottom.dispose();
+        if (shopFade != null) shopFade.dispose();
         if (billetsTexture != null) billetsTexture.dispose();
+        if (billetTexture != null) billetTexture.dispose();
         if (panelTexture != null) panelTexture.dispose();
         if (statMoneyTexture != null) statMoneyTexture.dispose();
         if (statStarTexture != null) statStarTexture.dispose();
