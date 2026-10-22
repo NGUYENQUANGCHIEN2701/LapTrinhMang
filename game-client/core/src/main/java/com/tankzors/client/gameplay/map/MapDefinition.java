@@ -29,6 +29,9 @@ public class MapDefinition implements IMap {
     /** Kịch bản màn Builds (đợt địch, đồng minh, ụ súng, trigger); null với map cũ. */
     private MissionConfig mission;
 
+    private final List<com.tankzors.client.gameplay.entity.Building> buildings = new ArrayList<>();
+    public List<com.tankzors.client.gameplay.entity.Building> getBuildings() { return buildings; }
+
     private final List<Wall> walls = new ArrayList<>();
     private final List<Position> spawnPoints = new ArrayList<>();
     private Position playerSpawn;
@@ -100,7 +103,12 @@ public class MapDefinition implements IMap {
 
                 if (type == TileType.WALL || type == TileType.WHITE_WALL || type == TileType.BUSH
                         || type == TileType.STONE_WALL) {
-                    walls.add(new Wall(pixelX, pixelY, tileSize, tileSize, col, row, type));
+                    Wall wall = new Wall(pixelX, pixelY, tileSize, tileSize, col, row, type);
+                    int legacy = legacyWallId(col, row);
+                    if (type == TileType.WALL && legacy >= 1 && legacy <= 8) {
+                        wall.hit((legacy - 1) / 2);
+                    }
+                    walls.add(wall);
                 } else if (type == TileType.SPAWN_PLAYER) {
                     playerSpawn = new Position(pixelX + tileSize / 2.0, pixelY + tileSize / 2.0);
                     spawnPoints.add(playerSpawn);
@@ -161,6 +169,7 @@ public class MapDefinition implements IMap {
     @Override
     public boolean isWalkable(int col, int row) {
         if (col < 0 || col >= width || row < 0 || row >= height) return false;
+        for (com.tankzors.client.gameplay.entity.Building building : buildings) if (building.contains(col, row)) return false;
         TileType type = getTileAt(col, row);
         return type != TileType.WALL && type != TileType.WHITE_WALL
                 && type != TileType.BUSH && type != TileType.WATER && type != TileType.STONE_WALL;
@@ -219,13 +228,18 @@ public class MapDefinition implements IMap {
         grid[row][col] = (type != null ? type : TileType.GROUND).getValue();
     }
 
-    /** Áp đúng một hit lên vật cản; trả loại vừa bị phá hoặc null. */
-    public TileType hitWall(Wall wall) {
-        if (wall == null || !walls.contains(wall) || isBoundaryWall(wall) || !wall.hit()) return null;
+    /** Áp damage của projectile lên vật cản; trả loại vừa bị phá hoặc null. */
+    public TileType hitWall(Wall wall, int damage) {
+        if (wall == null || !walls.contains(wall) || isBoundaryWall(wall) || !wall.hit(damage)) return null;
         TileType destroyed = wall.getTileType();
         walls.remove(wall);
         setTileAt(wall.getCol(), wall.getRow(), TileType.GROUND);
         return destroyed;
+    }
+
+    /** Tương thích cho các lời gọi cũ: áp một damage point. */
+    public TileType hitWall(Wall wall) {
+        return hitWall(wall, 1);
     }
 
     /** Hàng/cột ngoài cùng là tường bao map: giữ nguyên sprite nhưng không thể phá. */
@@ -272,6 +286,14 @@ public class MapDefinition implements IMap {
 
     public int[][] getGrid() { return grid; }
     public void setGrid(int[][] grid) { this.grid = grid; initializeMap(); }
+    /** Original overlay identity distinguishes concrete from armored steel. */
+    public int legacyWallId(int col, int row) {
+        if (visualGrid == null || row < 0 || row >= visualGrid.length || visualGrid[row] == null
+                || col < 0 || col >= visualGrid[row].length) return 0;
+        int code = visualGrid[row][col];
+        return code >= 130 && code < 250 ? (code - 130) % 40 + 1 : 0;
+    }
+
     public int[][] getVisualGrid() { return visualGrid; }
     public void setVisualGrid(int[][] visualGrid) { this.visualGrid = visualGrid; }
 }

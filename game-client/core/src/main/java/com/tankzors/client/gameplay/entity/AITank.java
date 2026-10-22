@@ -52,6 +52,27 @@ public class AITank extends Tank {
         return tank;
     }
 
+    private boolean summonedSupport;
+
+    /** Workshop support tanks: Builds game.Game.addAllyTank. */
+    public static AITank support(String id, double x, double y, int itemId) {
+        AITank tank = builds(id, x, y, itemId == 27 ? 4 : 0, 1);
+        tank.hp = itemId == 27 ? 25 : itemId == 26 ? 15 : 8;
+        tank.maxHp = tank.hp;
+        tank.buildsSpeed = 4;
+        tank.summonedSupport = true;
+        tank.setTeam(Team.ALLY);
+        tank.setFollowPlayer(true);
+        return tank;
+    }
+
+    public int getBuildsWeaponType() {
+        return summonedSupport ? 0 : BuildsTankStats.bulletType(buildsType, buildsLevel);
+    }
+    public int getBuildsRotationDelay() {
+        return summonedSupport ? 3 : BuildsTankStats.rotationDelay(buildsType);
+    }
+
     public int getBuildsType() { return buildsType; }
     public int getBuildsLevel() { return buildsLevel; }
     /** Tốc độ Builds (đơn vị 100/speed frame mỗi ô), chưa nhân hệ số nền. */

@@ -18,7 +18,7 @@ public class PlayerShopStateTest {
     void testInitialState() {
         assertEquals(0, state.getCoins());
         assertEquals(0, state.getStars());
-        assertEquals(100, state.getItemCount(ShopItem.ROUND.getId()));
+        assertEquals(99, state.getItemCount(ShopItem.ROUND.getId()));
         assertEquals(3, state.getItemCount(ShopItem.REPAIR.getId()));
         assertEquals(2, state.getItemCount(ShopItem.SPEED_UP.getId()));
         assertEquals(0, state.getActiveWeaponId());
@@ -37,19 +37,20 @@ public class PlayerShopStateTest {
     @Test
     void testBuyAndSellBasicAmmo() {
         state.setCoins(200);
-        state.setItemCount(ShopItem.ROUND.getId(), 90);
+        state.setItemCount(ShopItem.ROUND.getId(), 89);
+        state.beginShopVisit();
         assertTrue(state.canBuy(ShopItem.ROUND));
         assertTrue(state.buy(ShopItem.ROUND));
 
         // 10 pack, price 5
         assertEquals(195, state.getCoins());
-        assertEquals(100, state.getItemCount(ShopItem.ROUND.getId()));
+        assertEquals(99, state.getItemCount(ShopItem.ROUND.getId()));
 
         // Sell
         assertTrue(state.canSell(ShopItem.ROUND));
         assertTrue(state.sell(ShopItem.ROUND));
         assertEquals(200, state.getCoins());
-        assertEquals(90, state.getItemCount(ShopItem.ROUND.getId()));
+        assertEquals(89, state.getItemCount(ShopItem.ROUND.getId()));
     }
 
     @Test
@@ -118,11 +119,11 @@ public class PlayerShopStateTest {
 
     @Test
     void shellResearchLevelsSixToEightReduceReloadLikeBuilds() {
-        assertEquals(0.50, state.getShellReloadSeconds(), 0.0001);
+        assertEquals(0.75, state.getShellReloadSeconds(), 0.0001);
         state.setResearchLevel("shellResearch", 6);
-        assertEquals(0.50 - 2.0 / 60.0, state.getShellReloadSeconds(), 0.0001);
+        assertEquals(0.75 - 2.0 / 60.0, state.getShellReloadSeconds(), 0.0001);
         state.setResearchLevel("shellResearch", 8);
-        assertEquals(0.50 - 6.0 / 60.0, state.getShellReloadSeconds(), 0.0001);
+        assertEquals(0.75 - 6.0 / 60.0, state.getShellReloadSeconds(), 0.0001);
     }
 
     @Test

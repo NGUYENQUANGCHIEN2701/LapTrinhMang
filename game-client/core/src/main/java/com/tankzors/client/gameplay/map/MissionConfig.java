@@ -139,6 +139,16 @@ public final class MissionConfig {
         }
     }
 
+    public static final class BuildingConfig {
+        public final int x, y, team, hitPoints;
+        public final String type;
+        public BuildingConfig(int x, int y, String type, int team, int hitPoints) {
+            this.x = x; this.y = y; this.type = type; this.team = team; this.hitPoints = Math.max(1, hitPoints);
+        }
+    }
+    private final List<BuildingConfig> buildings = new ArrayList<>();
+    public List<BuildingConfig> getBuildings() { return buildings; }
+
     private Objective objective = Objective.DESTROY_TANKS;
     private String briefing;
     private String debriefing;

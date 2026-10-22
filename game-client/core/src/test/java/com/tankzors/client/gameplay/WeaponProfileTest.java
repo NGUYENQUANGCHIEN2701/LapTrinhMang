@@ -11,6 +11,28 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class WeaponProfileTest {
 
     @Test
+    void projectileDamage_removesOneHitPointPerDamageUnit() {
+        for (WeaponProfile profile : WeaponProfile.values()) {
+            PlayerTank tank = new PlayerTank("target", 100, 100, 60, 10, 10);
+            tank.takeDamage(profile.getDamage());
+            assertEquals(10 - profile.getDamage(), tank.getHP(), profile.name());
+        }
+    }
+
+    @Test
+    void projectileDamage_consumesShieldBeforeHull() {
+        for (WeaponProfile profile : WeaponProfile.values()) {
+            PlayerTank tank = new PlayerTank("target", 100, 100, 60, 10, 10);
+            tank.addShieldCapacity(2);
+            for (int i = 0; i < 4; i++) tank.updateShield(100);
+            assertEquals(2, tank.getShieldHp());
+            tank.takeDamage(profile.getDamage());
+            assertEquals(Math.max(0, 2 - profile.getDamage()), tank.getShieldHp(), profile.name());
+            assertEquals(10 - Math.max(0, profile.getDamage() - 2), tank.getHP(), profile.name());
+        }
+    }
+
+    @Test
     void referenceBuildStats_arePreserved() {
         int[] damage = {1, 1, 2, 2, 3, 5};
         double[] speed = {2.0, 3.5, 2.0, 3.5, 2.8, 2.8};

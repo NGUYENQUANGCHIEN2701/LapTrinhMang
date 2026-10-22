@@ -27,6 +27,7 @@ public class AudioManager implements Disposable {
     private Sound doublePlasmaShootSound;
     private Sound apShootSound;
     private Sound shellArtillerySound;
+    private Sound warheadSound, guidedSound, mineDeploySound;
     private Sound hitWallSound;
     private Sound hitTankSound;
     private Sound explosionMediumSound;
@@ -89,6 +90,9 @@ public class AudioManager implements Disposable {
             doublePlasmaShootSound = loadSound("sounds/shell_plasma_double.ogg");
             apShootSound = loadSound("sounds/shell_ap.ogg");
             shellArtillerySound = loadSound("sounds/shell_artillery.ogg");
+            warheadSound = loadSound("sounds/shell_warhead.ogg");
+            guidedSound = loadSound("sounds/shell_warhead_guided.ogg");
+            mineDeploySound = loadSound("sounds/fx_mine_deploy.ogg");
             hitWallSound = loadSound("sounds/hit_wall_concrete.ogg");
             hitTankSound = loadSound("sounds/hit_metal01.ogg");
             explosionMediumSound = loadSound("sounds/explosion_medium01.ogg");
@@ -146,6 +150,8 @@ public class AudioManager implements Disposable {
                 : weaponType == 2 ? doubleShootSound
                 : weaponType == 3 ? doublePlasmaShootSound
                 : weaponType == 4 || weaponType == 5 ? apShootSound
+                : weaponType == 7 ? warheadSound
+                : weaponType == 8 ? guidedSound
                 : weaponType == 6 ? (shellArtillerySound != null ? shellArtillerySound : shootSound)
                 : shootSound;
         if (muted || sound == null) return;
@@ -153,6 +159,12 @@ public class AudioManager implements Disposable {
             float vol = soundVolume * (isPlayer ? 1.0f : 0.75f);
             sound.play(clamp01(vol));
         } catch (Exception ignored) {}
+    }
+
+    public void playMineDeploy() {
+        if (!muted && mineDeploySound != null) {
+            try { mineDeploySound.play(clamp01(soundVolume)); } catch (Exception ignored) {}
+        }
     }
 
     public void playExplosionArtillery(int radius) {
@@ -332,6 +344,9 @@ public class AudioManager implements Disposable {
         if (doubleShootSound != null) { doubleShootSound.dispose(); doubleShootSound = null; }
         if (doublePlasmaShootSound != null) { doublePlasmaShootSound.dispose(); doublePlasmaShootSound = null; }
         if (apShootSound != null) { apShootSound.dispose(); apShootSound = null; }
+        if (warheadSound != null) { warheadSound.dispose(); warheadSound = null; }
+        if (guidedSound != null) { guidedSound.dispose(); guidedSound = null; }
+        if (mineDeploySound != null) { mineDeploySound.dispose(); mineDeploySound = null; }
         if (shellArtillerySound != null) { shellArtillerySound.dispose(); shellArtillerySound = null; }
         if (hitWallSound != null) { hitWallSound.dispose(); hitWallSound = null; }
         if (hitTankSound != null) { hitTankSound.dispose(); hitTankSound = null; }

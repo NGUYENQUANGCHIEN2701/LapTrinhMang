@@ -19,8 +19,8 @@ public class PlayerTank extends Tank {
     public static final double DEFAULT_WIDTH = 40.0;
     public static final double DEFAULT_HEIGHT = 40.0;
 
-    private double shootCooldown = 0.5;
-    private double timeSinceLastShot = 0.5; // được bắn ngay tick đầu
+    private double shootCooldown = 0.75;
+    private double timeSinceLastShot = 0.75; // được bắn ngay tick đầu
 
     /** Giữ tối đa một bước chờ; đổi hướng tại tâm ô, không thêm thời gian chờ. */
     private Direction heldDirection;
@@ -46,6 +46,15 @@ public class PlayerTank extends Tank {
     public PlayerTank(String id, double x, double y, double speed, int hp, int maxHp) {
         super(id, x, y, speed, hp, maxHp, DEFAULT_WIDTH, DEFAULT_HEIGHT);
     }
+
+    private int armorHitPoints;
+
+    /** Armor is part of hull HP; this capacity only identifies its render segments. */
+    public int getArmorHitPoints() { return armorHitPoints; }
+    public void setArmorHitPoints(int amount) { armorHitPoints = Math.max(0, amount); }
+
+    /** Delay one artillery reload without changing the normal weapon cooldown. */
+    public void delayNextShot(double seconds) { timeSinceLastShot = shootCooldown - seconds; }
 
     public void setHp(int hp) { this.hp = hp; }
     public void setMaxHp(int maxHp) { this.maxHp = maxHp; }
@@ -186,7 +195,7 @@ public class PlayerTank extends Tank {
     @Override
     public IBullet shoot() {
         if (!isAlive() || timeSinceLastShot < shootCooldown) return null;
-        timeSinceLastShot = 0;
+        timeSinceLastShot = activeWeaponId == 1 || activeWeaponId == 3 ? 10.0 / 60.0 : 0;
         String bulletId = bulletIdSource != null ? bulletIdSource.nextId() : "b-0";
 
         WeaponProfile weapon = WeaponProfile.fromItemId(activeWeaponId);

@@ -102,6 +102,8 @@ public class GameClient implements ApplicationListener {
                 @Override public void onItemSold(com.tankzors.client.shop.ShopItem item) {
                     if (session != null) session.onWorkshopItemSold(item);
                 }
+                @Override public int missingAlliedHp() { return session != null ? session.workshopMissingAlliedHp() : 0; }
+                @Override public boolean repairAllies() { return session != null && session.repairAlliesAtWorkshop(); }
                 @Override public int missingTankHp() { return session != null ? session.workshopMissingHp() : 0; }
                 @Override public boolean repairTank() { return session != null && session.repairTankAtWorkshop(); }
             });
@@ -114,6 +116,15 @@ public class GameClient implements ApplicationListener {
         input = new ClientInputProcessor(new ClientInputProcessor.Callbacks() {
             @Override public void onMove(Direction direction, boolean moving) {
                 if (session != null) session.onMove(direction, moving);
+            }
+            @Override public boolean isRadarOpen() { return session != null && session.isRadarOpen(); }
+            @Override public boolean isRadarPaused() { return session != null && session.isRadarPaused(); }
+            @Override public void onCloseRadar() { if (session != null) session.closeRadar(); }
+            @Override public void onRadarPause() { if (session != null) session.toggleRadarPause(); }
+            @Override public boolean isAiming() { return session != null && session.isAiming(); }
+            @Override public boolean repeatsWhileHeld() {
+                if (session == null || session.getShopState() == null) return true;
+                return com.tankzors.client.gameplay.SpecialAmmoRules.repeatsWhileHeld(session.getShopState().getActiveWeaponId());
             }
             @Override public void onShoot() {
                 if (session != null) session.onShoot();
@@ -133,6 +144,7 @@ public class GameClient implements ApplicationListener {
                 if (session != null) session.nextLevel();
             }
             @Override public void onContinue() {
+                if (session != null && session.isAiming()) { session.onShoot(); return; }
                 if (session != null && "BRIEFING".equalsIgnoreCase(session.status())) {
                     if (audio != null) audio.playUiClick();
                     session.dismissBriefing();
@@ -170,9 +182,17 @@ public class GameClient implements ApplicationListener {
                 if (session != null) session.openInventoryMenu();
                 if (audio != null) audio.playUiWindow();
             }
+            @Override public void onCloseInventoryMenu() {
+                if (session != null) session.closeInventoryMenu();
+                if (audio != null) audio.playUiWindow();
+            }
             @Override public void onMoveInventorySelection(int delta) {
                 if (session != null) session.moveInventorySelection(delta);
                 if (audio != null) audio.playUiWeapSwitch();
+            }
+            @Override public void onSelectInventoryRow(int relativeRow) {
+                if (session != null) session.selectInventoryRow(relativeRow);
+                if (audio != null) audio.playUiClick();
             }
             @Override public void onConfirmInventorySelection() {
                 if (session != null) session.confirmInventorySelection();
@@ -220,7 +240,10 @@ public class GameClient implements ApplicationListener {
             session.update(dt);
             setEnabledByStatus(session.status());
             if (renderer != null) {
-                renderer.render(session.snapshot());
+                com.tankzors.client.model.GameStateSnapshot frame = session.snapshot();
+                frame.radarMenuSelection = input.radarMenuSelection();
+                frame.radarSettingsOpen = input.radarSettingsOpen();
+                renderer.render(frame);
                 renderer.renderShop(shopOverlay);
             }
         } else if (renderer != null) {

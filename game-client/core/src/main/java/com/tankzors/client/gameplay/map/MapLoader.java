@@ -91,6 +91,15 @@ public final class MapLoader {
         mission.setDebriefing(root.getString("debriefing", null));
         mission.setEnemyWaves(parseWaves(root.get("enemyWaves")));
         mission.setAllies(parseWaves(root.get("allies")));
+        JsonValue buildings = root.get("buildings");
+        if (buildings != null) {
+            for (JsonValue b = buildings.child; b != null; b = b.next) {
+                String type = b.getString("type", "radar");
+                if (!"radar".equals(type) && !"reactor".equals(type)) continue;
+                mission.getBuildings().add(new MissionConfig.BuildingConfig(b.getInt("x", 0), b.getInt("y", 0),
+                        type, b.getInt("team", 2), b.getInt("hitPoints", "radar".equals(type) ? 7 : 3)));
+            }
+        }
         JsonValue turrets = root.get("turrets");
         if (turrets != null) {
             for (JsonValue t = turrets.child; t != null; t = t.next) {

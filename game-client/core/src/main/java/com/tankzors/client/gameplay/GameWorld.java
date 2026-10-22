@@ -58,6 +58,12 @@ public class GameWorld {
 
     public int getBulletCount() { return bullets.size(); }
 
+    public List<com.tankzors.client.gameplay.entity.Building> getAllBuildings() {
+        if (currentMap instanceof com.tankzors.client.gameplay.map.MapDefinition) {
+            return ((com.tankzors.client.gameplay.map.MapDefinition) currentMap).getBuildings();
+        }
+        return Collections.emptyList();
+    }
     // ========== MAP ==========
     public IMap getCurrentMap() { return currentMap; }
     public void setCurrentMap(IMap map) { this.currentMap = map; }
@@ -78,6 +84,7 @@ public class GameWorld {
             if (tank instanceof AITank) ((AITank) tank).getController().reset();
             if (tank instanceof PlayerTank) ((PlayerTank) tank).stopMoving();
         }
+        getAllBuildings().clear();
         tanks.clear();
         bullets.clear();
         score = 0;

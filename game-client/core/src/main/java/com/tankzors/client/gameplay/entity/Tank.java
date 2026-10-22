@@ -69,6 +69,15 @@ public abstract class Tank implements ITank, ICollidable {
         shieldHp -= absorbed;
         hp = Math.max(0, hp - (damage - absorbed));
     }
+    /** Builds doubles blast power before the shield, then halves overflow for mobile hulls. */
+    public void takeExplosionDamage(int power, boolean turret) {
+        if (power <= 0) return;
+        int damage = power * 2;
+        int absorbed = Math.min(shieldHp, damage);
+        shieldHp -= absorbed;
+        int overflow = damage - absorbed;
+        hp = Math.max(0, hp - (turret ? overflow : overflow / 2));
+    }
     @Override public boolean isAlive() { return hp > 0; }
     @Override public String getId() { return id; }
     @Override public abstract IBullet shoot();
@@ -113,12 +122,11 @@ public abstract class Tank implements ITank, ICollidable {
     }
     public void clearShield() { shieldHp = 0; maxShieldHp = 0; shieldRegenRemaining = 0; }
 
-    /** Research level changes the force-field regeneration cadence immediately. */
+    /** Research affects the next delay calculation, preserving the active Builds timer. */
     public void setShieldResearchLevel(int level) {
         int normalized = Math.max(0, Math.min(4, level));
         if (shieldResearchLevel == normalized) return;
         shieldResearchLevel = normalized;
-        if (shieldHp < maxShieldHp) shieldRegenRemaining = shieldRegenDelaySeconds();
     }
 
     /** Force field cadence ported from Builds (its original 60 Hz timer). */
@@ -128,8 +136,9 @@ public abstract class Tank implements ITank, ICollidable {
             shieldRegenRemaining = Math.max(0, shieldRegenRemaining - deltaTime);
             return;
         }
-        shieldHp = Math.min(maxShieldHp, shieldHp + 1);
+        // Builds calculates the next delay using the deficit BEFORE restoring one HP.
         shieldRegenRemaining = shieldRegenDelaySeconds();
+        shieldHp = Math.min(maxShieldHp, shieldHp + 1);
     }
 
     private double shieldRegenDelaySeconds() {
@@ -143,16 +152,8 @@ public abstract class Tank implements ITank, ICollidable {
         hpBonus = Math.min(hpBonus, Math.max(0, maxHp - hp));
         double denominator = Math.max(1.0, hp + hpBonus);
         double buildFrames = (30.0 + (maxShieldHp - shieldHp) * 25.0) * maxHp / denominator * 3.0;
-        // The prior port only varied with research after hull damage. Because
-        // a field normally absorbs damage first, all levels looked identical.
-        double researchMultiplier;
-        switch (shieldResearchLevel) {
-            case 2: researchMultiplier = 0.75; break;
-            case 3: researchMultiplier = 0.50; break;
-            case 4: researchMultiplier = 0.30; break;
-            default: researchMultiplier = 1.0; break;
-        }
-        return buildFrames / 60.0 * researchMultiplier;
+        // Builds truncates its delay to an integer number of 60 Hz frames.
+        return (int) buildFrames / 60.0;
     }
 
     @Override public String toString() {

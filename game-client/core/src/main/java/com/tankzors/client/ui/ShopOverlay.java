@@ -3,6 +3,7 @@ package com.tankzors.client.ui;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -12,18 +13,12 @@ import com.badlogic.gdx.math.Rectangle;
 import com.tankzors.client.assets.AssetRepository;
 import com.tankzors.client.audio.AudioManager;
 import com.tankzors.client.shop.PlayerShopState;
-import com.tankzors.client.shop.ResearchTech;
 import com.tankzors.client.shop.ShopItem;
-
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Giao diện màn hình Cửa Hàng / Xưởng Vũ Khí (Workshop & Arsenal) trong game LibGDX.
- * Hoạt động trực tiếp trên client (Lựa chọn A), phong cách retro military chuẩn Tankzors Lux.
- */
+/** Builds game.gui.Shop: full-screen catalogue and a separate scrolling help page. */
 public class ShopOverlay {
-
     public interface ShopListener {
         void onShopClosed();
         void onShopStateChanged();
@@ -32,426 +27,353 @@ public class ShopOverlay {
         default void onItemSold(ShopItem item) {}
         default int missingTankHp() { return 0; }
         default boolean repairTank() { return false; }
+        default int missingAlliedHp() { return 0; }
+        default boolean repairAllies() { return false; }
     }
-
-    public enum Tab {
-        AMMO("1. DAN DUOC"),
-        DEFENSE("2. PHONG THU & HO TRO"),
-        RESEARCH("3. NGHIEN CUU");
-
-        private final String label;
-        Tab(String label) { this.label = label; }
-        public String getLabel() { return label; }
-    }
-
+    private static final Color BACKGROUND = new Color(45/255f,11/255f,9/255f,1);
+    private static final Color LOCKED = new Color(1,0,0,136/255f);
+    private static final Color DISABLED = new Color(1,1,1,136/255f);
+    private static final Color PINK = new Color(1,127/255f,127/255f,1);
+    private static final int[] DIGIT_X = {0,72,111,179,247,319,387,460,529,601,673,776,842,914,987,1047};
+    private static final int[] DIGIT_W = {72,39,68,68,72,68,73,69,72,72,103,66,72,73,60,37};
     private final AssetRepository assets;
     private final AudioManager audio;
-    private final PlayerShopState shopState;
+    private final PlayerShopState state;
     private final ShopListener listener;
-
-    private boolean visible = false;
-    private Tab activeTab = Tab.AMMO;
-    private float scrollY = 0f;
-
+    private final List<ShopCatalog.Row> rows = ShopCatalog.rows();
+    private final List<ClickArea> clicks = new ArrayList<>();
     private final GlyphLayout layout = new GlyphLayout();
-    private final List<ClickArea> clickAreas = new ArrayList<>();
-
-    private static class ClickArea {
-        final Rectangle bounds;
-        final Runnable action;
-        ClickArea(float x, float y, float w, float h, Runnable action) {
-            this.bounds = new Rectangle(x, y, w, h);
-            this.action = action;
+    private boolean visible, help, wallet;
+    private int selected;
+    private float scroll, helpScroll, maxScroll, maxHelpScroll;
+    private float scale = 1, rowH = 16, width, height, maxNameWidth;
+    private float winX, winY, winW, winH;
+    private BitmapFont font;
+    private static final class ClickArea {
+        final Rectangle bounds; final Runnable action;
+        ClickArea(float x,float y,float w,float h,Runnable action) {
+            bounds = new Rectangle(x,y,w,h); this.action = action;
         }
     }
-
-    public ShopOverlay(AssetRepository assets, AudioManager audio,
-                       PlayerShopState shopState, ShopListener listener) {
-        this.assets = assets;
-        this.audio = audio;
-        this.shopState = shopState;
-        this.listener = listener;
+    public ShopOverlay(AssetRepository assets, AudioManager audio, PlayerShopState state, ShopListener listener) {
+        this.assets=assets; this.audio=audio; this.state=state; this.listener=listener;
     }
-
-    public boolean isVisible() {
-        return visible;
-    }
-
+    public boolean isVisible() { return visible; }
     public void show() {
         if (visible) return;
-        visible = true;
-        scrollY = 0f;
-        if (audio != null) {
-            audio.playUiWindow();
-            audio.playBriefingMusic();
-        }
+        visible=true; help=false; wallet=false; selected=0; scroll=0; helpScroll=0;
+        state.beginShopVisit();
+        if (audio != null) { audio.playUiWindow(); audio.playBriefingMusic(); }
         if (listener != null) listener.onShopVisibilityChanged(true);
     }
-
     public void hide() {
         if (!visible) return;
-        visible = false;
-        if (audio != null) {
-            audio.playUiWindow();
-            audio.stopMusic();
-        }
-        if (listener != null) {
-            listener.onShopClosed();
-            listener.onShopVisibilityChanged(false);
-        }
+        visible=false; clicks.clear(); state.endShopVisit();
+        if (audio != null) { audio.playUiWindow(); audio.stopMusic(); }
+        if (listener != null) { listener.onShopClosed(); listener.onShopVisibilityChanged(false); }
     }
-
-    public void toggle() {
-        if (visible) hide();
-        else show();
-    }
-
-    public boolean handleTouchDown(float screenX, float screenY) {
+    public void toggle() { if (visible) hide(); else show(); }
+    public boolean handleTouchDown(float x,float y) {
         if (!visible) return false;
-        for (ClickArea ca : clickAreas) {
-            if (ca.bounds.contains(screenX, screenY)) {
-                if (audio != null) audio.playUiClick();
-                ca.action.run();
-                if (listener != null) listener.onShopStateChanged();
-                return true;
-            }
-        }
-        return true; // Chặn click xuyên qua gameplay bên dưới
-    }
-
-    public boolean handleScrolled(float amountY) {
-        if (!visible) return false;
-        scrollY = Math.max(0, scrollY + amountY * 30f);
-        return true;
-    }
-
-    public boolean handleKeyDown(int keycode) {
-        if (!visible) {
-            if (keycode == Input.Keys.B) {
-                show();
-                return true;
-            }
-            return false;
-        }
-
-        if (keycode == Input.Keys.ESCAPE || keycode == Input.Keys.B) {
-            hide();
-            return true;
-        }
-        if (keycode == Input.Keys.NUM_1) {
-            activeTab = Tab.AMMO;
-            scrollY = 0;
-            return true;
-        }
-        if (keycode == Input.Keys.NUM_2) {
-            activeTab = Tab.DEFENSE;
-            scrollY = 0;
-            return true;
-        }
-        if (keycode == Input.Keys.NUM_3) {
-            activeTab = Tab.RESEARCH;
-            scrollY = 0;
-            return true;
+        for (ClickArea click:clicks) if (click.bounds.contains(x,y)) {
+            if (audio != null) audio.playUiClick();
+            click.action.run(); return true;
         }
         return true;
     }
-
-    public void render(SpriteBatch batch, ShapeRenderer shapes, BitmapFont font) {
-        if (!visible) return;
-
-        clickAreas.clear();
-
+    public boolean handleScrolled(float amount) {
+        if (!visible) return false;
+        if (help || wallet) helpScroll=clamp(helpScroll+amount*rowH,maxHelpScroll);
+        else scroll=clamp(scroll+amount*rowH,maxScroll);
+        return true;
+    }
+    public boolean handleKeyDown(int key) {
+        if (!visible) { if(key==Input.Keys.B) {show();return true;} return false; }
+        if (help || wallet) {
+            if(key==Input.Keys.ESCAPE || key==Input.Keys.ENTER || key==Input.Keys.SPACE || key==Input.Keys.B) {
+                help=false; wallet=false; helpScroll=0;
+            } else if(key==Input.Keys.DOWN || key==Input.Keys.S) helpScroll=clamp(helpScroll+rowH,maxHelpScroll);
+            else if(key==Input.Keys.UP || key==Input.Keys.W) helpScroll=clamp(helpScroll-rowH,maxHelpScroll);
+            return true;
+        }
+        if(key==Input.Keys.ESCAPE || key==Input.Keys.B) { hide(); return true; }
+        if(key==Input.Keys.DOWN || key==Input.Keys.S || key==Input.Keys.UP || key==Input.Keys.W) {
+            int step=key==Input.Keys.DOWN || key==Input.Keys.S ? 1:-1;
+            do { selected=(selected+step+rows.size())%rows.size(); } while(!rows.get(selected).selectable());
+            scroll=clamp(selected*rowH-height/2,maxScroll);
+        } else if(key==Input.Keys.RIGHT) change(rows.get(selected),true);
+        else if(key==Input.Keys.LEFT) change(rows.get(selected),false);
+        else if(key==Input.Keys.ENTER || key==Input.Keys.SPACE) describe(rows.get(selected));
+        return true;
+    }
+    private static float clamp(float value,float max) { return Math.max(0,Math.min(max,value)); }
+    private void changed() { if(listener!=null) listener.onShopStateChanged(); }
+    private void change(ShopCatalog.Row row,boolean buy) {
+        if(row.kind==ShopCatalog.Kind.ITEM) {
+            if(!buy && !sellEnabled(row)) return;
+            if(buy ? state.buy(row.item):state.sell(row.item)) {
+                if(listener!=null) { if(buy) listener.onItemBought(row.item); else listener.onItemSold(row.item); }
+                changed();
+            }
+        } else if(buy && row.kind==ShopCatalog.Kind.RESEARCH) {
+            if(state.upgradeResearch(row.tech)) changed();
+        } else if(buy && listener!=null && row.kind==ShopCatalog.Kind.REPAIR_TANK) {
+            if(listener.repairTank()) changed();
+        } else if(buy && listener!=null && row.kind==ShopCatalog.Kind.REPAIR_ALLIES) {
+            if(listener.repairAllies()) changed();
+        }
+    }
+    private void describe(ShopCatalog.Row row) {
+        if(row.kind==ShopCatalog.Kind.CONTINUE) {hide();return;}
+        if(row.selectable()) {help=true;helpScroll=0;}
+    }
+    private boolean sellEnabled(ShopCatalog.Row row) {
+        return row.item!=null && row.item!=ShopItem.ARMOR && row.item!=ShopItem.ARMOR2
+                && row.item!=ShopItem.RADAR && row.item!=ShopItem.EX_CHASSIS && row.item!=ShopItem.ADD_LIFE;
+    }
+    private int count(ShopCatalog.Row row) {
+        if(row.item!=null) return state.getItemCount(row.item.getId());
+        if(row.tech!=null) return state.getResearchLevel(row.tech.getId());
+        if(listener==null) return 0;
+        return row.kind==ShopCatalog.Kind.REPAIR_TANK?listener.missingTankHp():listener.missingAlliedHp();
+    }
+    private int price(ShopCatalog.Row row) {
+        if(row.item!=null) return state.getEffectivePrice(row.item);
+        if(row.tech!=null) return row.tech.getPriceForLevel(count(row));
+        if(row.kind==ShopCatalog.Kind.REPAIR_TANK) return state.getRepairTankCost(count(row));
+        return count(row)*(state.getResearchLevel("armorResearch")>=3?2:5);
+    }
+    private boolean buyEnabled(ShopCatalog.Row row) {
+        if (row.tech != null) return count(row) < row.tech.getMaxLevel();
+        if (row.item == ShopItem.ARMOR || row.item == ShopItem.ARMOR2)
+            return count(row) < state.getEffectiveLimit(row.item);
+        if (row.item == ShopItem.RADAR || row.item == ShopItem.EX_CHASSIS) return count(row) < 1;
+        if (row.kind == ShopCatalog.Kind.REPAIR_TANK || row.kind == ShopCatalog.Kind.REPAIR_ALLIES)
+            return count(row) > 0;
+        return true;
+    }
+    private boolean canBuy(ShopCatalog.Row row) {
+        if(row.item!=null) return state.canBuy(row.item);
+        if(row.tech!=null) return state.canUpgradeResearch(row.tech);
+        return listener!=null && count(row)>0 && state.getCoins()>=price(row);
+    }
+    public void render(SpriteBatch batch,ShapeRenderer shapes,BitmapFont ignored) {
+        if(!visible) return;
         float screenW = Gdx.graphics.getWidth();
         float screenH = Gdx.graphics.getHeight();
+        font = assets.getShopFont();
 
-        // 1. Phủ mờ màn hình nền
+        // 1. Kích thước cửa sổ popup modal chiếm 3/4 màn hình chơi
+        winW = Math.round(screenW * 0.75f);
+        winH = Math.round(screenH * 0.75f);
+        winX = Math.round((screenW - winW) / 2f);
+        winY = Math.round((screenH - winH) / 2f);
+
+        width = winW;
+        height = winH;
+
+        maxNameWidth = 102;
+        // Scale tỉ lệ thuận với kích thước 3/4 màn hình để giao diện to rõ, sắc nét
+        scale = Math.max(1f, Math.min(winW / 260f, winH / 180f));
+        rowH = 16 * scale;
+        maxScroll = Math.max(0, rows.size() * rowH - height);
+        scroll = clamp(scroll, maxScroll);
+        clicks.clear();
+
+        // 2. Phủ mờ màn hình nền phía sau (cho phép nhìn thấy chiến trường và xe tăng)
         Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(com.badlogic.gdx.graphics.GL20.GL_SRC_ALPHA, com.badlogic.gdx.graphics.GL20.GL_ONE_MINUS_SRC_ALPHA);
         shapes.begin(ShapeRenderer.ShapeType.Filled);
-        shapes.setColor(0f, 0f, 0f, 0.78f);
+        shapes.setColor(0f, 0f, 0f, 0.75f);
         shapes.rect(0, 0, screenW, screenH);
 
-        // Khung chính Panel Cửa Hàng
-        float winW = Math.min(760f, screenW - 30f);
-        float winH = Math.min(550f, screenH - 30f);
-        float winX = (screenW - winW) / 2f;
-        float winY = (screenH - winH) / 2f;
-
-        // Khung viền và nền bảng kim loại tối
-        shapes.setColor(0.10f, 0.12f, 0.15f, 0.98f);
+        // Nền cửa sổ Shop modal
+        shapes.setColor(BACKGROUND);
         shapes.rect(winX, winY, winW, winH);
 
-        // Viền trên Header
-        shapes.setColor(0.18f, 0.22f, 0.28f, 1f);
-        shapes.rect(winX, winY, winW, 46);
-
-        // Viền ngoài màu vàng đồng
-        shapes.setColor(0.85f, 0.65f, 0.20f, 0.85f);
+        // Viền ngoài màu vàng đồng phong cách quân sự như UI cũ
+        shapes.setColor(0.85f, 0.65f, 0.20f, 0.90f);
         shapes.rect(winX, winY, winW, 2);
         shapes.rect(winX, winY + winH - 2, winW, 2);
         shapes.rect(winX, winY, 2, winH);
         shapes.rect(winX + winW - 2, winY, 2, winH);
-
-        // Viền ngăn Tab Bar
-        shapes.setColor(0.25f, 0.30f, 0.38f, 1f);
-        shapes.rect(winX, winY + 84, winW, 2);
         shapes.end();
 
-        // 2. Vẽ Text Header & Nút Tab
-        batch.begin();
-        font.setColor(Color.GOLD);
-        font.draw(batch, "TANKZORS ARSENAL & WORKSHOP", winX + 16, winY + 16);
-
-        // Ví tiền ở Header
-        String walletText = "COINS: " + shopState.getCoins() + "  |  STARS: " + shopState.getStars();
-        font.setColor(Color.WHITE);
-        font.draw(batch, walletText, winX + winW - 270, winY + 16);
-
-        // Nút Đóng [X]
-        font.setColor(Color.RED);
-        font.draw(batch, "[X]", winX + winW - 35, winY + 16);
-        batch.end();
-
-        clickAreas.add(new ClickArea(winX + winW - 45, winY + 8, 35, 30, this::hide));
-
-        // Vẽ 3 Tabs
-        drawTabs(batch, shapes, font, winX, winY + 48, winW);
-
-        // Nội dung từng Tab
-        float contentX = winX + 12;
-        float contentY = winY + 92;
-        float contentW = winW - 24;
-        float contentH = winH - 146;
-
-        if (activeTab == Tab.AMMO) {
-            renderAmmoTab(batch, shapes, font, contentX, contentY, contentW, contentH);
-        } else if (activeTab == Tab.DEFENSE) {
-            renderDefenseTab(batch, shapes, font, contentX, contentY, contentW, contentH);
-        } else if (activeTab == Tab.RESEARCH) {
-            renderResearchTab(batch, shapes, font, contentX, contentY, contentW, contentH);
-        }
-
-        // Bottom Bar (Sửa xe & Vào trận)
-        drawBottomBar(batch, shapes, font, winX, winY + winH - 46, winW);
-    }
-
-    private void drawTabs(SpriteBatch batch, ShapeRenderer shapes, BitmapFont font,
-                          float x, float y, float w) {
-        Tab[] tabs = Tab.values();
-        float tabW = (w - 24) / tabs.length;
-
-        for (int i = 0; i < tabs.length; i++) {
-            Tab t = tabs[i];
-            float tx = x + 12 + i * tabW;
-            boolean active = (t == activeTab);
-
-            shapes.begin(ShapeRenderer.ShapeType.Filled);
-            shapes.setColor(active ? new Color(0.25f, 0.45f, 0.65f, 1f) : new Color(0.14f, 0.17f, 0.22f, 1f));
-            shapes.rect(tx + 2, y + 2, tabW - 4, 30);
-            shapes.end();
-
-            batch.begin();
-            font.setColor(active ? Color.YELLOW : Color.LIGHT_GRAY);
-            font.draw(batch, t.getLabel(), tx + 16, y + 10);
-            batch.end();
-
-            final Tab selectedTab = t;
-            clickAreas.add(new ClickArea(tx, y, tabW, 34, () -> {
-                this.activeTab = selectedTab;
-                this.scrollY = 0f;
-            }));
-        }
-    }
-
-    private void renderAmmoTab(SpriteBatch batch, ShapeRenderer shapes, BitmapFont font,
-                               float x, float y, float w, float h) {
-        List<ShopItem> items = new ArrayList<>();
-        for (ShopItem item : ShopItem.values()) {
-            if (item.getCategory() == ShopItem.Category.BASIC_AMMO
-                    || item.getCategory() == ShopItem.Category.SPECIAL_AMMO) {
-                items.add(item);
-            }
-        }
-        renderItemList(batch, shapes, font, x, y, w, h, items);
-    }
-
-    private void renderDefenseTab(SpriteBatch batch, ShapeRenderer shapes, BitmapFont font,
-                                  float x, float y, float w, float h) {
-        List<ShopItem> items = new ArrayList<>();
-        for (ShopItem item : ShopItem.values()) {
-            if (item.getCategory() == ShopItem.Category.DEFENSE
-                    || item.getCategory() == ShopItem.Category.SUPPORT
-                    || item.getCategory() == ShopItem.Category.ALLIES) {
-                items.add(item);
-            }
-        }
-        renderItemList(batch, shapes, font, x, y, w, h, items);
-    }
-
-    private void renderItemList(SpriteBatch batch, ShapeRenderer shapes, BitmapFont font,
-                                float x, float y, float w, float h, List<ShopItem> items) {
-        float rowH = 48f;
-        float startY = y - scrollY;
-
-        for (ShopItem item : items) {
-            float rowY = startY;
-            startY += rowH;
-
-            // Kiểm tra xem hàng có nằm trong vùng nhìn thấy không
-            if (rowY + rowH < y || rowY > y + h) continue;
-
-            boolean unlocked = shopState.isItemUnlocked(item);
-            boolean canBuy = shopState.canBuy(item);
-            boolean canSell = shopState.canSell(item);
-            int count = shopState.getItemCount(item.getId());
-            int limit = shopState.getEffectiveLimit(item);
-            int price = shopState.getEffectivePrice(item);
-
-            // Nền từng hàng
-            shapes.begin(ShapeRenderer.ShapeType.Filled);
-            shapes.setColor(0.12f, 0.15f, 0.19f, 0.9f);
-            shapes.rect(x, rowY + 2, w, rowH - 4);
-
-            // Nút Mua [+]
-            float buyBtnX = x + w - 75;
-            shapes.setColor(canBuy ? new Color(0.18f, 0.55f, 0.22f, 1f) : new Color(0.25f, 0.28f, 0.32f, 0.7f));
-            shapes.rect(buyBtnX, rowY + 8, 32, 28);
-
-            // Nút Bán [-]
-            float sellBtnX = x + w - 38;
-            shapes.setColor(canSell ? new Color(0.65f, 0.25f, 0.20f, 1f) : new Color(0.25f, 0.28f, 0.32f, 0.7f));
-            shapes.rect(sellBtnX, rowY + 8, 32, 28);
-            shapes.end();
-
-            // Vẽ Icon và Thông tin Item
-            batch.begin();
-            TextureRegion icon = assets.getIcon(item.getId());
-            if (icon != null) {
-                batch.draw(icon, x + 8, rowY + 6, 36, 36);
-            }
-
-            // Tên và mô tả
-            font.setColor(unlocked ? Color.WHITE : Color.GRAY);
-            String title = item.getDisplayName() + (item.getPackSize() > 1 ? " (" + item.getPackSize() + "x)" : "");
-            font.draw(batch, title, x + 52, rowY + 12);
-
-            font.setColor(Color.LIGHT_GRAY);
-            font.draw(batch, item.getDescription(), x + 52, rowY + 28);
-
-            // Số lượng & Giá
-            font.setColor(count >= limit ? Color.ORANGE : Color.GREEN);
-            String countStr = count + "/" + limit;
-            font.draw(batch, countStr, x + w - 210, rowY + 16);
-
-            font.setColor(Color.GOLD);
-            font.draw(batch, price + " C", x + w - 145, rowY + 16);
-
-            if (!unlocked) {
-                font.setColor(Color.CORAL);
-                font.draw(batch, "[KHOA]", x + w - 210, rowY + 30);
-            }
-
-            // Ký hiệu trên nút Mua / Bán
-            font.setColor(Color.WHITE);
-            font.draw(batch, "+", buyBtnX + 11, rowY + 14);
-            font.draw(batch, "-", sellBtnX + 12, rowY + 14);
-            batch.end();
-
-            // Đăng ký vùng bấm
-            if (canBuy) {
-                clickAreas.add(new ClickArea(buyBtnX, rowY + 8, 32, 28, () -> {
-                    if (shopState.buy(item) && listener != null) listener.onItemBought(item);
-                }));
-            }
-            if (canSell) {
-                clickAreas.add(new ClickArea(sellBtnX, rowY + 8, 32, 28, () -> {
-                    if (shopState.sell(item) && listener != null) listener.onItemSold(item);
-                }));
-            }
-        }
-    }
-
-    private void renderResearchTab(SpriteBatch batch, ShapeRenderer shapes, BitmapFont font,
-                                   float x, float y, float w, float h) {
-        float rowH = 48f;
-        float startY = y - scrollY;
-
-        for (ResearchTech tech : ResearchTech.values()) {
-            float rowY = startY;
-            startY += rowH;
-
-            if (rowY + rowH < y || rowY > y + h) continue;
-
-            int currentLvl = shopState.getResearchLevel(tech.getId());
-            boolean canUpgrade = shopState.canUpgradeResearch(tech);
-            boolean maxed = currentLvl >= tech.getMaxLevel();
-            int starPrice = tech.getPriceForLevel(currentLvl);
-
-            shapes.begin(ShapeRenderer.ShapeType.Filled);
-            shapes.setColor(0.12f, 0.15f, 0.19f, 0.9f);
-            shapes.rect(x, rowY + 2, w, rowH - 4);
-
-            // Nút Nâng cấp
-            float btnX = x + w - 110;
-            shapes.setColor(canUpgrade ? new Color(0.20f, 0.45f, 0.70f, 1f) : new Color(0.25f, 0.28f, 0.32f, 0.7f));
-            shapes.rect(btnX, rowY + 8, 100, 28);
-            shapes.end();
-
-            batch.begin();
-            font.setColor(maxed ? Color.GOLD : Color.CYAN);
-            font.draw(batch, tech.getDisplayName(), x + 16, rowY + 12);
-
-            font.setColor(Color.LIGHT_GRAY);
-            font.draw(batch, tech.getDescription(), x + 16, rowY + 28);
-
-            // Cấp độ
-            font.setColor(maxed ? Color.GOLD : Color.YELLOW);
-            String lvlStr = "CAP: " + currentLvl + "/" + tech.getMaxLevel();
-            font.draw(batch, lvlStr, x + w - 210, rowY + 16);
-
-            // Nút nâng cấp text
-            font.setColor(Color.WHITE);
-            String btnText = maxed ? "TOI DA" : ("UP (" + starPrice + " S)");
-            font.draw(batch, btnText, btnX + 10, rowY + 14);
-            batch.end();
-
-            if (canUpgrade) {
-                clickAreas.add(new ClickArea(btnX, rowY + 8, 100, 28, () -> {
-                    if (shopState.upgradeResearch(tech) && listener != null) listener.onShopStateChanged();
-                }));
-            }
-        }
-    }
-
-    private void drawBottomBar(SpriteBatch batch, ShapeRenderer shapes, BitmapFont font,
-                               float x, float y, float w) {
-        // Nút Sửa chữa xe tăng
-        float repairBtnW = 200f;
-        float repairBtnX = x + 16;
-
-        shapes.begin(ShapeRenderer.ShapeType.Filled);
-        int missingHp = listener != null ? listener.missingTankHp() : 0;
-        int repairCost = shopState.getRepairTankCost(missingHp);
-        boolean canRepair = missingHp > 0 && shopState.getCoins() >= repairCost;
-        shapes.setColor(canRepair ? new Color(0.22f, 0.32f, 0.42f, 1f) : new Color(0.25f, 0.28f, 0.32f, 0.7f));
-        shapes.rect(repairBtnX, y + 6, repairBtnW, 32);
-
-        // Nút Tiếp tục / Chiến đấu
-        float battleBtnW = 180f;
-        float battleBtnX = x + w - battleBtnW - 16;
-        shapes.setColor(new Color(0.18f, 0.60f, 0.25f, 1f));
-        shapes.rect(battleBtnX, y + 6, battleBtnW, 32);
-        shapes.end();
+        // Click ra ngoài cửa sổ để đóng Shop
+        clicks.add(new ClickArea(0, 0, screenW, winY, this::hide));
+        clicks.add(new ClickArea(0, winY + winH, screenW, Math.max(0, screenH - (winY + winH)), this::hide));
+        clicks.add(new ClickArea(0, winY, winX, winH, this::hide));
+        clicks.add(new ClickArea(winX + winW, winY, Math.max(0, screenW - (winX + winW)), winH, this::hide));
 
         batch.begin();
-        font.setColor(Color.WHITE);
-        font.draw(batch, "[ SUA XE " + missingHp + " HP - " + repairCost + " C ]", repairBtnX + 8, y + 14);
-        font.setColor(Color.YELLOW);
-        font.draw(batch, "[ CHIEN DAU (ESC) ]", battleBtnX + 16, y + 14);
+        batch.setColor(Color.WHITE);
+        image(batch, assets.getShopBottom(), 0, 0, 16, 97, winX, winY + height - 97 * scale, width, 97 * scale);
+        if (help || wallet) {
+            renderHelp(batch);
+        } else {
+            for (int i = 0; i < rows.size(); i++) {
+                float y = winY + i * rowH - scroll;
+                if (y + rowH <= winY || y + rowH > winY + height + 2) continue;
+                drawRow(batch, rows.get(i), i, y);
+            }
+            renderTitle(batch, shapes);
+        }
+        batch.setColor(Color.WHITE);
         batch.end();
 
-        if (canRepair) clickAreas.add(new ClickArea(repairBtnX, y + 6, repairBtnW, 32,
-                () -> { if (listener != null) listener.repairTank(); }));
-
-        clickAreas.add(new ClickArea(battleBtnX, y + 6, battleBtnW, 32, this::hide));
+        // Thanh cuộn thanh mảnh bên mép phải cửa sổ
+        float maximum = help || wallet ? maxHelpScroll : maxScroll;
+        float offset = help || wallet ? helpScroll : scroll;
+        if (maximum > 0) {
+            float top = help || wallet ? winY : (winY + (scroll < rowH ? rowH * 1.3f : rowH));
+            float track = (winY + height) - top;
+            float thumb = Math.max(16f, track * track / (track + maximum));
+            shapes.begin(ShapeRenderer.ShapeType.Filled);
+            shapes.setColor(Color.BLACK);
+            shapes.rect(winX + width - 4 * scale, top, 4 * scale, track);
+            shapes.setColor(140 / 255f, 20 / 255f, 7 / 255f, 1);
+            shapes.rect(winX + width - 3 * scale, top + (track - thumb) * offset / maximum, 2 * scale, thumb);
+            shapes.end();
+        }
+    }
+    private void drawRow(SpriteBatch batch,ShopCatalog.Row row,int index,float y) {
+        if(row.kind==ShopCatalog.Kind.SPACE) return;
+        if(row.kind==ShopCatalog.Kind.HEADER) {
+            batch.setColor(1,.4f,.4f,.8f);titleLine(batch,y,scale);titleLine(batch,y,scale);
+            batch.setColor(Color.WHITE);
+            batch.draw(assets.getIcon(row.icon),winX+5*scale,y-scale,20*scale,20*scale);
+            text(batch,row.title,winX+30*scale,y,Color.WHITE,scale);return;
+        }
+        boolean current=index==selected;
+        if(current) selection(batch,y);
+        if(row.kind==ShopCatalog.Kind.CONTINUE) {
+            text(batch,row.title,winX+5*scale,y,current?Color.WHITE:Color.RED,scale);
+            area(winX,y,width,rowH,this::hide);return;
+        }
+        boolean buy=canBuy(row);
+        Color nameColor=current?(buy?Color.WHITE:PINK):(buy?Color.RED:LOCKED);
+        text(batch,row.title,winX+5*scale,y,nameColor,scale);
+        float nw=8*scale;
+        float priceW=34*scale;
+        float x=winX+width-priceW*2-10*scale-nw*8;
+        float maxText=maxNameWidth*scale;
+        if(x<winX+maxText+10*scale) x=(float)Math.floor(winX+maxText+10*scale+(width-maxText-10*scale-priceW)/2-(nw*11+2*scale)/2);
+        final int chosen=index;
+        area(winX,y,Math.max(0,x-winX-nw),rowH,()->selected=chosen);
+        symbol(batch,'?',x,y+3*scale,Color.WHITE,scale);
+        area(x-nw,y,nw*3,rowH,()->{selected=chosen;describe(row);});
+        x+=nw*3;
+        if(sellEnabled(row)) {
+            boolean sell=state.canSell(row.item);
+            symbol(batch,'-',x,y+3*scale,sell?Color.WHITE:DISABLED,scale);
+            if(sell) area(x-nw,y,nw*2,rowH,()->{selected=chosen;change(row,false);});
+        }
+        x+=nw*2+2*scale;
+        String value=row.tech!=null && "extraInterest".equals(row.tech.getId())?(5+count(row)*5)+"%":String.valueOf(count(row));
+        digits(batch,value,x+nw-digitsWidth(value,scale)/2,y+3*scale,buy?Color.WHITE:DISABLED,scale);
+        x+=nw*3;
+        if (buyEnabled(row)) symbol(batch,'+',x,y+3*scale,buy?Color.WHITE:DISABLED,scale);
+        if(buy) area(x-nw,y,nw*3,rowH,()->{selected=chosen;change(row,true);});
+        int cost=price(row);
+        if(cost>0) {
+            float iconSize=14*scale;
+            float iconX=winX+width-10*scale-iconSize;
+            float valueX=iconX-scale-textWidth(String.valueOf(cost),scale);
+            text(batch,String.valueOf(cost),valueX,y,current?(buy?Color.WHITE:DISABLED):(buy?Color.RED:LOCKED),scale);
+            batch.setColor(Color.WHITE);
+            image(batch,row.tech==null?assets.getStatMoney():assets.getStatStar(),0,0,
+                    row.tech==null?assets.getStatMoney().getWidth():assets.getStatStar().getWidth(),
+                    row.tech==null?assets.getStatMoney().getHeight():assets.getStatStar().getHeight(),iconX+3*scale,y+2*scale,iconSize,iconSize);
+        }
+    }
+    private void renderTitle(SpriteBatch batch,ShapeRenderer shapes) {
+        float headerScale=scroll<rowH?scale*1.3f:scale;
+        float headerH=16*headerScale;
+        batch.end();shapes.begin(ShapeRenderer.ShapeType.Filled);shapes.setColor(BACKGROUND);shapes.rect(winX,winY,width,headerH);shapes.end();batch.begin();
+        batch.setColor(1,144/255f,144/255f,1);
+        titleLine(batch,winY,headerScale);titleLine(batch,winY,headerScale);titleLine(batch,winY,headerScale);
+        batch.setColor(Color.WHITE);image(batch,assets.getShopFade(),0,0,16,16,winX,winY+headerH-1,width,headerH);
+        symbol(batch,'<',winX+10*headerScale,winY+3*headerScale,Color.WHITE,headerScale);
+        float iconSize=14*headerScale;
+        float moneyW=textWidth(String.valueOf(state.getCoins()),headerScale);
+        float starsW=textWidth(String.valueOf(state.getStars()),headerScale);
+        font.getData().setScale(headerScale/4);
+        float space=font.getData().spaceXadvance;
+        float all=22*headerScale+moneyW+starsW+3*space;
+        float x=winX+(width-all)/2;
+        batch.setColor(Color.WHITE);
+        image(batch,assets.getStatMoney(),0,0,assets.getStatMoney().getWidth(),assets.getStatMoney().getHeight(),x,winY+2*headerScale,iconSize,iconSize);
+        text(batch,String.valueOf(state.getCoins()),x+iconSize+1,winY,Color.WHITE,headerScale);
+        float starX=x+iconSize+1+moneyW+2*space;
+        batch.setColor(Color.WHITE);image(batch,assets.getStatStar(),0,0,assets.getStatStar().getWidth(),assets.getStatStar().getHeight(),starX,winY+2*headerScale,iconSize,iconSize);
+        text(batch,String.valueOf(state.getStars()),starX+iconSize+1,winY,Color.WHITE,headerScale);
+        float plus=winX+(width+all)/2+8*headerScale;
+        symbol(batch,'+',plus,winY+3*headerScale,new Color(1,1,.72f,1),headerScale);
+        // Header input takes priority over rows scrolling underneath it.
+        final float limit=winY+headerH;
+        clicks.removeIf(c->c.bounds.y>=winY && c.bounds.y<limit);
+        clicks.add(0,new ClickArea(winX,winY,28*headerScale,headerH,this::hide));
+        clicks.add(0,new ClickArea(x,winY,Math.max(all,plus-x+12*headerScale),headerH,()->{wallet=true;helpScroll=0;}));
+    }
+    private void renderHelp(SpriteBatch batch) {
+        ShopCatalog.Row row=rows.get(selected);
+        String description;
+        if(wallet) description="Coins: "+state.getCoins()+"\n\nStars: "+state.getStars();
+        else if(row.item!=null) description=row.title+"\n\nPrice: "+price(row)+" coins\n\n"+state.getItemDescription(row.item)+"\n\n"+state.getInventoryUsage(row.item);
+        else if(row.tech!=null) description=row.title+"\n\n"+row.tech.getDescription();
+        else description=row.title+"\n\nRepair all missing HP. Price: "+price(row)+" coins.";
+        font.getData().setScale(scale/4);
+        float lineWidth=width*.75f;
+        layout.setText(font,description,Color.RED,lineWidth,com.badlogic.gdx.utils.Align.left,true);
+        float contentH=layout.height+rowH*4;
+        maxHelpScroll=Math.max(0,contentH-height);helpScroll=clamp(helpScroll,maxHelpScroll);
+        float top=winY+(contentH<height?(height-contentH)/2:0)+rowH-helpScroll;
+        float backY=top+layout.height+rowH;
+        font.setColor(Color.BLACK);font.draw(batch,description,winX+width/2-lineWidth/2-.5f*scale,top+.5f*scale,lineWidth,com.badlogic.gdx.utils.Align.left,true);
+        font.setColor(Color.RED);font.draw(batch,description,winX+width/2-lineWidth/2,top,lineWidth,com.badlogic.gdx.utils.Align.left,true);
+        batch.setColor(Color.WHITE);image(batch,assets.getBillets(),360,0,126,16,winX+width/2-63*scale,backY,126*scale,rowH);
+        text(batch,"Back",winX+width/2-textWidth("Back",scale)/2,backY,Color.WHITE,scale);
+        area(winX+width/2-63*scale,backY,126*scale,rowH,()->{help=false;wallet=false;helpScroll=0;});
+    }
+    private void area(float x,float y,float w,float h,Runnable action) {
+        float limitTop = winY + 16 * (scroll < rowH ? scale * 1.3f : scale);
+        float top=Math.max(limitTop,y),bottom=Math.min(winY+height,y+h);
+        if(w>0 && bottom>top) clicks.add(new ClickArea(x,top,w,bottom-top,action));
+    }
+    private float textWidth(String text,float s) {
+        font.getData().setScale(s/4);layout.setText(font,text);return layout.width;
+    }
+    private void text(SpriteBatch batch,String text,float x,float y,Color color,float s) {
+        font.getData().setScale(s/4);
+        float top=y+(16*s-font.getCapHeight())/2;
+        font.setColor(Color.BLACK);font.draw(batch,text,x-.5f*s,top+.5f*s);
+        font.setColor(color);font.draw(batch,text,x,top);
+    }
+    private void image(SpriteBatch batch,Texture texture,int sx,int sy,int sw,int sh,float x,float y,float w,float h) {
+        if(w<=0 || h<=0) return;
+        TextureRegion region=new TextureRegion(texture,sx,sy,sw,sh);region.flip(false,true);batch.draw(region,x,y,w,h);
+    }
+    private void titleLine(SpriteBatch batch,float y,float s) {
+        float first=Math.min(width,125*s);
+        image(batch,assets.getBillets(),540,0,(int)(first/s),16,winX,y,first,16*s);
+        image(batch,assets.getBillets(),640,0,25,16,winX+first,y,width-first,16*s);
+    }
+    private void selection(SpriteBatch batch,float y) {
+        batch.setColor(Color.WHITE);
+        float first=Math.min(width,350*scale);
+        image(batch,assets.getBillets(),0,0,(int)(first/scale),16,winX,y,first,rowH);
+        image(batch,assets.getBillets(),260,0,90,16,winX+first,y,width-first,rowH);
+    }
+    private int digit(char c) { return c>='0'&&c<='9'?c-'0':c=='%'?10:c=='?'?11:c=='-'?12:c=='+'?13:c=='<'?14:15; }
+    private float digitsWidth(String text,float s) {
+        float result=0;for(int i=0;i<text.length();i++) result+=(DIGIT_W[digit(text.charAt(i))]-3)*.125f*s;return result;
+    }
+    private void digits(SpriteBatch batch,String text,float x,float y,Color color,float s) {
+        batch.setColor(color);float factor=.125f*s;
+        for(int i=0;i<text.length();i++) {int id=digit(text.charAt(i));image(batch,assets.getShopDigits(),DIGIT_X[id],0,DIGIT_W[id],95,x,y,DIGIT_W[id]*factor,95*factor);x+=(DIGIT_W[id]-3)*factor;}
+    }
+    private void symbol(SpriteBatch batch,char c,float x,float y,Color color,float s) {
+        int id=digit(c);batch.setColor(color);float factor=.125f*s;
+        image(batch,assets.getShopDigits(),DIGIT_X[id],0,DIGIT_W[id],95,x+Math.max(0,73-DIGIT_W[id])*.5f*factor,y,DIGIT_W[id]*factor,95*factor);
     }
 }

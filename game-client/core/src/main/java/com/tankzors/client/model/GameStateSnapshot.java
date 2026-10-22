@@ -9,6 +9,7 @@ public final class GameStateSnapshot {
     public String transitionStatus;
     public int score;
     public MapSnapshot map;
+    public final List<BuildingSnapshot> buildings = new ArrayList<>();
     public final List<TankSnapshot> tanks = new ArrayList<>();
     public final List<BulletSnapshot> bullets = new ArrayList<>();
     public final List<EffectSnapshot> effects = new ArrayList<>();
@@ -22,6 +23,9 @@ public final class GameStateSnapshot {
     // ===== Shop & Arsenal HUD fields =====
     public int playerCoins;
     public int playerStars;
+    public int artilleryRange = 4;
+    public boolean airAimActive;
+    public int airAimCol, airAimRow;
     public int activeWeaponId;
     public int activeWeaponAmmo;
     public int repairCount;
@@ -29,8 +33,16 @@ public final class GameStateSnapshot {
     public float speedBoostSecondsRemaining;
     public float freezeSecondsRemaining;
     public boolean radarActive;
+    public boolean hasRadar;
+    public boolean radarPaused;
+    public int radarMenuSelection;
+    public boolean radarSettingsOpen;
+    public boolean radarShowObjects;
     public boolean inventoryMenuOpen;
     public int inventorySelectionIndex;
+    public String inventorySelectedName = "";
+    public String inventorySelectedDescription = "";
+    public String inventorySelectedUsage = "";
     public int[] inventoryItemIds = new int[0];
     public int[] inventoryItemCounts = new int[0];
 
@@ -47,6 +59,7 @@ public final class GameStateSnapshot {
     public int enemiesTotal;
 
     public void clearEntities() {
+        buildings.clear();
         tanks.clear();
         bullets.clear();
         effects.clear();

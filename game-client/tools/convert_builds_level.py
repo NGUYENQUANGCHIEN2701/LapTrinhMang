@@ -130,10 +130,18 @@ def convert(src, level_index):
     texts = TEXTS[level_index]
     grid = [[GROUND] * w for _ in range(h)]
     player_bases, enemy_bases, trigger_cells, turrets, boxes = [], [], [], [], []
+    buildings = []
 
     for y in range(h):
         for x in range(w):
             v = raw[y][x]
+            if 91 <= v <= 94:
+                kind = "reactor" if v <= 92 else "radar"
+                team = 1 + (v - (91 if v <= 92 else 93))
+                if team == 1 and not 50 <= p[25] <= 55:
+                    team = -3
+                buildings.append({"x": x, "y": y, "type": kind, "team": team,
+                                  "hitPoints": (p[66] if p[66] > 0 else 3) if kind == "reactor" else (p[65] if p[65] > 0 else 7)})
             if v < 91 or v >= 250 or 91 <= v < 100:
                 continue
             if v < 115:
@@ -223,6 +231,7 @@ def convert(src, level_index):
                        # Loại xe 0..7 theo teamCounts, cấp độ enemyDifficulty, enemyAIType & 8 = ngẫu nhiên.
                        "types": p[1:9], "level": p[23], "randomTypes": (p[24] & 8) != 0},
         "turrets": turrets,
+        "buildings": buildings,
         "boxes": boxes,
         "triggers": triggers,
     }

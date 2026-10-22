@@ -167,7 +167,7 @@ public final class BuildsBotBrain {
         motion = Motion.STANDING;
         int ts = map.getTileSize();
         speedRatio = map.speedFactorAt((col + 0.5) * ts, (row + 0.5) * ts) * 0.8;
-        int def = BuildsTankStats.rotationDelay(self.getBuildsType());
+        int def = self.getBuildsRotationDelay();
         maxRotationDelay = speedRatio <= 0.5 ? def + 1 : def;
         rotationDelay = maxRotationDelay;
     }
@@ -220,7 +220,7 @@ public final class BuildsBotBrain {
         if (motion == Motion.ROTATING || reloadDelay > 0) return;
         double direction = rotationOf(dirX, dirY);
         WeaponProfile weapon = WeaponProfile.fromItemId(
-                BuildsTankStats.bulletType(self.getBuildsType(), self.getBuildsLevel()));
+                self.getBuildsWeaponType());
         boolean horizontal = direction == 90 || direction == 270;
         String id = bulletIds != null ? bulletIds.nextId(self.getId()) : "b-" + self.getId();
         world.addBullet(new Bullet(id, self.getId(),

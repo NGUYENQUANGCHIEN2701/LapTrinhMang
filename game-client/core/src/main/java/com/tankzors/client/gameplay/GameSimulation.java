@@ -5,6 +5,7 @@ import com.tankzors.client.gameplay.ai.ShootBehavior;
 import com.tankzors.client.gameplay.collision.Collision;
 import com.tankzors.client.gameplay.entity.AITank;
 import com.tankzors.client.gameplay.entity.Bullet;
+import com.tankzors.client.gameplay.entity.Building;
 import com.tankzors.client.gameplay.entity.Direction;
 import com.tankzors.client.gameplay.entity.PlayerTank;
 import com.tankzors.client.gameplay.entity.Position;
@@ -55,10 +56,10 @@ public class GameSimulation {
     private com.tankzors.client.shop.PlayerShopState shopState;
     private GameEventListener eventListener;
     private double basePlayerSpeed = PlayerTank.DEFAULT_SPEED;
-    private double basePlayerShootCooldown = 0.5;
+    private double basePlayerShootCooldown = 0.75;
     private double speedBoostRemaining;
     private double freezeRemaining;
-    private boolean radarActive;
+    private final RadarState radar = new RadarState();
     private boolean shopStateDirty;
     private final List<WorldEffect> effects = new ArrayList<>();
     private final Map<String, RespawnPoint> respawnPoints = new HashMap<>();
@@ -71,6 +72,13 @@ public class GameSimulation {
     private MissionSpawner allySpawner;
     private final List<TriggerState> triggerStates = new ArrayList<>();
     private final List<Dynamite> dynamites = new ArrayList<>();
+    private final List<PlacedMine> mines = new ArrayList<>();
+    private final List<AirRaid> airRaids = new ArrayList<>();
+    private final List<Blast> blasts = new ArrayList<>();
+    private boolean airAimActive;
+    private int airAimCol, airAimRow;
+    private Direction airAimDirection;
+    private double airAimMoveDelay;
     private int lastTriggerCol = Integer.MIN_VALUE;
     private int lastTriggerRow = Integer.MIN_VALUE;
     private String hintText;
@@ -94,7 +102,7 @@ public class GameSimulation {
     public static final double EX_CHASSIS_SPEED_BONUS_SECONDS = 15.0;
     public static final double FREEZE_SECONDS = 25.0;
     public static final double EX_CHASSIS_FREEZE_BONUS_SECONDS = 5.0;
-    private static final double NITRO_RELOAD_REDUCTION_SECONDS = 5.0 / 60.0;
+    private static final double NITRO_RELOAD_REDUCTION_SECONDS = 10.0 / 60.0;
 
     private static final class RespawnPoint {
         final double x;
@@ -236,7 +244,7 @@ public class GameSimulation {
         commandQueue.clear();
         speedBoostRemaining = 0;
         freezeRemaining = 0;
-        radarActive = false;
+        radar.reset();
         shopStateDirty = false;
         effects.clear();
         specialShots.clear();
@@ -246,6 +254,11 @@ public class GameSimulation {
         allySpawner = null;
         triggerStates.clear();
         dynamites.clear();
+        mines.clear();
+        airRaids.clear();
+        blasts.clear();
+        airAimActive = false;
+        airAimDirection = null;
         lastTriggerCol = Integer.MIN_VALUE;
         lastTriggerRow = Integer.MIN_VALUE;
         hintText = null;
@@ -268,6 +281,9 @@ public class GameSimulation {
                     matchRng.nextDouble() * mission.getAllies().intervalSeconds);
         }
         int tileSize = map.getTileSize();
+        for (MissionConfig.BuildingConfig cfg : mission.getBuildings()) {
+            world.getAllBuildings().add(new Building("building-" + cfg.x + "-" + cfg.y, cfg.type, cfg.x, cfg.y, cfg.team, cfg.hitPoints));
+        }
         for (MissionConfig.TurretConfig cfg : mission.getTurrets()) {
             AITank turret = AITank.turret("turret-" + cfg.x + "-" + cfg.y,
                     (cfg.x + 0.5) * tileSize, (cfg.y + 0.5) * tileSize, cfg.direction, cfg.range, cfg.hitPoints);
@@ -407,6 +423,152 @@ public class GameSimulation {
         }
     }
 
+    public boolean isAirAimActive() { return airAimActive; }
+    public void cancelAirAim() {
+        airAimActive = false;
+        airAimDirection = null;
+        if (hintText != null && hintText.startsWith("AIR STRIKE:")) { hintText = null; hintRemaining = 0; }
+    }
+
+    private static boolean canPlaceOn(TileType tile) {
+        return tile == TileType.GROUND || tile == TileType.SPAWN_PLAYER || tile == TileType.SPAWN_ENEMY;
+    }
+
+    private boolean mineAt(int col, int row) {
+        for (PlacedMine mine : mines) if (mine.col == col && mine.row == row) return true;
+        return false;
+    }
+
+    private boolean placeMine(PlayerTank player, int type) {
+        IMap map = world.getCurrentMap();
+        int col = cellOf(player.getPosition().getX(), map.getTileSize());
+        int row = cellOf(player.getPosition().getY(), map.getTileSize());
+        if (!canPlaceOn(map.getTileAt(col, row)) || mineAt(col, row)) return false;
+        mines.add(new PlacedMine(col, row, type));
+        if (eventListener != null) eventListener.onMinePlaced();
+        return true;
+    }
+
+    private void confirmAirStrike() {
+        if (shopState == null || !shopState.consumeItem(9)) { cancelAirAim(); return; }
+        int level = shopState.getResearchLevel("airRaidResearch");
+        airRaids.add(new AirRaid(airAimCol, airAimRow, level, world.getCurrentMap().getTileSize(), world.getCurrentMap().getHeight()));
+        shopStateDirty = true;
+        cancelAirAim();
+    }
+
+    private boolean hasGuidedRocket(String owner) {
+        for (IBullet bullet : world.getAllBullets()) {
+            SpecialShot special = bullet instanceof Bullet ? specialShots.get(((Bullet) bullet).getId()) : null;
+            if (bullet.isActive() && special != null && special.type == 8 && special.ownerId.equals(owner)) return true;
+        }
+        return false;
+    }
+
+    private void updateSpecialFlight(Bullet bullet, double dt) {
+        SpecialShot shot = specialShots.get(bullet.getId());
+        if (shot == null || shot.type == 6) return;
+        int size = world.getCurrentMap().getTileSize();
+        if (shot.type == 8 && shot.nextDirection != bullet.getDirection()) {
+            double axis = (bullet.getDirection() == 90 || bullet.getDirection() == 270)
+                    ? bullet.getPosition().getX() : bullet.getPosition().getY();
+            double offset = Math.abs(axis - (Math.floor(axis / size) + 0.5) * size);
+            if (offset <= Math.max(size / 10.0, bullet.getSpeed() * dt)) {
+                bullet.getPosition().setX((cellOf(bullet.getPosition().getX(), size) + 0.5) * size);
+                bullet.getPosition().setY((cellOf(bullet.getPosition().getY(), size) + 0.5) * size);
+                bullet.setDirection(shot.nextDirection);
+                bullet.setSpeed(0);
+            }
+        }
+        shot.smokeTime += dt;
+        double smokeInterval = (10 - bullet.getSpeed() / (60 * size / 20.0) * 2) / 60.0;
+        if (shot.smokeTime > smokeInterval) {
+            effects.add(new WorldEffect(bullet.getPosition().getX(), bullet.getPosition().getY(), false, false, 1.5, -7));
+            shot.smokeTime = 0;
+        }
+        // Builds starts stationary and adds .015 pixels/tick, capped at 4.
+        double scale = size / 20.0;
+        bullet.setSpeed(Math.min(4 * 60 * scale, bullet.getSpeed() + .015 * 60 * 60 * scale * dt));
+    }
+
+    private void updateSpecialItems(double dt) {
+        IMap map = world.getCurrentMap();
+        if (map == null) return;
+        int size = map.getTileSize();
+        if (airAimActive && airAimDirection != null) {
+            airAimMoveDelay -= dt;
+            if (airAimMoveDelay <= 0) {
+                double angle = Math.toRadians(directionFor(airAimDirection));
+                airAimCol = Math.max(0, Math.min(map.getWidth() - 1, airAimCol + (int) Math.round(Math.sin(angle))));
+                airAimRow = Math.max(0, Math.min(map.getHeight() - 1, airAimRow - (int) Math.round(Math.cos(angle))));
+                airAimMoveDelay = 8.0 / 60.0;
+            }
+        }
+        for (Iterator<PlacedMine> it = mines.iterator(); it.hasNext();) {
+            PlacedMine mine = it.next();
+            for (ITank tank : world.getAllTanks()) {
+                if (!tank.isAlive() || !isEnemySide(tank) || cellOf(tank.getPosition().getX(), size) != mine.col
+                        || cellOf(tank.getPosition().getY(), size) != mine.row) continue;
+                tank.takeDamage(mine.type == 10 ? 5 : 9);
+                reportTankHit(tank);
+                effects.add(WorldEffect.impact((mine.col + .5) * size, (mine.row + .5) * size, 0));
+                it.remove();
+                break;
+            }
+        }
+        for (Iterator<AirRaid> it = airRaids.iterator(); it.hasNext();) {
+            AirRaid raid = it.next();
+            raid.x += size * 3 * dt;
+            raid.y -= size * 3 * dt;
+            int col = cellOf(raid.x, size);
+            if (col != raid.previousCol && Math.abs(col - raid.targetCol) <= SpecialAmmoRules.airBombs(raid.level) / 2) {
+                explodeArea(col, cellOf(raid.y, size), SpecialAmmoRules.airRadius(raid.level), SpecialAmmoRules.airPower(raid.level));
+            }
+            raid.previousCol = col;
+            if (raid.y < -84 * size / 20.0) it.remove();
+        }
+        for (Iterator<Blast> it = blasts.iterator(); it.hasNext();) {
+            Blast blast = it.next();
+            blast.delay -= dt;
+            while (blast.delay <= 0 && blast.ring < blast.radius) {
+                applyBlastRing(blast);
+                blast.ring++;
+                blast.delay += 7.0 / 60.0;
+            }
+            if (blast.ring >= blast.radius) it.remove();
+        }
+        specialShots.entrySet().removeIf(e -> {
+            for (IBullet bullet : world.getAllBullets()) {
+                if (bullet instanceof Bullet && bullet.isActive() && ((Bullet) bullet).getId().equals(e.getKey())) return false;
+            }
+            return true;
+        });
+    }
+
+    private static final class PlacedMine {
+        final int col, row, type;
+        PlacedMine(int col, int row, int type) { this.col = col; this.row = row; this.type = type; }
+    }
+    private static final class AirRaid {
+        final int targetCol, level;
+        int previousCol = Integer.MIN_VALUE;
+        double x, y;
+        AirRaid(int col, int row, int level, int size, int mapHeight) {
+            this.targetCol = col; this.level = level;
+            int min = Math.min(col, mapHeight - 1 - row);
+            int spriteOffset = 5; // ceil(84px frame width / Builds 20px tile).
+            x = (-(mapHeight - 1 - (row + min)) - spriteOffset - 5) * size;
+            y = (mapHeight + col - min + spriteOffset + 5) * size - size / 20.0;
+        }
+    }
+    private static final class Blast {
+        final int col, row, radius, power;
+        final java.util.Set<String> damaged = new java.util.HashSet<>();
+        int ring;
+        double delay;
+        Blast(int col, int row, int radius, int power) { this.col = col; this.row = row; this.radius = radius; this.power = power; }
+    }
+
     // ---- Dynamite (Builds game.effects.Dynamite + game.Explosion) ----
     private static boolean isDynamiteItem(int itemId) {
         return itemId == ShopItem.DYNAMITE.getId() || itemId == ShopItem.DYNAMITE2.getId()
@@ -420,10 +582,11 @@ public class GameSimulation {
         int col = (int) Math.floor(player.getPosition().getX() / md.getTileSize());
         int row = (int) Math.floor(player.getPosition().getY() / md.getTileSize());
         // Builds chỉ cho đặt lên ô không có vật gì ở lớp trên.
-        if (md.getTileAt(col, row) != TileType.GROUND) return false;
+        if (!canPlaceOn(md.getTileAt(col, row)) || mineAt(col, row)) return false;
         int type = itemId == ShopItem.DYNAMITE3.getId() ? 2 : itemId == ShopItem.DYNAMITE2.getId() ? 1 : 0;
         md.setTileAt(col, row, TileType.DYNAMITE);
         dynamites.add(new Dynamite(col, row, type, DYNAMITE_FUSE_SECONDS));
+        if (eventListener != null) eventListener.onMinePlaced();
         return true;
     }
 
@@ -455,6 +618,12 @@ public class GameSimulation {
      * và gây sát thương gấp đôi (isExpl) cho mọi xe trong vùng, kể cả người chơi.
      */
     private void explodeArea(int cx, int cy, int radius, int power) {
+        blasts.add(new Blast(cx, cy, radius, power));
+        if (eventListener != null) eventListener.onSpecialExplosion(ShopItem.DYNAMITE.getId(), radius);
+    }
+
+    private void applyBlastRing(Blast blast) {
+        int cx = blast.col, cy = blast.row, radius = blast.radius, power = blast.power;
         IMap map = world.getCurrentMap();
         if (map == null) return;
         MapDefinition md = map instanceof MapDefinition ? (MapDefinition) map : null;
@@ -463,7 +632,7 @@ public class GameSimulation {
         for (int dy = -reach; dy <= reach; dy++) {
             for (int dx = -reach; dx <= reach; dx++) {
                 int dist = Math.abs(dx) + Math.abs(dy);
-                if (dist > reach) continue;
+                if (dist != blast.ring) continue;
                 int tx = cx + dx;
                 int ty = cy + dy;
                 if (tx < 0 || ty < 0 || tx >= map.getWidth() || ty >= map.getHeight()) continue;
@@ -485,9 +654,13 @@ public class GameSimulation {
                             }
                         }
                     }
+                    if (cellPower > 0) mines.removeIf(m -> m.col == tx && m.row == ty);
                     if (cellPower > 0 && md.getTileAt(tx, ty).isPickup()) md.setTileAt(tx, ty, TileType.GROUND);
                 }
                 if (cellPower == 0) continue;
+                for (Building building : world.getAllBuildings()) {
+                    if (building.contains(tx, ty) && blast.damaged.add(building.id)) damageBuilding(building, cellPower);
+                }
                 for (IBullet b : world.getAllBullets()) {
                     if (b.isActive() && cellOf(b.getPosition().getX(), tileSize) == tx
                             && cellOf(b.getPosition().getY(), tileSize) == ty) {
@@ -497,16 +670,28 @@ public class GameSimulation {
                 for (ITank tank : world.getAllTanks()) {
                     if (!tank.isAlive() || cellOf(tank.getPosition().getX(), tileSize) != tx
                             || cellOf(tank.getPosition().getY(), tileSize) != ty) continue;
-                    tank.takeDamage(cellPower * 2);
+                    if (!blast.damaged.add(tank.getId())) continue;
+                    if (tank instanceof Tank) {
+                        ((Tank) tank).takeExplosionDamage(cellPower, tank instanceof AITank && ((AITank) tank).isTurret());
+                    } else tank.takeDamage(cellPower);
                     reportTankHit(tank);
                 }
             }
         }
-        if (eventListener != null) eventListener.onSpecialExplosion(ShopItem.DYNAMITE.getId(), radius);
     }
 
     private static int cellOf(double pixel, int tileSize) {
         return (int) Math.floor(pixel / tileSize);
+    }
+
+    private void damageBuilding(Building building, int damage) {
+        building.takeDamage(damage);
+        if (!building.isAlive()) {
+            int size = world.getCurrentMap().getTileSize();
+            for (int y = 0; y < 2; y++) for (int x = 0; x < 2; x++) {
+                effects.add(new WorldEffect((building.col + x + .5) * size, (building.row + y + .5) * size, false, false, .65, 6));
+            }
+        }
     }
 
     private void reportTankHit(ITank tank) {
@@ -565,6 +750,7 @@ public class GameSimulation {
         basePlayerSpeed = speed;
         double currentSpeed = speedBoostRemaining > 0 ? speed * SPEED_BOOST_MULTIPLIER : speed;
         PlayerTank player = new PlayerTank(playerId, spawn.getX(), spawn.getY(), currentSpeed);
+        player.setArmorHitPoints(shopState == null ? 0 : shopState.getArmorHpBonus());
         player.setMaxHp(hp);
         player.setHp(hp);
         player.setShieldResearchLevel(shopState == null ? 0 : shopState.getResearchLevel("powerFieldResearch"));
@@ -660,6 +846,7 @@ public class GameSimulation {
      * Accumulator giới hạn backlog (MAX_FRAME_DELTA, MAX_STEPS_PER_FRAME).
      */
     public void advance(float rawDeltaTime) {
+        if (radar.isOpen()) { radar.update(rawDeltaTime); return; }
         double dt = Math.min(rawDeltaTime, GameplayConfig.MAX_FRAME_DELTA);
         accumulator += dt;
         int steps = 0;
@@ -688,6 +875,7 @@ public class GameSimulation {
     // ========== Canonical fixed simulation step ==========
     public void step(double dt) {
         if (!Double.isFinite(dt) || dt <= 0) return;
+        if (radar.isOpen()) { radar.update(dt); return; }
         for (ITank tank : world.getAllTanks()) {
             if (tank instanceof Tank) ((Tank) tank).capturePreviousPosition();
         }
@@ -717,6 +905,15 @@ public class GameSimulation {
         ITank raw = world.getTank(c.playerId);
         if (raw instanceof PlayerTank) {
             PlayerTank player = (PlayerTank) raw;
+            if (!world.isPlaying() || !player.isAlive()) return;
+            if (airAimActive) {
+                if (c.type == Command.Type.SHOOT) confirmAirStrike();
+                else if (c.type == Command.Type.MOVE) {
+                    airAimDirection = Boolean.FALSE.equals(c.moving) ? null : c.direction;
+                    airAimMoveDelay = 0;
+                } else if (c.type == Command.Type.STOP || c.type == Command.Type.STOP_DIR) airAimDirection = null;
+                return;
+            }
             if (redirectGuidedRocketControl(c)) return;
             switch (c.type) {
                 case MOVE:
@@ -740,6 +937,8 @@ public class GameSimulation {
                     if (world.isPlaying() && player.isAlive()) {
                         IBullet b;
                         if (shopState != null) {
+                            // A live guided missile keeps control even after its last inventory unit was used.
+                            if (detonateGuidedRocket()) break;
                             int wid = shopState.getActiveWeaponId();
                             int count = shopState.getItemCount(wid);
                             if (count <= 0) {
@@ -747,7 +946,27 @@ public class GameSimulation {
                                 count = shopState.getItemCount(wid);
                             }
                             if (count <= 0) break;
+                            basePlayerShootCooldown = shopState.getShellReloadSeconds();
+                            player.setShootCooldown(Math.max(0.10, basePlayerShootCooldown
+                                    - (speedBoostRemaining > 0 ? NITRO_RELOAD_REDUCTION_SECONDS : 0)));
                             player.setActiveWeaponId(wid);
+                            if (wid == ShopItem.AIR_SUPPORT.getId()) {
+                                // Builds gates purchases, but owned ammunition remains usable.
+                                player.stopMoving();
+                                airAimActive = true;
+                                airAimCol = cellOf(player.getPosition().getX(), world.getCurrentMap().getTileSize());
+                                airAimRow = cellOf(player.getPosition().getY(), world.getCurrentMap().getTileSize());
+                                airAimDirection = null;
+                                showHint("AIR STRIKE: WASD/arrows aim, Space/Enter fire, Q cancel", 3600);
+                                break;
+                            }
+                            if (wid == 10 || wid == 11) {
+                                if (placeMine(player, wid)) {
+                                    shopState.setItemCount(wid, count - 1);
+                                    shopStateDirty = true;
+                                }
+                                break;
+                            }
                             if (isDynamiteItem(wid)) {
                                 if (placeDynamite(player, wid)) {
                                     shopState.setItemCount(wid, count - 1);
@@ -801,21 +1020,21 @@ public class GameSimulation {
             }
         }
         if (rocket == null) return false;
-        rocket.setDirection(directionFor(command.direction));
+        guided.nextDirection = directionFor(command.direction);
         return true;
     }
 
     private boolean fireSpecialShot(PlayerTank player, int itemId) {
-        // Keep the same fire-key cooldown gate as the reference player controller.
-        if (player.shoot() == null) return false;
+        if (itemId != ShopItem.ROCKET.getId() && player.shoot() == null) return false;
+        if (itemId == ShopItem.ROCKET.getId()) player.stopMoving();
+        if (itemId == ShopItem.ARTILLERY.getId()) player.delayNextShot(67.0 / 60.0);
         int artilleryLevel = shopState.getResearchLevel("artilleryResearch");
         double direction = directionForRotation(player.getRotation());
         int power = itemId == ShopItem.ARTILLERY.getId() ? artilleryPower(artilleryLevel)
                 : itemId == ShopItem.WARHEAD.getId() ? 9 : 32;
         int radius = itemId == ShopItem.ARTILLERY.getId() ? artilleryRadius(artilleryLevel)
                 : itemId == ShopItem.WARHEAD.getId() ? 2 : 3;
-        double speed = itemId == ShopItem.ARTILLERY.getId() ? (artilleryLevel >= 4 ? 130.0 : 90.0)
-                : itemId == ShopItem.ROCKET.getId() ? 260.0 : 220.0;
+        double speed = itemId == ShopItem.ARTILLERY.getId() ? SpecialAmmoRules.artillerySpeed(artilleryLevel, world.getCurrentMap().getTileSize()) : 0.0;
         String id = bulletIds.next("special");
         Bullet shot = new Bullet(id, player.getId(), new Position(player.getPosition().getX(), player.getPosition().getY()),
                 direction, speed, power, 8, 8, itemId);
@@ -826,6 +1045,7 @@ public class GameSimulation {
         shot.setMaxRange(range);
         world.addBullet(shot);
         specialShots.put(id, new SpecialShot(id, player.getId(), itemId, range, radius, power));
+        specialShots.get(id).nextDirection = direction;
         return true;
     }
 
@@ -851,17 +1071,13 @@ public class GameSimulation {
         return (Math.floor((((rotation % 360) + 360) % 360 + 45) / 90) * 90) % 360;
     }
 
-    private static int artilleryDistance(int level) { return level >= 3 ? 5 : 4; }
-    private static int artilleryRadius(int level) { return level >= 5 ? 4 : 3; }
-    private static int artilleryPower(int level) {
-        if (level >= 5) return 17;
-        if (level >= 4) return 14;
-        if (level >= 2) return 11;
-        return 9;
-    }
+    private static int artilleryDistance(int level) { return SpecialAmmoRules.artilleryDistance(level); }
+    private static int artilleryRadius(int level) { return SpecialAmmoRules.artilleryRadius(level); }
+    private static int artilleryPower(int level) { return SpecialAmmoRules.artilleryPower(level); }
 
     private void updateEntities(double dt) {
         updateTimedEffects(dt);
+        updateSpecialItems(dt);
         // (a) cooldown + movement player
         for (ITank tank : world.getAllTanks()) {
             if (tank instanceof PlayerTank && shopState != null) {
@@ -873,7 +1089,9 @@ public class GameSimulation {
             if (tank instanceof PlayerTank && tank.isAlive()) {
                 PlayerTank player = (PlayerTank) tank;
                 player.updateCooldown(dt);
-                player.updateMovement(dt, world.getCurrentMap(), this::isTileOccupiedByOtherTank);
+                if (!airAimActive && !hasGuidedRocket(player.getId())) {
+                    player.updateMovement(dt, world.getCurrentMap(), this::isTileOccupiedByOtherTank);
+                }
             }
         }
         collectLocalPickup();
@@ -894,6 +1112,7 @@ public class GameSimulation {
             // Builds freezes hostile ammunition together with tanks/turrets.
             boolean enemyBullet = isEnemyOwner(bullet.getOwnerId());
             if (bullet.isActive() && !(freezeRemaining > 0 && enemyBullet)) {
+                if (bullet instanceof Bullet) updateSpecialFlight((Bullet) bullet, dt);
                 bullet.update(dt);
                 if (bullet instanceof Bullet) {
                     SpecialShot special = specialShots.get(((Bullet) bullet).getId());
@@ -1021,10 +1240,19 @@ public class GameSimulation {
             // Walls hấp thụ trước
             Wall hitWall = Collision.findBulletWallCollision(bullet, world.getCurrentMap());
             if (hitWall != null || Collision.isBulletOutsideMap(bullet, world.getCurrentMap())) {
-                bullet.deactivate();
+                if (hitWall == null) bullet.deactivate();
                 if (eventListener != null) eventListener.onHitWall();
                 if (hitWall != null && world.getCurrentMap() instanceof MapDefinition) {
-                    TileType destroyed = ((MapDefinition) world.getCurrentMap()).hitWall(hitWall);
+                    // Brick/bush durability is HP-based.  A projectile spends its
+                    // current damage on the obstacle, so AP and Double rounds
+                    // need fewer shots while a weakened projectile deals less.
+                    int durability = hitWall.isDestructible() ? hitWall.getHitPoints() : Integer.MAX_VALUE;
+                    int remainingDamage = Math.max(0, bullet.getDamage() - durability);
+                    TileType destroyed = ((MapDefinition) world.getCurrentMap())
+                            .hitWall(hitWall, Math.max(0, bullet.getDamage()));
+                    if (destroyed != null && remainingDamage > 0 && bullet instanceof Bullet) {
+                        ((Bullet) bullet).setDamage(remainingDamage);
+                    } else bullet.deactivate();
                     double effectX = hitWall.getPosition().getX() + hitWall.getWidth() / 2.0;
                     double effectY = hitWall.getPosition().getY() + hitWall.getHeight() / 2.0;
                     if (destroyed != null) {
@@ -1037,6 +1265,16 @@ public class GameSimulation {
                 }
                 continue;
             }
+            boolean hitBuilding = false;
+            for (Building building : world.getAllBuildings()) {
+                if (!building.isAlive() || (building.team > 0 && ((building.team == 2) == isEnemyOwner(bullet.getOwnerId())))) continue;
+                if (bullet instanceof com.tankzors.client.gameplay.interfaces.ICollidable
+                        && ((com.tankzors.client.gameplay.interfaces.ICollidable) bullet).getBoundingBox().intersects(building.bounds(world.getCurrentMap().getTileSize()))) {
+                    damageBuilding(building, bullet.getDamage());
+                    bullet.deactivate(); hitBuilding = true; break;
+                }
+            }
+            if (hitBuilding) continue;
             for (ITank tank : world.getAllTanks()) {
                 // Đạn xuyên qua xe cùng phe (AI với AI, người chơi với đồng minh/co-op).
                 if (isSameSide(bullet, tank)) continue;
@@ -1077,7 +1315,25 @@ public class GameSimulation {
         if (wall != null || Collision.isBulletOutsideMap(bullet, world.getCurrentMap())) {
             explodeSpecial(bullet, special, wall);
         }
-        // Warhead and guided missile fly over tanks/turrets; only their blast damages them.
+        if (bullet.isActive()) {
+            for (Building building : world.getAllBuildings()) {
+                if (building.isAlive() && bullet.getBoundingBox().intersects(building.bounds(world.getCurrentMap().getTileSize()))) {
+                    explodeSpecial(bullet, special, null); break;
+                }
+            }
+        }
+        if (bullet.isActive() && special.type == ShopItem.WARHEAD.getId()) {
+            for (ITank tank : world.getAllTanks()) {
+                if (isSameSide(bullet, tank) || !tank.isAlive()) continue;
+                if (Collision.checkBulletTankCollision(bullet, tank)) {
+                    // Builds rounds the shared collision location to the struck tank cell.
+                    bullet.getPosition().setX(tank.getPosition().getX());
+                    bullet.getPosition().setY(tank.getPosition().getY());
+                    explodeSpecial(bullet, special, null);
+                    break;
+                }
+            }
+        }
     }
 
     private void explodeSpecial(Bullet bullet, SpecialShot special, Wall directWall) {
@@ -1089,90 +1345,20 @@ public class GameSimulation {
         int tileSize = world.getCurrentMap().getTileSize();
         int cx = (int) Math.floor(x / tileSize);
         int cy = (int) Math.floor(y / tileSize);
+        if (directWall != null) {
+            cx = cellOf(directWall.getPosition().getX(), tileSize);
+            cy = cellOf(directWall.getPosition().getY(), tileSize);
+        }
         IMap map = world.getCurrentMap();
         MapDefinition md = (map instanceof MapDefinition) ? (MapDefinition) map : null;
 
-        if (special.type == ShopItem.ARTILLERY.getId()) {
-            // Sóng nổ hình thoi lan toả theo từng ô lưới chuẩn Base Builds (game_Explosion trong kha.js)
-            int radius = special.radius;
-            for (int dy = -radius; dy <= radius; dy++) {
-                for (int dx = -radius; dx <= radius; dx++) {
-                    int dist = Math.abs(dx) + Math.abs(dy);
-                    if (dist > radius) continue;
-                    int tx = cx + dx;
-                    int ty = cy + dy;
-                    if (map != null && (tx < 0 || ty < 0 || tx >= map.getWidth() || ty >= map.getHeight())) continue;
-                    double tilePxX = (tx + 0.5) * tileSize;
-                    double tilePxY = (ty + 0.5) * tileSize;
-
-                    // Hiệu ứng nổ: rìa ngoài cùng nổ nhỏ (small.png), bên trong nổ lớn (big.png)
-                    if (dist == radius) {
-                        effects.add(new WorldEffect(tilePxX, tilePxY, false, false, 0.40, 0, 0));
-                    } else {
-                        effects.add(new WorldEffect(tilePxX, tilePxY, false, false, 0.65, 6, 0));
-                    }
-
-                    // Phá huỷ tường mềm và bụi cây cỏ tại ô (tx, ty)
-                    if (md != null) {
-                        Wall wall = findWallAt(md, tx, ty);
-                        if (wall != null) {
-                            if (wall.getTileType() == TileType.WALL) {
-                                int wallDamage = Math.max(1, special.power - dist);
-                                for (int h = 0; h < wallDamage; h++) {
-                                    if (!md.getWalls().contains(wall) || md.hitWall(wall) == null) break;
-                                }
-                            } else if (wall.getTileType() == TileType.BUSH) {
-                                md.hitWall(wall);
-                            } else if (wall.getTileType() == TileType.STONE_WALL && !md.isBoundary(tx, ty)) {
-                                // Builds Explosion xoá khối đá (tile 11) bất kể sức nổ.
-                                md.removeWall(wall);
-                            }
-                        }
-                    }
-                }
-            }
-            // Hủy các đạn thông thường bay qua vùng nổ
-            for (IBullet b : world.getAllBullets()) {
-                if (!b.isActive() || b == bullet) continue;
-                double bDist = (Math.abs(b.getPosition().getX() - x) + Math.abs(b.getPosition().getY() - y)) / tileSize;
-                if (bDist <= radius) {
-                    b.deactivate();
-                }
-            }
-            if (eventListener != null) {
-                eventListener.onSpecialExplosion(special.type, special.radius);
-            }
-        } else {
-            effects.add(WorldEffect.specialExplosion(x, y, special.type, special.radius));
-            if (eventListener != null) {
-                eventListener.onSpecialExplosion(special.type, special.radius);
-            }
-        }
-
-        for (ITank tank : world.getAllTanks()) {
-            if (!tank.isAlive() || tank.getId().equals(special.ownerId)) continue;
-            double cells = Math.hypot(tank.getPosition().getX() - x, tank.getPosition().getY() - y) / tileSize;
-            int damage = special.power - (int) Math.ceil(cells);
-            if (damage <= 0 || cells > special.radius) continue;
-            tank.takeDamage(damage);
-            boolean player = tank instanceof PlayerTank;
-            boolean killed = !tank.isAlive();
-            if (eventListener != null) {
-                if (killed) eventListener.onTankDestroyed(player); else eventListener.onHitTank(player);
-            }
-            if (killed && isEnemySide(tank)) {
-                world.addScore(100);
-                aiKilledThisMatch++;
-            }
-        }
-        // In the current map schema WALL is destructible concrete; WHITE_WALL is armored
-        // and deliberately remains indestructible, matching the reference restriction.
-        if (special.type == ShopItem.ROCKET.getId() && directWall != null
-                && directWall.getTileType() == TileType.WALL && world.getCurrentMap() instanceof MapDefinition) {
-            MapDefinition mapDef = (MapDefinition) world.getCurrentMap();
-            while (mapDef.getWalls().contains(directWall) && mapDef.hitWall(directWall) == null) {
-                // Guided missile is the concrete-wall breaker: consume all wall HP at impact.
-            }
+        explodeArea(cx, cy, special.radius, special.type == 7 ? bullet.getDamage() : special.power);
+        // Guided rockets also clear their impact tile except indestructible walls.
+        if (special.type == ShopItem.ROCKET.getId() && directWall != null && md != null
+                && (directWall.getTileType() != TileType.WHITE_WALL
+                    || md.legacyWallId(cx, cy) == 9 || md.legacyWallId(cx, cy) == 10)
+                && !md.isBoundary(cx, cy)) {
+            md.removeWall(directWall);
         }
     }
 
@@ -1184,14 +1370,18 @@ public class GameSimulation {
         return null;
     }
 
+    private static boolean isAirborneProjectile(IBullet bullet) {
+        return weaponTypeOf(bullet) == 6 || weaponTypeOf(bullet) == 8;
+    }
+
     private void checkBulletCollisions() {
         List<IBullet> bullets = world.getAllBullets();
         for (int i = 0; i < bullets.size(); i++) {
             IBullet first = bullets.get(i);
-            if (!first.isActive()) continue;
+            if (!first.isActive() || isAirborneProjectile(first)) continue;
             for (int j = i + 1; j < bullets.size(); j++) {
                 IBullet second = bullets.get(j);
-                if (!second.isActive()) continue;
+                if (!second.isActive() || isAirborneProjectile(second)) continue;
                 if (sameBulletTeam(first, second)) continue;
                 if (Collision.checkBulletBulletCollision(first, second)) {
                     resolveBulletImpact(first, second);
@@ -1247,6 +1437,7 @@ public class GameSimulation {
             // of whether another Extra Life is available. Permanent plates stay.
             if (shopState.consumeItem(ShopItem.ARMOR.getId())) {
                 player.removeHullHitPoints(1);
+                player.setArmorHitPoints(player.getArmorHitPoints() - 1);
                 shopStateDirty = true;
             }
             // Field plates are installed equipment, not inventory. Builds drops
@@ -1380,6 +1571,24 @@ public class GameSimulation {
         if (!world.isPlaying() || shopState == null) return false;
         PlayerTank player = localPlayer();
         if (player == null || !player.isAlive()) return false;
+        if (itemId >= ShopItem.ALLY_TANK.getId() && itemId <= ShopItem.ALLY_TANK3.getId()) {
+            if (shopState.getItemCount(itemId) <= 0) return false;
+            RespawnPoint spawn = respawnPoints.get(localPlayerId);
+            IMap map = world.getCurrentMap();
+            if (spawn == null || map == null) return false;
+            int size = map.getTileSize();
+            int col = cellOf(spawn.x, size), row = cellOf(spawn.y, size);
+            if (!isCellFree(col, row)) {
+                showHint("Can cu dang bi chiem cho. Hay di xe ra khoi can cu de goi dong minh.", 3000);
+                return false;
+            }
+            AITank ally = AITank.support("ally-support-" + (missionSerial++), spawn.x, spawn.y, itemId);
+            wireAiBulletIds(ally);
+            world.addTank(ally);
+            shopState.consumeItem(itemId);
+            shopStateDirty = true;
+            return true;
+        }
         if (itemId == ShopItem.REPAIR.getId()) {
             if (player.getHP() >= player.getMaxHP() || !shopState.consumeItem(itemId)) return false;
             applyRepair(player);
@@ -1415,7 +1624,10 @@ public class GameSimulation {
         }
         if (itemId == ShopItem.RADAR.getId()) {
             if (shopState.getItemCount(itemId) <= 0) return false;
-            radarActive = true;
+            radar.open();
+            commandQueue.clear();
+            player.stopMoving();
+            accumulator = 0;
             return true;
         }
         return false;
@@ -1423,7 +1635,11 @@ public class GameSimulation {
 
     public double getSpeedBoostRemaining() { return speedBoostRemaining; }
     public double getFreezeRemaining() { return freezeRemaining; }
-    public boolean isRadarActive() { return radarActive; }
+    public boolean isRadarActive() { return radar.isOpen(); }
+    public boolean isRadarPaused() { return radar.isPaused(); }
+    public void closeRadar() { radar.close(); commandQueue.clear(); accumulator = 0; }
+    public void toggleRadarPause() { radar.togglePause(); }
+
 
     /** Applies a successful Workshop purchase to the currently deployed tank. */
     public void applyWorkshopPurchase(ShopItem item) {
@@ -1432,6 +1648,7 @@ public class GameSimulation {
         if (player == null || !player.isAlive()) return;
         if (item == ShopItem.ARMOR || item == ShopItem.ARMOR2) {
             player.addHullHitPoints(1);
+            player.setArmorHitPoints(player.getArmorHitPoints() + 1);
         } else if (item == ShopItem.EX_CHASSIS) {
             player.addHullHitPoints(2);
         }
@@ -1441,7 +1658,10 @@ public class GameSimulation {
     public void applyWorkshopSale(ShopItem item) {
         if (item != ShopItem.ARMOR && item != ShopItem.ARMOR2) return;
         PlayerTank player = localPlayer();
-        if (player != null && player.isAlive()) player.removeHullHitPoints(1);
+        if (player != null && player.isAlive()) {
+            player.removeHullHitPoints(1);
+            player.setArmorHitPoints(player.getArmorHitPoints() - 1);
+        }
     }
 
     public int getLocalPlayerMissingHp() {
@@ -1459,6 +1679,29 @@ public class GameSimulation {
         return true;
     }
 
+    public int getMissingAlliedHp() {
+        int missing = 0;
+        for (ITank tank : world.getAllTanks()) {
+            if (tank instanceof AITank && ((AITank) tank).isAlly() && tank.isAlive()) {
+                missing += Math.max(0, tank.getMaxHP() - tank.getHP());
+            }
+        }
+        return missing;
+    }
+
+    public boolean repairAlliesAtWorkshop() {
+        if (shopState == null) return false;
+        int missing = getMissingAlliedHp();
+        int cost = missing * (shopState.getResearchLevel("armorResearch") >= 3 ? 2 : 5);
+        if (missing <= 0 || shopState.getCoins() < cost) return false;
+        shopState.setCoins(shopState.getCoins() - cost);
+        for (ITank tank : world.getAllTanks()) {
+            if (tank instanceof AITank && ((AITank) tank).isAlly() && tank.isAlive()) ((AITank) tank).restoreHull();
+        }
+        shopStateDirty = true;
+        return true;
+    }
+
     public boolean consumeShopStateDirty() {
         boolean dirty = shopStateDirty;
         shopStateDirty = false;
@@ -1467,6 +1710,26 @@ public class GameSimulation {
 
     public void appendEffectsTo(GameStateSnapshot snap) {
         if (snap == null) return;
+        snap.radarActive = radar.isOpen();
+        snap.radarPaused = radar.isPaused();
+        snap.radarShowObjects = radar.showsObjects();
+        snap.hasRadar = shopState != null && shopState.hasRadar();
+        snap.artilleryRange = shopState == null ? 4 : artilleryDistance(shopState.getResearchLevel("artilleryResearch"));
+        snap.airAimActive = airAimActive;
+        snap.airAimCol = airAimCol;
+        snap.airAimRow = airAimRow;
+        for (PlacedMine mine : mines) {
+            EffectSnapshot out = new EffectSnapshot();
+            out.x = (float) ((mine.col + .5) * world.getCurrentMap().getTileSize());
+            out.y = (float) ((mine.row + .5) * world.getCurrentMap().getTileSize());
+            out.weaponType = mine.type;
+            snap.effects.add(out);
+        }
+        for (AirRaid raid : airRaids) {
+            EffectSnapshot out = new EffectSnapshot();
+            out.x = (float) raid.x; out.y = (float) raid.y; out.weaponType = 9;
+            snap.effects.add(out);
+        }
         for (WorldEffect effect : effects) {
             EffectSnapshot out = new EffectSnapshot();
             out.x = (float) effect.x;
@@ -1537,6 +1800,8 @@ public class GameSimulation {
         final String ownerId;
         final int type;
         double remainingRange;
+        double nextDirection;
+        double smokeTime;
         final int radius;
         final int power;
         SpecialShot(String bulletId, String ownerId, int type, double remainingRange, int radius, int power) {

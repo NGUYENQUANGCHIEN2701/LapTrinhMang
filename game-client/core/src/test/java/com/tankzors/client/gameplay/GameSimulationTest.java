@@ -208,14 +208,18 @@ class GameSimulationTest {
         player.takeDamage(1);
         assertEquals(hpBeforeShieldHit, player.getHP(), "Shield phải hấp thụ damage trước HP");
 
-        // Cấp 4 phải làm nhanh rõ rệt ngay cả khi shield bảo vệ hoàn toàn
-        // nên HP thân xe vẫn đầy (regression cho lỗi mọi cấp hồi như nhau).
+        // Builds research cannot speed regeneration while hull HP is full.
         shop.setResearchLevel("powerFieldResearch", 4);
-        for (int i = 0; i < 90; i++) {
+        for (int i = 0; i < 30; i++) {
             sim.getWorld().setStatus(GameWorld.Status.PLAYING);
             sim.step(1.0 / 30.0);
         }
-        assertTrue(player.getShieldHp() > 0, "Nghiên cứu Field cấp 4 phải hồi lại trong 3 giây");
+        assertEquals(0, player.getShieldHp(), "Đổi nghiên cứu không được rút ngắn timer đang chạy");
+        for (int i = 0; i < 220; i++) {
+            sim.getWorld().setStatus(GameWorld.Status.PLAYING);
+            sim.step(1.0 / 30.0);
+        }
+        assertEquals(2, player.getShieldHp(), "Hai điểm khiên hồi theo nhịp Builds");
         player.takeDamage(2);
         assertEquals(hpBeforeShieldHit, player.getHP(), "Hai lớp Field phải đỡ được hai damage trước HP thân xe");
 
@@ -228,6 +232,7 @@ class GameSimulationTest {
         shop.setItemCount(ShopItem.RADAR.getId(), 1);
         assertTrue(sim.useInventoryItem(ShopItem.RADAR.getId()));
         assertTrue(sim.isRadarActive());
+        sim.closeRadar(); // Resume simulation before testing destruction/extra-life cleanup.
 
         player.takeDamage(player.getMaxHP() + player.getShieldHp());
         sim.getWorld().setStatus(GameWorld.Status.PLAYING);
@@ -381,7 +386,43 @@ class GameSimulationTest {
         firePlayerShotUntilImpact(sim);
 
         assertEquals(TileType.GROUND, map.getTileAt(4, 2));
-        assertEquals(96, shop.getItemCount(0));
+        assertEquals(95, shop.getItemCount(0));
+    }
+
+    @Test
+    @DisplayName("Moi loai dan tru dung HP tuong theo damage hien tai")
+    void projectileDamageDeterminesHowManyShotsBreakABrickWall() {
+        int[] expectedShots = {4, 4, 2, 2, 2, 1};
+        for (int weaponId = 0; weaponId <= 5; weaponId++) {
+            int[][] grid = {
+                    {0, 0, 0, 0, 0},
+                    {0, 0, 1, 0, 0},
+                    {0, 0, 0, 0, 0}
+            };
+            MapDefinition map = new MapDefinition("damage-" + weaponId, 5, 3, 40, grid);
+            GameSimulation sim = new GameSimulation(40L + weaponId);
+            sim.getWorld().setCurrentMap(map);
+            sim.getWorld().setStatus(GameWorld.Status.PLAYING);
+            sim.getWorld().addTank(new PlayerTank("player", 20, 20));
+            // Keep the match in PLAYING across every projectile assertion.
+            sim.getWorld().addTank(new AITank("enemy", 180, 20,
+                    com.tankzors.client.gameplay.ai.DifficultyLevel.EASY));
+            com.tankzors.client.gameplay.entity.Wall wall = map.getWalls().get(0);
+            int damage = WeaponProfile.fromItemId(weaponId).getDamage();
+
+            for (int shot = 1; shot <= expectedShots[weaponId]; shot++) {
+                sim.getWorld().addBullet(new Bullet("damage-" + weaponId + "-" + shot, "player",
+                        new Position(100, 60), 90, 1, damage, 8, 4, weaponId));
+                sim.step(GameplayConfig.STEP_SECONDS);
+                if (shot < expectedShots[weaponId]) {
+                    assertEquals(TileType.WALL, map.getTileAt(2, 1),
+                            "weapon " + weaponId + " must not break the wall too early");
+                    assertEquals(Math.max(0, 4 - shot * damage), wall.getHitPoints());
+                }
+            }
+            assertEquals(TileType.GROUND, map.getTileAt(2, 1),
+                    "weapon " + weaponId + " must break a 4-HP brick wall after its expected shots");
+        }
     }
 
     @Test
@@ -419,7 +460,7 @@ class GameSimulationTest {
         sim.enqueueShoot();
         sim.step(GameplayConfig.STEP_SECONDS);
 
-        assertEquals(99, shop.getItemCount(0));
+        assertEquals(98, shop.getItemCount(0));
     }
 
     @Test
@@ -617,7 +658,7 @@ class GameSimulationTest {
     private static void hitObstacle(GameSimulation sim, String id, double x, double y) {
         sim.getWorld().setStatus(GameWorld.Status.PLAYING);
         sim.getWorld().addBullet(new Bullet(id, "player", new Position(x, y), 90,
-                1, Bullet.DEFAULT_DAMAGE, Bullet.DEFAULT_WIDTH, Bullet.DEFAULT_HEIGHT));
+                1, 1, Bullet.DEFAULT_WIDTH, Bullet.DEFAULT_HEIGHT));
         sim.step(GameplayConfig.STEP_SECONDS);
     }
 

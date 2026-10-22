@@ -6,6 +6,7 @@ package com.tankzors.client.gameplay;
 public interface GameEventListener {
     /** Xe tăng bắn đạn. */
     void onShoot(boolean isPlayer);
+    default void onMinePlaced() {}
 
     /** Weapon-aware extension; existing listeners retain default-shell behavior. */
     default void onShoot(boolean isPlayer, int weaponType) { onShoot(isPlayer); }
