@@ -215,11 +215,11 @@ public final class RadarOverlay {
         }
         if (hostileCount > 0) {
             font.setColor(0.95f, 0.35f, 0.35f, 1f);
-            font.draw(batch, "FOE: " + hostileCount, layout.x + layout.width - 52, layout.y + 6);
+            font.draw(batch, "ĐỊCH: " + hostileCount, layout.x + layout.width - 62, layout.y + 6);
         }
 
         font.setColor(0.65f, 0.65f, 0.65f, 0.85f);
-        font.draw(batch, "[Q] EXIT", layout.x + 8, top + height + 6);
+        font.draw(batch, "[Q] THOÁT", layout.x + 8, top + height + 6);
         font.setColor(Color.WHITE);
         batch.end();
 
@@ -240,13 +240,13 @@ public final class RadarOverlay {
         if (state.radarPaused) {
             batch.begin();
             font.setColor(Color.GOLD);
-            font.draw(batch, state.radarSettingsOpen ? "SETTINGS" : "PAUSED", screenW / 2f - 130, screenH / 2f - 80);
+            font.draw(batch, state.radarSettingsOpen ? "CÀI ĐẶT" : "TẠM DỪNG", screenW / 2f - 130, screenH / 2f - 80);
             font.setColor(Color.WHITE);
             if (state.radarSettingsOpen) {
-                font.draw(batch, "M: TOGGLE SOUND", screenW / 2f - 130, screenH / 2f - 32);
-                font.draw(batch, "ESC / ENTER / CLICK: BACK", screenW / 2f - 130, screenH / 2f + 8);
+                font.draw(batch, "M: BẬT/TẮT ÂM THANH", screenW / 2f - 130, screenH / 2f - 32);
+                font.draw(batch, "ESC / ENTER / CHUỘT: QUAY LẠI", screenW / 2f - 130, screenH / 2f + 8);
             } else {
-                String[] items = {"CONTINUE", "WORKSHOP", "SETTINGS", "EXIT TO CAMPAIGNS"};
+                String[] items = {"TIẾP TỤC", "CỬA HÀNG", "CÀI ĐẶT", "VỀ CHIẾN DỊCH"};
                 for (int i = 0; i < items.length; i++) font.draw(batch, items[i], screenW / 2f - 130, screenH / 2f - 44 + i * 30);
             }
             batch.end();

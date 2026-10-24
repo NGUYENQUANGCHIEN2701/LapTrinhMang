@@ -1,5 +1,21 @@
 # infra/ README
 
+## Tự cập nhật khi sửa code
+
+Chạy từ thư mục gốc dự án bằng Docker Compose 2.22 trở lên:
+
+```powershell
+docker compose -f infra/docker-compose.yml up --build --watch
+```
+
+Giữ terminal này mở. Khi lưu source hoặc asset của client/server, Compose tự
+build lại image và tạo lại container ứng dụng. Java/GWT cần thời gian biên dịch;
+khi ứng dụng chạy lại, tải lại trang trình duyệt để dùng bản mới. Trận đang chơi
+sẽ bị gián đoạn khi container được thay thế. Dữ liệu PostgreSQL nằm trong volume
+riêng và được giữ lại.
+
+Lệnh `up -d --build` chỉ build và khởi chạy một lần, không bật Watch.
+
 Skeleton hạ tầng Docker Compose cho desenvolvimento.
 
 ## PostgreSQL (Phase 1 skeleton, Phase 4 sử dụng)

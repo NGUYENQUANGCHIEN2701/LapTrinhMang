@@ -110,13 +110,13 @@ class LocalCampaignSessionTest {
         session.openInventoryMenu();
         assertArrayEquals(new int[]{0,19,17,25,26,27}, session.snapshot().inventoryItemIds);
         session.moveInventorySelection(3);
-        assertEquals("Ally Tank 1", session.snapshot().inventorySelectedName);
+        assertEquals("Xe đồng minh cấp 1", session.snapshot().inventorySelectedName);
         assertTrue(session.snapshot().inventorySelectedDescription.contains("8 HP"));
         session.confirmInventorySelection();
         assertTrue(session.isInventoryMenuOpen());
         assertEquals(1, session.getShopState().getItemCount(25));
         session.moveInventorySelection(1);
-        assertEquals("Ally Tank 2", session.snapshot().inventorySelectedName);
+        assertEquals("Xe đồng minh cấp 2", session.snapshot().inventorySelectedName);
         session.openInventoryMenu();
         assertFalse(session.isInventoryMenuOpen());
         session.openInventoryMenu();
@@ -138,10 +138,48 @@ class LocalCampaignSessionTest {
         session.update((float) GameplayConfig.STEP_SECONDS);
 
         assertEquals("VICTORY", session.status(), "Map không có AI → VICTORY ngay");
-        assertTrue(session.canOpenShop(), "Shop chỉ mở sau khi thắng");
+        assertTrue(session.canOpenShop(), "Sau chiến thắng vẫn được vào cửa hàng giữa hai màn");
         assertNotNull(session.matchResult());
         assertEquals(3, session.matchResult().starsEarned, "VICTORY nhận stars theo map");
         assertEquals(50, session.matchResult().coinsEarned, "VICTORY nhận coins theo map");
+    }
+
+    @Test
+    void shopOpensAtGreenBaseAndPausesButCannotOpenAfterLeavingBase() {
+        // Cờ ở hàng khác giữ trận đang chạy mà không cần AI có thể chặn xe thử nghiệm.
+        String shopMap = """
+                {"name":"Workshop base", "width":7, "height":5, "tileSize":40,
+                 "enemies":[], "grid":[
+                   [1,1,1,1,1,1,1],
+                   [1,9,0,0,0,0,1],
+                   [1,0,3,0,0,0,1],
+                   [1,0,0,0,0,0,1],
+                   [1,1,1,1,1,1,1]]}
+                """;
+        FakeAsyncMapSource source = new FakeAsyncMapSource();
+        LocalCampaignSession session = new LocalCampaignSession(
+                "player", "campaign_3", source, result -> true);
+        assertFalse(session.canOpenShop());
+        session.start();
+        assertFalse(session.canOpenShop());
+        source.pending.onLevelLoaded("campaign_3", shopMap, "run-shop-base", "v1");
+        assertTrue(session.canOpenShop());
+
+        float initialX = player(session.snapshot()).x;
+        session.setShopOpen(true);
+        session.onMove(Direction.RIGHT, true);
+        for (int i = 0; i < 25; i++) session.update((float) GameplayConfig.STEP_SECONDS);
+        assertEquals(initialX, player(session.snapshot()).x, .001f, "Cửa hàng mở phải tạm dừng trận");
+
+        session.setShopOpen(false);
+        for (int i = 0; i < 25; i++) session.update((float) GameplayConfig.STEP_SECONDS);
+        assertTrue(player(session.snapshot()).x >= 120f, "Xe đã ra khỏi ô xanh");
+        assertFalse(session.canOpenShop());
+        float outsideX = player(session.snapshot()).x;
+        session.setShopOpen(true);
+        for (int i = 0; i < 5; i++) session.update((float) GameplayConfig.STEP_SECONDS);
+        assertTrue(player(session.snapshot()).x > outsideX,
+                "Yêu cầu mở cửa hàng ngoài căn cứ không được làm trận bị pause");
     }
 
     @Test
@@ -157,12 +195,14 @@ class LocalCampaignSessionTest {
         source.pending.onLevelLoaded("campaign_2", mapJson, "run-b", "v1");
 
         assertEquals("BRIEFING", session.status());
+        assertFalse(session.canOpenShop(), "Không mở cửa hàng đè lên lời dặn đầu màn");
         assertTrue(session.snapshot().briefingOpen);
         session.update(1f);
         assertEquals(0, session.snapshot().elapsedSeconds, "Briefing giữ simulation đứng yên");
 
         session.dismissBriefing();
         assertEquals("PLAYING", session.status());
+        assertTrue(session.canOpenShop(), "Đã đóng lời dặn và xe đang ở ô xanh");
         for (int i = 0; i < 30; i++) session.update(0.05f);
         assertEquals(1, session.snapshot().elapsedSeconds);
     }
@@ -200,8 +240,13 @@ class LocalCampaignSessionTest {
 
         GameStateSnapshot snap = session.snapshot();
         assertEquals("VICTORY", snap.gameStatus);
+        assertEquals(4, snap.playerLives, "Snapshot phải đưa số mạng campaign lên HUD");
         assertEquals(3, snap.starsEarned, "Snapshot phải cho reward để renderer vẽ debrief");
         assertEquals(50, snap.coinsEarned);
+        assertEquals(session.matchResult().hpRemain, snap.hpRemain);
+        assertEquals(session.matchResult().score, snap.score);
+        assertEquals(session.matchResult().aiKills, snap.aiKills);
+        assertEquals(session.matchResult().elapsedSeconds, snap.elapsedSeconds);
         assertTrue(snap.elapsedSeconds >= 0);
     }
 
@@ -373,7 +418,7 @@ class LocalCampaignSessionTest {
         assertArrayEquals(new int[]{0, 19, 17}, openMenu.inventoryItemIds,
                 "HUD Q phải liệt kê Round, Repair, Speed ngay trong túi hiện tại");
         assertArrayEquals(new int[]{99, 3, 2}, openMenu.inventoryItemCounts);
-        assertEquals("Shell", openMenu.inventorySelectedName);
+        assertEquals("Đạn thường", openMenu.inventorySelectedName);
         assertTrue(openMenu.inventorySelectedDescription.contains("1 HP"));
         assertTrue(openMenu.inventorySelectedUsage.contains("Space / J"));
         int elapsed = openMenu.elapsedSeconds;
@@ -382,10 +427,10 @@ class LocalCampaignSessionTest {
 
         // Menu mặc định: Round, Repair, Speed.
         session.moveInventorySelection(2);
-        assertEquals("Nitro Speed", session.snapshot().inventorySelectedName);
-        assertTrue(session.snapshot().inventorySelectedUsage.contains("Enter: dung ngay"));
+        assertEquals("Tăng tốc Nitro", session.snapshot().inventorySelectedName);
+        assertTrue(session.snapshot().inventorySelectedUsage.contains("Enter: dùng ngay"));
         session.moveInventorySelection(-1);
-        assertEquals("Repair Kit", session.snapshot().inventorySelectedName);
+        assertEquals("Bộ sửa xe", session.snapshot().inventorySelectedName);
         session.moveInventorySelection(1);
         session.confirmInventorySelection();
         assertFalse(session.isInventoryMenuOpen());

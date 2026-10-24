@@ -16,4 +16,6 @@ public final class GameplayConfig {
     public static final float MAX_FRAME_DELTA = 0.25f;
     /** Số step tối đa chạy mỗi frame. */
     public static final int MAX_STEPS_PER_FRAME = 5;
+    /** Tổng số mạng campaign mỗi màn, bao gồm chiếc xe đang điều khiển. */
+    public static final int CAMPAIGN_PLAYER_LIVES = 4;
 }

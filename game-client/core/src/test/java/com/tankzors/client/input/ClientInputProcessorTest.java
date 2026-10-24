@@ -9,6 +9,27 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ClientInputProcessorTest {
 
+    @Test void resultOverlayConsumesGameplayAndReceivesMouseAndScrollWhenDisabled() {
+        int[] events = new int[3];
+        ClientInputProcessor input = new ClientInputProcessor(new ClientInputProcessor.Callbacks() {
+            @Override public void onMove(ClientInputProcessor.Direction d, boolean moving) { fail("Result must consume movement"); }
+            @Override public void onShoot() { fail("Result must consume shooting"); }
+            @Override public void onAllReleased() {}
+            @Override public void onRestart() { fail("Result must consume restart"); }
+            @Override public void onNextLevel() { fail("Result must consume next-level shortcut"); }
+            @Override public boolean onResultKey(int key) { events[0]++; return true; }
+            @Override public boolean onResultTouch(float x, float y) { events[1]++; return true; }
+            @Override public boolean onResultScroll(float amount) { events[2]++; return true; }
+        });
+        input.setEnabled(false);
+        input.keyDown(Input.Keys.SPACE);
+        input.keyDown(Input.Keys.N);
+        input.keyDown(Input.Keys.R);
+        input.touchDown(420, 25, 0, 0);
+        input.scrolled(0, 1);
+        assertArrayEquals(new int[]{3, 1, 1}, events);
+    }
+
     @Test
     void releasingLatestDirectionResumesPreviouslyHeldDirection() {
         RecordingCallbacks callbacks = new RecordingCallbacks();

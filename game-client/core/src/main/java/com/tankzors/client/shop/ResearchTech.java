@@ -5,45 +5,45 @@ package com.tankzors.client.shop;
  * Mua và nâng cấp bằng Ngôi sao (Stars), trích xuất từ dữ liệu chuẩn Tankzors Lux.
  */
 public enum ResearchTech {
-    SHELL_RESEARCH("shellResearch", "Nghien cuu Dan Phao", 8,
+    SHELL_RESEARCH("shellResearch", "Nghiên cứu đạn pháo", 8,
             new int[]{5, 7, 8, 8, 9, 4, 4, 4},
-            "Mo khoa Plasma (lv1), Nong doi (lv2), Double Plasma (lv3), Xuyen giap (lv4, lv5), tang toc ban (lv6-8)."),
+            "Mở khóa Plasma (cấp 1), nòng đôi (cấp 2), Plasma đôi (cấp 3), xuyên giáp (cấp 4, 5), tăng tốc bắn (cấp 6–8)."),
 
-    ARTILLERY_RESEARCH("artilleryResearch", "Nghien cuu Phao Binh", 5,
+    ARTILLERY_RESEARCH("artilleryResearch", "Nghiên cứu pháo binh", 5,
             new int[]{4, 4, 4, 4, 4},
-            "Mo khoa phao cau vong ban qua tuong, tang tam ban va suc cong pha tam no."),
+            "Mở khóa pháo cầu vồng bắn qua tường, tăng tầm bắn và sức công phá của vụ nổ."),
 
-    MISSILE_RESEARCH("missileResearch", "Nghien cuu Ten Lua", 2,
+    MISSILE_RESEARCH("missileResearch", "Nghiên cứu tên lửa", 2,
             new int[]{5, 5},
-            "Mo khoa Dau dan tam xa (lv1) va Ten lua dan duong tu hanh pha tuong be tong (lv2)."),
+            "Mở khóa đầu đạn tầm xa (cấp 1) và tên lửa dẫn đường tự hành phá tường bê tông (cấp 2)."),
 
-    MINE_RESEARCH("mineResearch", "Nghien cuu Min", 2,
+    MINE_RESEARCH("mineResearch", "Nghiên cứu mìn", 2,
             new int[]{5, 5},
-            "Mo khoa Min chong tang TMD-5 (lv1) va Min chong tang TMD-9 cuc manh (lv2)."),
+            "Mở khóa mìn chống tăng TMD-5 (cấp 1) và mìn chống tăng TMD-9 cực mạnh (cấp 2)."),
 
-    DYNAMITE_RESEARCH("dynamiteResearch", "Nghien cuu Thuoc No", 3,
+    DYNAMITE_RESEARCH("dynamiteResearch", "Nghiên cứu thuốc nổ", 3,
             new int[]{4, 4, 4},
-            "Mo khoa thuoc no Dynamite x70 (lv1), x100 (lv2), x160 (lv3) pha huy chuong ngai vat."),
+            "Mở khóa thuốc nổ Dynamite x70 (cấp 1), x100 (cấp 2), x160 (cấp 3) phá hủy chướng ngại vật."),
 
-    ARMOR_RESEARCH("armorResearch", "Nghien cuu Giap Tru", 3,
+    ARMOR_RESEARCH("armorResearch", "Nghiên cứu giáp trụ", 3,
             new int[]{5, 5, 5},
-            "Mo khoa Giap tam (lv1), Giap vinh cuu (lv2), Giam 30% gia mua giap va phi sua xe (lv3)."),
+            "Mở khóa giáp tạm (cấp 1), giáp vĩnh cửu (cấp 2), giảm 30% giá mua giáp và phí sửa xe (cấp 3)."),
 
-    POWER_FIELD_RESEARCH("powerFieldResearch", "Nghien cuu Khien Luc", 4,
+    POWER_FIELD_RESEARCH("powerFieldResearch", "Nghiên cứu khiên lực", 4,
             new int[]{5, 5, 5, 5},
-            "Mo khoa Khien nang luong tu hoi phuc (lv1), tang toc sac khien va mo rong dung tich len 7 (lv4)."),
+            "Mở khóa khiên năng lượng tự hồi phục (cấp 1), tăng tốc sạc khiên và mở rộng dung tích lên 7 (cấp 4)."),
 
-    AIR_RAID_RESEARCH("airRaidResearch", "Nghien cuu Khong Kich", 3,
+    AIR_RAID_RESEARCH("airRaidResearch", "Nghiên cứu không kích", 3,
             new int[]{6, 6, 6},
-            "Mo khoa Goi may bay nem bom yem tro (ket hop Radar), tang ban kinh no va so luong bom."),
+            "Mở khóa gọi máy bay ném bom yểm trợ (kết hợp Radar), tăng bán kính nổ và số lượng bom."),
 
-    ALLY_TANK_RESEARCH("allyTankResearch", "Nghien cuu Dong Minh", 3,
+    ALLY_TANK_RESEARCH("allyTankResearch", "Nghiên cứu đồng minh", 3,
             new int[]{6, 6, 6},
-            "Mo khoa mua xe tang dong minh cap 1 (lv1), boc thep cap 2 (lv2) va sieu thiet giap cap 3 (lv3)."),
+            "Mở khóa mua xe tăng đồng minh cấp 1, bọc thép cấp 2 và siêu thiết giáp cấp 3."),
 
-    EXTRA_INTEREST("extraInterest", "Thuong Lai Suat Coin", 2,
+    EXTRA_INTEREST("extraInterest", "Thưởng Xu bổ sung", 2,
             new int[]{9, 9},
-            "Tang them 5% (lv1) va 10% (lv2) tong so coin nhan duoc sau moi chien thang campaign.");
+            "Tăng thêm 5% (cấp 1) và 10% (cấp 2) tổng số Xu nhận được sau mỗi chiến thắng chiến dịch.");
 
     private final String id;
     private final String displayName;

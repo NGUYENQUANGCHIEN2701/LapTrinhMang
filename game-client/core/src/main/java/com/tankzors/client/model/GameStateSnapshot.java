@@ -19,6 +19,8 @@ public final class GameStateSnapshot {
     public int elapsedSeconds;
     public int starsEarned;
     public int coinsEarned;
+    /** -1 when this mode does not expose campaign lives. */
+    public int playerLives = -1;
 
     // ===== Shop & Arsenal HUD fields =====
     public int playerCoins;

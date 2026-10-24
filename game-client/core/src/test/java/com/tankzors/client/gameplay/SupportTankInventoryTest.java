@@ -61,7 +61,7 @@ class SupportTankInventoryTest {
             assertEquals(1, shop.getItemCount(item));
             assertFalse(sim.useInventoryItem(item), "An occupied base must not spawn a second tank");
             assertEquals(1, shop.getItemCount(item));
-            assertTrue(sim.getHintText().contains("Can cu"));
+            assertTrue(sim.getHintText().contains("Căn cứ"));
         }
     }
 }

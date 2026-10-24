@@ -86,8 +86,23 @@ public class PageController {
     }
 
     @GetMapping("/game-menu")
-    public String gameMenu(Model model) {
+    public String gameMenu(Model model, HttpServletRequest request) {
         pageModelFactory.apply(model, "Game Menu", "game-menu");
+        model.addAttribute("continueAvailable", false);
+        try {
+            String levelId = progressService.getContinueLevel(identity.resolve(request)).orElse(null);
+            if (levelId == null) {
+                model.addAttribute("continueHint", "Bạn đã hoàn thành toàn bộ chiến dịch");
+            } else {
+                CampaignLevelView level = campaignQueryService.getLevel(levelId).orElseThrow();
+                model.addAttribute("continueAvailable", true);
+                model.addAttribute("continueLevelId", level.getId());
+                model.addAttribute("continueHint", "Tiếp tục " + level.getName());
+            }
+        } catch (Exception ex) {
+            logger.warn("[PageController] cannot resolve Continue: {}", ex.getMessage());
+            model.addAttribute("continueHint", "Chưa tải được tiến độ. Vui lòng thử lại sau.");
+        }
         return "game-menu";
     }
 
@@ -166,11 +181,25 @@ public class PageController {
 
     @GetMapping("/play")
     public String play(
-        @RequestParam(name = "levelId", defaultValue = DEFAULT_LEVEL) String levelId,
+        @RequestParam(name = "levelId", required = false) String levelId,
         Model model,
         HttpServletRequest request,
         RedirectAttributes redirectAttributes
     ) {
+        // Đọc lại khi nhấn Continue: trang menu có thể đã cũ sau khi thắng màn khác.
+        String playerId = identity.resolve(request);
+        try {
+            if (levelId == null || levelId.isBlank()) {
+                levelId = progressService.getContinueLevel(playerId).orElse(null);
+                if (levelId == null) {
+                    redirectAttributes.addFlashAttribute("flashSuccess",
+                        "Bạn đã hoàn thành toàn bộ chiến dịch.");
+                    return "redirect:/campaigns";
+                }
+            }
+        } catch (Exception ex) {
+            return progressUnavailable(ex, redirectAttributes);
+        }
         CampaignLevelView level = campaignQueryService.getLevel(levelId).orElse(null);
         if (level == null) {
             logger.warn("[PageController] unknown levelId requested: {}", levelId);
@@ -178,11 +207,27 @@ public class PageController {
                 "Không tìm thấy level: " + levelId);
             return "redirect:/campaigns";
         }
+        try {
+            if (!progressService.isUnlocked(playerId, levelId)) {
+                redirectAttributes.addFlashAttribute("flashError",
+                    "Màn chơi này đã hoàn thành hoặc chưa được mở. Vui lòng chọn màn hiện tại.");
+                return "redirect:/campaigns";
+            }
+        } catch (Exception ex) {
+            return progressUnavailable(ex, redirectAttributes);
+        }
         pageModelFactory.apply(model, "Play - " + level.getName(), "play");
         model.addAttribute("selectedLevelId", level.getId());
         model.addAttribute("levelName", level.getName());
         model.addAttribute("settings", settingsService.load(request.getSession()));
         return "play";
+    }
+
+    private String progressUnavailable(Exception ex, RedirectAttributes redirectAttributes) {
+        logger.warn("[PageController] cannot load campaign progress: {}", ex.getMessage());
+        redirectAttributes.addFlashAttribute("flashError",
+            "Chưa tải được tiến độ. Vui lòng thử lại sau.");
+        return "redirect:/game-menu";
     }
 
     @GetMapping("/error/404")

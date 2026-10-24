@@ -34,16 +34,6 @@
     flex-wrap: wrap;
 }
 
-.play-header .page-title {
-    font-size: 1.6rem;
-    font-weight: 800;
-    letter-spacing: 3px;
-    color: var(--color-accent);
-    text-shadow: 0 0 10px rgba(255, 184, 0, 0.45);
-    margin-bottom: 0;
-    text-transform: uppercase;
-}
-
 .play-mission-badge {
     display: inline-flex;
     align-items: center;

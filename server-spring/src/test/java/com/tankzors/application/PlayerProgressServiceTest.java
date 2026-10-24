@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import com.tankzors.progress.PlayerProgress;
+import com.tankzors.progress.PlayerProgressRepository;
 
 import java.util.List;
 
@@ -18,6 +20,39 @@ class PlayerProgressServiceTest {
 
     @Autowired
     private PlayerProgressService progressService;
+
+    @Autowired
+    private PlayerProgressRepository repository;
+
+    @Test
+    void continueFollowsProgressAndDoesNotRestartFinishedCampaign() {
+        String playerId = "test-continue-progress";
+        progressService.reset(playerId);
+        for (String levelId : PlayerProgressService.CAMPAIGN_ORDER) {
+            assertEquals(levelId, progressService.getContinueLevel(playerId).orElseThrow());
+            progressService.markVictory(playerId, levelId);
+        }
+        assertTrue(progressService.getContinueLevel(playerId).isEmpty());
+    }
+
+    @Test
+    void continueInitializesNewPlayerAndIsolatesTheirProgress() {
+        String playerId = "test-continue-account";
+        progressService.reset(playerId);
+        progressService.markVictory(playerId, "campaign_1");
+        assertEquals("campaign_2", progressService.getContinueLevel(playerId).orElseThrow());
+        assertEquals("campaign_1", progressService.getContinueLevel("test-continue-new").orElseThrow());
+    }
+
+    @Test
+    void continueChoosesFurthestPlayableLevelFromLegacyUnlockedRows() {
+        String playerId = "test-continue-legacy";
+        progressService.reset(playerId);
+        repository.save(new PlayerProgress(playerId, "campaign_3"));
+        repository.save(new PlayerProgress(playerId, "campaign_2"));
+        repository.save(new PlayerProgress(playerId, "unknown-level"));
+        assertEquals("campaign_3", progressService.getContinueLevel(playerId).orElseThrow());
+    }
 
     @Test
     void newSessionStartsWithCampaign1Only() {

@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
@@ -22,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
@@ -62,7 +64,10 @@ class PageControllerTest {
             .andExpect(status().isOk())
             .andExpect(view().name("game-menu"))
             .andExpect(content().string(containsString("Campaigns")))
-            .andExpect(content().string(containsString("Load Game")))
+            .andExpect(model().attribute("continueAvailable", true))
+            .andExpect(model().attribute("continueLevelId", "campaign_1"))
+            .andExpect(content().string(not(containsString("Load Game"))))
+            .andExpect(content().string(not(containsString("level mặc định"))))
             .andExpect(content().string(containsString("Coming soon")));
     }
 
@@ -71,9 +76,8 @@ class PageControllerTest {
         mvc.perform(get("/campaigns"))
             .andExpect(status().isOk())
             .andExpect(view().name("campaigns"))
-            .andExpect(content().string(containsString("campaign_1")))
-            .andExpect(content().string(containsString("campaign_2")))
-            .andExpect(content().string(containsString("campaign_3")))
+            .andExpect(model().attribute("levels", hasSize(3)))
+            .andExpect(model().attribute("unlockedLevels", hasItem("campaign_1")))
             .andExpect(content().string(containsString("/play?levelId=campaign_1")));
     }
 
@@ -105,12 +109,82 @@ class PageControllerTest {
     }
 
     @Test
+    @WithMockUser(username = "page-select-level-2")
     void getPlayWithLevelIdSelectsThatLevel() throws Exception {
+        progressService.reset("user:page-select-level-2");
+        progressService.markVictory("user:page-select-level-2", "campaign_1");
         mvc.perform(get("/play").param("levelId", "campaign_2"))
             .andExpect(status().isOk())
             .andExpect(view().name("play"))
             .andExpect(content().string(containsString("data-level-id=\"campaign_2\"")))
             .andExpect(content().string(containsString("/game/libgdx/index.html?levelId=campaign_2")));
+    }
+
+    @Test
+    @WithMockUser(username = "continue-level-2")
+    void continueOpensCurrentAccountLevel2() throws Exception {
+        progressService.reset("user:continue-level-2");
+        progressService.markVictory("user:continue-level-2", "campaign_1");
+        mvc.perform(get("/game-menu"))
+            .andExpect(model().attribute("continueLevelId", "campaign_2"));
+        mvc.perform(get("/play"))
+            .andExpect(status().isOk())
+            .andExpect(model().attribute("selectedLevelId", "campaign_2"));
+    }
+
+    @Test
+    @WithMockUser(username = "continue-level-3")
+    void continueRechecksProgressEvenIfMenuAndAnonymousSessionAreStale() throws Exception {
+        String playerId = "user:continue-level-3";
+        progressService.reset(playerId);
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("tankzors.playerId", "stale-anonymous-session");
+        mvc.perform(get("/game-menu").session(session))
+            .andExpect(model().attribute("continueLevelId", "campaign_1"));
+
+        progressService.markVictory(playerId, "campaign_1");
+        progressService.markVictory(playerId, "campaign_2");
+        mvc.perform(get("/play").session(session))
+            .andExpect(status().isOk())
+            .andExpect(model().attribute("selectedLevelId", "campaign_3"))
+            .andExpect(content().string(containsString("/game/libgdx/index.html?levelId=campaign_3")));
+        mvc.perform(get("/game-menu").session(session))
+            .andExpect(model().attribute("continueLevelId", "campaign_3"));
+        mvc.perform(get("/api/game/bootstrap").session(session).param("levelId", "campaign_3"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.levelId").value("campaign_3"));
+    }
+
+    @Test
+    @WithMockUser(username = "continue-completed")
+    void completedCampaignDisablesContinueInsteadOfReopeningLevel1() throws Exception {
+        String playerId = "user:continue-completed";
+        progressService.reset(playerId);
+        for (String levelId : PlayerProgressService.CAMPAIGN_ORDER) {
+            progressService.markVictory(playerId, levelId);
+        }
+        mvc.perform(get("/game-menu"))
+            .andExpect(status().isOk())
+            .andExpect(model().attribute("continueAvailable", false))
+            .andExpect(content().string(containsString("Bạn đã hoàn thành toàn bộ chiến dịch")))
+            .andExpect(content().string(not(containsString("href=\"/play\""))));
+        mvc.perform(get("/play"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/campaigns"));
+    }
+
+    @Test
+    @WithMockUser(username = "continue-guard")
+    void explicitCompletedAndLockedLevelsRedirectBeforeLoadingGame() throws Exception {
+        String playerId = "user:continue-guard";
+        progressService.reset(playerId);
+        progressService.markVictory(playerId, "campaign_1");
+        for (String levelId : new String[] {"campaign_1", "campaign_3"}) {
+            mvc.perform(get("/play").param("levelId", levelId))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/campaigns"))
+                .andExpect(flash().attributeExists("flashError"));
+        }
     }
 
     @Test
@@ -136,8 +210,10 @@ class PageControllerTest {
             .andExpect(status().isOk())
             .andExpect(view().name("settings"))
             .andExpect(content().string(containsString("name=\"musicVolume\"")))
-            .andExpect(content().string(containsString("name=\"gameScale\"")))
-            .andExpect(content().string(containsString("name=\"language\"")));
+            .andExpect(content().string(containsString("name=\"soundVolume\"")))
+            .andExpect(content().string(not(containsString("name=\"gameScale\""))))
+            .andExpect(content().string(not(containsString("name=\"language\""))))
+            .andExpect(content().string(not(containsString("name=\"showFps\""))));
     }
 
     @Test
@@ -146,10 +222,7 @@ class PageControllerTest {
         mvc.perform(post("/settings")
                 .session(session)
                 .param("musicVolume", "150")
-                .param("soundVolume", "-5")
-                .param("language", "fr")
-                .param("showFps", "on")
-                .param("gameScale", "999"))
+                .param("soundVolume", "-5"))
             .andExpect(status().is3xxRedirection())
             .andExpect(redirectedUrl("/settings"));
 
@@ -157,10 +230,9 @@ class PageControllerTest {
             .andExpect(status().isOk())
             .andReturn();
         String html = result.getResponse().getContentAsString();
-        // volume clamped 150 -> 100, sound -5 -> 0, scale 999 -> 200
+        // volume clamped 150 -> 100, sound -5 -> 0
         assertTrue(html.contains("value=\"100\""), "musicVolume should be clamped to 100");
         assertTrue(html.contains("value=\"0\""), "soundVolume should be clamped to 0");
-        assertTrue(html.contains("value=\"200\""), "gameScale should be clamped to 200");
     }
 
     @Test
@@ -168,7 +240,7 @@ class PageControllerTest {
         mvc.perform(get("/load-game"))
             .andExpect(status().isOk())
             .andExpect(view().name("load-game"))
-            .andExpect(content().string(containsString("No save system configured")))
+            .andExpect(content().string(not(containsString("No save system configured"))))
             .andExpect(content().string(containsString("Slot 1")))
             .andExpect(content().string(containsString("Slot 3")));
     }
@@ -178,9 +250,11 @@ class PageControllerTest {
         mvc.perform(get("/leaderboard"))
             .andExpect(status().isOk())
             .andExpect(view().name("leaderboard"))
-            .andExpect(content().string(containsString("campaign_1")))
-            .andExpect(content().string(containsString("campaign_2")))
-            .andExpect(content().string(containsString("campaign_3")));
+            .andExpect(content().string(containsString("Campaign 1")))
+            .andExpect(content().string(containsString("Campaign 2")))
+            .andExpect(content().string(containsString("Campaign 3")))
+            .andExpect(content().string(not(containsString("<th>Map</th>"))))
+            .andExpect(content().string(containsString("colspan=\"6\"")));
 
         mvc.perform(get("/leaderboard").param("mapId", "campaign_2"))
             .andExpect(status().isOk())

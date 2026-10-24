@@ -49,6 +49,8 @@ public class AssetRepository implements Disposable {
     private Texture billetsTexture;
     private Texture billetTexture;
     private Texture panelTexture;
+    private TextureRegion hudPlayerTankIcon;
+    private TextureRegion hudEnemyTankIcon;
     private Texture statMoneyTexture;
     private Texture statStarTexture;
     private TextureRegion[] iconRegions;
@@ -180,6 +182,11 @@ public class AssetRepository implements Disposable {
         }
         if (Gdx.files.internal("gui/panel.png").exists()) {
             panelTexture = new Texture(Gdx.files.internal("gui/panel.png"));
+            // Native top-facing counter icons, separate from the side-view shop icons.
+            hudPlayerTankIcon = new TextureRegion(panelTexture, 264, 160, 48, 48);
+            hudEnemyTankIcon = new TextureRegion(panelTexture, 264, 230, 48, 48);
+            hudPlayerTankIcon.flip(false, true);
+            hudEnemyTankIcon.flip(false, true);
         }
         if (Gdx.files.internal("gui/stat_money.png").exists()) {
             statMoneyTexture = new Texture(Gdx.files.internal("gui/stat_money.png"));
@@ -206,6 +213,7 @@ public class AssetRepository implements Disposable {
     public Texture getBillets() { return billetsTexture; }
     public Texture getBillet() { return billetTexture; }
     public Texture getPanel() { return panelTexture; }
+    public TextureRegion getHudTankIcon(boolean player) { return player ? hudPlayerTankIcon : hudEnemyTankIcon; }
     public Texture getStatMoney() { return statMoneyTexture; }
     public Texture getStatStar() { return statStarTexture; }
 

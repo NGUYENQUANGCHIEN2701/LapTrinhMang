@@ -177,7 +177,9 @@ public class ResultService {
     }
 
     private static String playerNameFor(String playerId) {
-        // Tên hiển thị ngắn; hợp nhất với leaderboard key.
+        String accountName = com.tankzors.identity.PlayerNames.accountName(playerId);
+        if (accountName != null) return accountName;
+        // Giữ khóa khách cũ để không gộp điểm các phiên khách vào một tên chung.
         return "Player-" + playerId.substring(0, Math.min(6, playerId.length()));
     }
 

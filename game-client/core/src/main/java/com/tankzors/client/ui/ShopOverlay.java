@@ -318,10 +318,10 @@ public class ShopOverlay {
     private void renderHelp(SpriteBatch batch) {
         ShopCatalog.Row row=rows.get(selected);
         String description;
-        if(wallet) description="Coins: "+state.getCoins()+"\n\nStars: "+state.getStars();
-        else if(row.item!=null) description=row.title+"\n\nPrice: "+price(row)+" coins\n\n"+state.getItemDescription(row.item)+"\n\n"+state.getInventoryUsage(row.item);
+        if(wallet) description="Xu: "+state.getCoins()+"\n\nSao: "+state.getStars();
+        else if(row.item!=null) description=row.title+"\n\nGiá: "+price(row)+" Xu\n\n"+state.getItemDescription(row.item)+"\n\n"+state.getInventoryUsage(row.item);
         else if(row.tech!=null) description=row.title+"\n\n"+row.tech.getDescription();
-        else description=row.title+"\n\nRepair all missing HP. Price: "+price(row)+" coins.";
+        else description=row.title+"\n\nSửa toàn bộ HP còn thiếu. Giá: "+price(row)+" Xu.";
         font.getData().setScale(scale/4);
         float lineWidth=width*.75f;
         layout.setText(font,description,Color.RED,lineWidth,com.badlogic.gdx.utils.Align.left,true);
@@ -332,7 +332,7 @@ public class ShopOverlay {
         font.setColor(Color.BLACK);font.draw(batch,description,winX+width/2-lineWidth/2-.5f*scale,top+.5f*scale,lineWidth,com.badlogic.gdx.utils.Align.left,true);
         font.setColor(Color.RED);font.draw(batch,description,winX+width/2-lineWidth/2,top,lineWidth,com.badlogic.gdx.utils.Align.left,true);
         batch.setColor(Color.WHITE);image(batch,assets.getBillets(),360,0,126,16,winX+width/2-63*scale,backY,126*scale,rowH);
-        text(batch,"Back",winX+width/2-textWidth("Back",scale)/2,backY,Color.WHITE,scale);
+        text(batch,"Quay lại",winX+width/2-textWidth("Quay lại",scale)/2,backY,Color.WHITE,scale);
         area(winX+width/2-63*scale,backY,126*scale,rowH,()->{help=false;wallet=false;helpScroll=0;});
     }
     private void area(float x,float y,float w,float h,Runnable action) {

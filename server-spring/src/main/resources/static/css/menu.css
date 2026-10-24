@@ -52,15 +52,6 @@
     text-transform: uppercase;
 }
 
-.menu-hero .game-tagline {
-    color: var(--color-text-secondary);
-    font-size: 1.1rem;
-    line-height: 1.5;
-    max-width: 580px;
-    margin: 0 auto;
-    letter-spacing: 0.5px;
-}
-
 .menu-actions {
     display: flex;
     flex-direction: column;

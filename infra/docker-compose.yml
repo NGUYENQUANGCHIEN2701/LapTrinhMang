@@ -49,6 +49,23 @@ services:
       SPRING_JPA_HIBERNATE_DDL-AUTO: validate
     ports:
       - "8081:8081"
+    develop:
+      watch:
+        - action: rebuild
+          path: ../game-client
+          ignore:
+            - .gradle/
+            - "**/build/"
+            - tools/
+        - action: rebuild
+          path: ../server-spring/src
+          ignore:
+            - test/
+            - main/resources/static/game/libgdx/
+        - action: rebuild
+          path: ../server-spring/pom.xml
+        - action: rebuild
+          path: ../server-spring/Dockerfile
 
 volumes:
   tankzors_pg_data:

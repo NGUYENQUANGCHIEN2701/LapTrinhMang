@@ -63,6 +63,7 @@ public interface GameSession {
     default void moveInventorySelection(int delta) {}
     default void selectInventoryRow(int relativeRow) {}
     default void confirmInventorySelection() {}
+    /** Trong trận cần đứng trên ô hồi sinh xanh; chiến thắng được vào cửa hàng giữa màn. */
     default boolean canOpenShop() { return false; }
     /** Đã thắng và còn màn kế để Enter chuyển tiếp. */
     default boolean hasNextLevel() { return false; }

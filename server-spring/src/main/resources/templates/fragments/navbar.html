@@ -17,7 +17,6 @@
         <span sec:authorize="isAuthenticated()" class="user-info">
             <span class="user-display" sec:authentication="name"></span>
             <span sec:authorize="hasRole('ADMIN')" class="badge-role badge-admin">ADMIN</span>
-            <span sec:authorize="hasRole('USER') and !hasRole('ADMIN')" class="badge-role badge-user">USER</span>
         </span>
         <a sec:authorize="isAuthenticated()" th:href="@{/logout}" class="nav-logout"
            onclick="event.preventDefault(); document.getElementById('logoutForm').submit();">Logout</a>
@@ -25,6 +24,22 @@
         <a sec:authorize="isAnonymous()" th:href="@{/login}" class="nav-login">Login</a>
         <a sec:authorize="isAnonymous()" th:href="@{/register}" class="nav-register">Register</a>
     </div>
+    <script>
+        (function () {
+            var nav = document.currentScript.closest('.site-nav');
+            if (!nav) return;
+            var updateOffset = function () {
+                document.documentElement.style.setProperty('--nav-offset', Math.ceil(nav.getBoundingClientRect().height) + 'px');
+            };
+            updateOffset();
+            if (window.ResizeObserver) {
+                new ResizeObserver(updateOffset).observe(nav);
+            } else {
+                window.addEventListener('resize', updateOffset);
+                window.addEventListener('load', updateOffset);
+            }
+        })();
+    </script>
 </nav>
 </body>
 </html>

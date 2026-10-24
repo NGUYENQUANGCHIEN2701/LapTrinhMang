@@ -530,15 +530,21 @@ class GameSimulationTest {
     }
 
     @Test
-    @DisplayName("DEFEAT khi player chết; tiebreak cùng-tick ưu tiên DEFEAT")
+    @DisplayName("DEFEAT chỉ sau khi player mất hết bốn mạng")
     void defeat_whenPlayerDead() {
         GameSimulation sim = new GameSimulation(1L);
         MapDefinition map = TestMaps.open();
         setPlayerSpawn(map, 1, 1);
+        map.setEnemies(List.of(new MapDefinition.EnemyConfig("AI", "EASY", 17, 12)));
         sim.startCampaignLevel(map, "test", "p");
         GameWorld w = sim.getWorld();
 
-        // Player ngay lập tức chết
+        for (int life = 4; life > 1; life--) {
+            ((PlayerTank) w.getTank("p")).takeDamage(100);
+            sim.step(GameplayConfig.STEP_SECONDS);
+            assertEquals(GameWorld.Status.PLAYING, w.getStatus());
+            assertEquals(life - 1, sim.getPlayerLivesRemaining());
+        }
         PlayerTank player = (PlayerTank) w.getTank("p");
         player.takeDamage(100);
 
@@ -548,7 +554,8 @@ class GameSimulationTest {
         // Player đã chết và bị cleanup → không còn PlayerTank sống
         boolean hasPlayer = w.getAllTanks().stream().anyMatch(t -> t instanceof PlayerTank && t.isAlive());
         assertFalse(hasPlayer);
-        assertEquals(GameWorld.Status.DEFEAT, w.getStatus(), "Player chết → DEFEAT");
+        assertEquals(0, sim.getPlayerLivesRemaining());
+        assertEquals(GameWorld.Status.DEFEAT, w.getStatus(), "Hết mạng → DEFEAT");
     }
 
     @Test
@@ -557,12 +564,15 @@ class GameSimulationTest {
         GameSimulation sim = new GameSimulation(1L);
         MapDefinition map = TestMaps.open();
         setPlayerSpawn(map, 1, 1);
+        map.setEnemies(List.of(new MapDefinition.EnemyConfig("AI", "EASY", 17, 12)));
         sim.startCampaignLevel(map, "test", "p");
         int[] count = {0};
         sim.setMatchEndHandler((l, s, hp, k, e) -> count[0]++);
 
-        PlayerTank player = (PlayerTank) sim.getWorld().getTank("p");
-        player.takeDamage(100);
+        for (int life = 0; life < 4; life++) {
+            ((PlayerTank) sim.getWorld().getTank("p")).takeDamage(100);
+            sim.step(GameplayConfig.STEP_SECONDS);
+        }
 
         for (int i = 0; i < 10; i++) sim.step(GameplayConfig.STEP_SECONDS);
 
@@ -623,18 +633,20 @@ class GameSimulationTest {
         GameSimulation sim = new GameSimulation(3L);
         MapDefinition map = TestMaps.open();
         setPlayerSpawn(map, 1, 1);
+        map.setEnemies(List.of(new MapDefinition.EnemyConfig("AI", "EASY", 17, 12)));
         sim.startCampaignLevel(map, "test", "p");
         int initial = countAi(sim.getWorld());
 
-        // Cho player chết → terminal
-        PlayerTank player = (PlayerTank) sim.getWorld().getTank("p");
-        player.takeDamage(100);
-        sim.step(GameplayConfig.STEP_SECONDS);
+        for (int life = 0; life < 4; life++) {
+            ((PlayerTank) sim.getWorld().getTank("p")).takeDamage(100);
+            sim.step(GameplayConfig.STEP_SECONDS);
+        }
         assertEquals(GameWorld.Status.DEFEAT, sim.getWorld().getStatus());
 
         sim.restart();
         assertEquals(GameWorld.Status.PLAYING, sim.getWorld().getStatus());
         assertEquals(initial, countAi(sim.getWorld()));
+        assertEquals(4, sim.getPlayerLivesRemaining());
     }
 
     // ===== helpers =====

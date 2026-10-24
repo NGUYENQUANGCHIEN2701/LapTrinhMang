@@ -807,8 +807,8 @@
   ],
   "mission": {
     "objective": "DESTROY_ALL",
-    "briefing": "Nhiem vu: tieu diet toan bo xe tang va thap phao dich.\n\nLuu y: thap phao rat nhay cam voi chat no.",
-    "debriefing": "Tuyet voi!!! Chung ta da tien vao vung sa mac.\n\nTren cat, xe chay cham hon nhung hieu ung tang toc\nkeo dai gap doi.",
+    "briefing": "Nhiệm vụ: tiêu diệt toàn bộ xe tăng và tháp pháo địch.\n\nLưu ý: tháp pháo rất nhạy cảm với chất nổ.",
+    "debriefing": "Tuyệt vời! Chúng ta đã tiến vào vùng sa mạc.\n\nTrên cát, xe chạy chậm hơn nhưng hiệu ứng tăng tốc kéo dài gấp đôi.",
     "enemyWaves": {
       "maxOnField": 2,
       "intervalSeconds": 1.0,
@@ -880,7 +880,7 @@
         "y": 12,
         "active": false,
         "action": "TEXT",
-        "text": "Bam Q de chon thuoc no (Dynamite), Space de dat.",
+        "text": "Bấm Q để chọn thuốc nổ (Dynamite), Space để đặt.",
         "seconds": 5
       },
       {
@@ -888,7 +888,7 @@
         "y": 18,
         "active": true,
         "action": "TEXT",
-        "text": "Bam Q roi chon bo sua xe de sua nhanh.",
+        "text": "Bấm Q rồi chọn bộ sửa xe để sửa nhanh.",
         "seconds": 5
       },
       {
@@ -917,7 +917,7 @@
         "y": 21,
         "active": true,
         "action": "TEXT",
-        "text": "Ban co the nghien cuu cong nghe moi trong Workshop bang Sao.",
+        "text": "Bạn có thể nghiên cứu công nghệ mới trong cửa hàng bằng Sao.",
         "seconds": 6
       }
     ],

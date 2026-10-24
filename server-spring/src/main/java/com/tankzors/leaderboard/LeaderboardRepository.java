@@ -20,6 +20,8 @@ public interface LeaderboardRepository extends JpaRepository<LeaderboardEntry, L
      */
     List<LeaderboardEntry> findTop10ByMapIdOrderByScoreDesc(String mapId);
 
+    List<LeaderboardEntry> findByMapIdOrderByScoreDesc(String mapId);
+
     /**
      * Tìm entry của player trên map (để upsert best score).
      */

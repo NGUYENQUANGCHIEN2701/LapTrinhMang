@@ -33,19 +33,6 @@
     border-color: rgba(80, 50, 40, 0.25);
 }
 
-.level-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-}
-
-.level-id {
-    font-family: monospace;
-    font-size: 0.8rem;
-    color: var(--color-text-muted);
-}
-
 .level-name {
     font-size: 1.2rem;
     font-weight: 700;
@@ -62,11 +49,6 @@
     color: var(--color-text-secondary);
     line-height: 1.5;
     flex: 1;
-}
-
-.level-meta {
-    font-size: 0.85rem;
-    color: var(--color-text-muted);
 }
 
 .level-play {

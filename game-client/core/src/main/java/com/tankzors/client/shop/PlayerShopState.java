@@ -177,54 +177,54 @@ public class PlayerShopState {
     public String getItemDescription(ShopItem item) {
         int level = getResearchLevel("artilleryResearch");
         switch (item) {
-            case ROUND: return "Dan thuong: 1 HP. Gia theo 10 vien. Tru do ben tuong gach; het luc thi dung.";
-            case PLASMA: return "Plasma: 1 HP, bay nhanh; nap nhanh hon dan thuong 10 tick. Gia theo 10 vien.";
-            case DOUBLE_ROUND: return "Dan doi: 2 HP; con luc thi bay tiep sau khi pha gach/bui hoac chan dan. Gia theo 10 vien.";
-            case DOUBLE_PLASMA: return "Plasma doi: 2 HP, nap nhanh hon 10 tick; con luc thi bay tiep. Gia theo 10 vien.";
-            case ROUND2: return "Xuyen giap: 3 HP; mat luc theo do ben gach/bui va dan bi chan, con luc thi bay tiep. Gia theo 10 vien.";
-            case ROUND3: return "Xuyen giap cuong hoa: 5 HP; pha gach/bui roi bay tiep neu con luc. Gia theo 10 vien.";
+            case ROUND: return "Đạn thường: 1 HP. Giá theo 10 viên. Trừ độ bền tường gạch; hết lực thì dừng.";
+            case PLASMA: return "Plasma: 1 HP, bay nhanh; nạp nhanh hơn đạn thường 10 nhịp. Giá theo 10 viên.";
+            case DOUBLE_ROUND: return "Đạn đôi: 2 HP; còn lực thì bay tiếp sau khi phá gạch/bụi hoặc chặn đạn. Giá theo 10 viên.";
+            case DOUBLE_PLASMA: return "Plasma đôi: 2 HP, nạp nhanh hơn 10 nhịp; còn lực thì bay tiếp. Giá theo 10 viên.";
+            case ROUND2: return "Xuyên giáp: 3 HP; mất lực theo độ bền gạch/bụi và đạn bị chặn, còn lực thì bay tiếp. Giá theo 10 viên.";
+            case ROUND3: return "Xuyên giáp cường hóa: 5 HP; phá gạch/bụi rồi bay tiếp nếu còn lực. Giá theo 10 viên.";
             case ARTILLERY:
-                return "Phao cau vong: luc " + com.tankzors.client.gameplay.SpecialAmmoRules.artilleryPower(level)
-                        + ", tam " + com.tankzors.client.gameplay.SpecialAmmoRules.artilleryDistance(level)
-                        + " o, vung no " + (com.tankzors.client.gameplay.SpecialAmmoRules.artilleryRadius(level) * 2 - 1) + " o.";
-            case WARHEAD: return "Tang toc dan; cham xe/tuong no. Luc 9, vung 3 o; giam 1 moi o. Khong pha be tong/thep.";
-            case ROCKET: return "WASD lai ten lua; ban lan nua de no. Luc 32, vung 5 o. Pha o be tong va cham, khong pha thep.";
-            case MINE: return "Dat duoi xe; chi no khi dich de len, tru 5 HP.";
-            case MINE2: return "Dat duoi xe; chi no khi dich de len, tru 9 HP.";
-            case DYNAMITE: return "Ngoi 3 giay; luc 7, vung 5 o. Can than tu sat thuong.";
-            case DYNAMITE2: return "Ngoi 3 giay; luc 10, vung 5 o. Pha da.";
-            case DYNAMITE3: return "Ngoi 3 giay; luc 19, vung 7 o. Pha da.";
+                return "Pháo cầu vồng: lực " + com.tankzors.client.gameplay.SpecialAmmoRules.artilleryPower(level)
+                        + ", tầm " + com.tankzors.client.gameplay.SpecialAmmoRules.artilleryDistance(level)
+                        + " ô, vùng nổ " + (com.tankzors.client.gameplay.SpecialAmmoRules.artilleryRadius(level) * 2 - 1) + " ô.";
+            case WARHEAD: return "Tăng tốc đạn; chạm xe/tường thì nổ. Lực 9, vùng 3 ô; giảm 1 mỗi ô. Không phá bê tông/thép.";
+            case ROCKET: return "WASD lái tên lửa; bắn lần nữa để nổ. Lực 32, vùng 5 ô. Phá ô bê tông va chạm, không phá thép.";
+            case MINE: return "Đặt dưới xe; chỉ nổ khi địch đè lên, trừ 5 HP.";
+            case MINE2: return "Đặt dưới xe; chỉ nổ khi địch đè lên, trừ 9 HP.";
+            case DYNAMITE: return "Ngòi 3 giây; lực 7, vùng 5 ô. Cẩn thận tự sát thương.";
+            case DYNAMITE2: return "Ngòi 3 giây; lực 10, vùng 5 ô. Phá đá.";
+            case DYNAMITE3: return "Ngòi 3 giây; lực 19, vùng 7 ô. Phá đá.";
             case AIR_SUPPORT:
                 int air = getResearchLevel("airRaidResearch");
-                return "Can Radar; chon muc tieu. " + com.tankzors.client.gameplay.SpecialAmmoRules.airBombs(air)
-                        + " bom, luc " + com.tankzors.client.gameplay.SpecialAmmoRules.airPower(air)
-                        + ", vung " + (com.tankzors.client.gameplay.SpecialAmmoRules.airRadius(air) * 2 - 1) + " o.";
+                return "Cần Radar; chọn mục tiêu. " + com.tankzors.client.gameplay.SpecialAmmoRules.airBombs(air)
+                        + " bom, lực " + com.tankzors.client.gameplay.SpecialAmmoRules.airPower(air)
+                        + ", vùng " + (com.tankzors.client.gameplay.SpecialAmmoRules.airRadius(air) * 2 - 1) + " ô.";
             case ARMOR:
                 int armorMax = getResearchLevel("armorResearch") >= 3 ? 5 : 4;
-                return "Giap tam thoi (+1 HP). Mat 1 tam khi xe bi tieu diet. Toi da " + armorMax + " HP.";
+                return "Giáp tạm thời (+1 HP). Mất 1 tấm khi xe bị tiêu diệt. Tối đa " + armorMax + " HP.";
             case ARMOR2:
                 int permMax = getResearchLevel("armorResearch") >= 3 ? 5 : 4;
-                return "Giap vinh cuu (+1 HP). Nang cap do ben xe vinh vien. Toi da " + permMax + " HP.";
+                return "Giáp vĩnh cửu (+1 HP). Nâng cấp độ bền xe vĩnh viễn. Tối đa " + permMax + " HP.";
             case FORCE_FIELD:
                 int shieldMax = getResearchLevel("powerFieldResearch") >= 4 ? 7 : 5;
-                return "Khien nang luong: Tu dong tai tao sau 5s khong dinh dan. Toi da " + shieldMax + " HP.";
+                return "Khiên năng lượng: tự động tái tạo sau 5 giây không dính đạn. Tối đa " + shieldMax + " HP.";
             case REPAIR:
-                return "Tui cuu thuong: Dung trong tran (phim Q) de hoi day HP ngay lap tuc.";
+                return "Túi cứu thương: dùng trong trận (phím Q) để hồi đầy HP ngay lập tức.";
             case SPEED_UP:
                 int speedSec = hasExChassis() ? 60 : 45;
-                return "Tang toc do di chuyen va giam hoi nong sung trong " + speedSec + " giay.";
+                return "Tăng tốc độ di chuyển và giảm hồi nòng súng trong " + speedSec + " giây.";
             case FREEZE:
                 int freezeSec = hasExChassis() ? 10 : 5;
-                return "Dong bang toan bo xe tang, thap phao va dan cua dich trong " + freezeSec + " giay.";
+                return "Đóng băng toàn bộ xe tăng, tháp pháo và đạn của địch trong " + freezeSec + " giây.";
             case EX_CHASSIS:
-                return "Khung gam tang nang: +2 HP, mo rong suc chua dan dac biet len 99 vien, tang thoi gian Nitro (+15s) va Freeze (+5s).";
+                return "Khung gầm tăng nặng: +2 HP, mở rộng sức chứa đạn đặc biệt lên 99 viên, tăng thời gian Nitro (+15 giây) và đóng băng (+5 giây).";
             case ADD_LIFE:
-                return "Them 1 luot hoi sinh ngay tai tran khi xe tang bi tieu diet.";
+                return "Thêm 1 lượt hồi sinh ngay tại trận khi xe tăng bị tiêu diệt.";
             case RADAR:
-                return "Mo ban do mini tong quan tran dau (phim Q); cho phep mua va goi Khong kich.";
-            case ALLY_TANK: return "Xe dong minh hang nhe: 8 HP, ho tro tan cong va di theo nguoi choi.";
-            case ALLY_TANK2: return "Xe dong minh hang nhe nang cap: 15 HP, ho tro tan cong va di theo nguoi choi.";
-            case ALLY_TANK3: return "Xe dong minh hang nang: 25 HP, ho tro tan cong va di theo nguoi choi.";
+                return "Mở bản đồ nhỏ tổng quan trận đấu (phím Q); cho phép mua và gọi không kích.";
+            case ALLY_TANK: return "Xe đồng minh hạng nhẹ: 8 HP, hỗ trợ tấn công và đi theo người chơi.";
+            case ALLY_TANK2: return "Xe đồng minh hạng nhẹ nâng cấp: 15 HP, hỗ trợ tấn công và đi theo người chơi.";
+            case ALLY_TANK3: return "Xe đồng minh hạng nặng: 25 HP, hỗ trợ tấn công và đi theo người chơi.";
             default: return item.getDescription();
         }
     }
@@ -234,55 +234,55 @@ public class PlayerShopState {
         switch (item) {
             case ROUND: case PLASMA: case DOUBLE_ROUND: case DOUBLE_PLASMA:
             case ROUND2: case ROUND3:
-                return "Enter: trang bi. Space / J: ban theo huong xe.\n"
-                        + "Damage con lai sau khi pha gach/bui se tiep tuc bay. Khong pha be tong/thep.";
+                return "Enter: trang bị. Space / J: bắn theo hướng xe.\n"
+                        + "Đạn còn sát thương sau khi phá gạch/bụi sẽ tiếp tục bay. Không phá bê tông/thép.";
             case ARTILLERY:
-                return "Enter: trang bi. Space / J: ban qua vat can den dung tam.\n"
-                        + "Vu no giam 1 luc moi o; gay sat thuong ca xe cua ban. Khong pha be tong/thep.";
+                return "Enter: trang bị. Space / J: bắn qua vật cản đến đúng tầm.\n"
+                        + "Vụ nổ giảm 1 lực mỗi ô; gây sát thương cả xe của bạn. Không phá bê tông/thép.";
             case WARHEAD:
-                return "Enter: trang bi. Space / J: phong dau dan, no khi cham xe dich hoac tuong.\n"
-                        + "Vu no giam 1 luc moi o va co the gay sat thuong xe cua ban.";
+                return "Enter: trang bị. Space / J: phóng đầu đạn, nổ khi chạm xe địch hoặc tường.\n"
+                        + "Vụ nổ giảm 1 lực mỗi ô và có thể gây sát thương xe của bạn.";
             case ROCKET:
-                return "Enter: trang bi. Space / J: phong; WASD / mui ten: lai ten lua.\n"
-                        + "Ban lan nua de kich no. Xe dung yen khi dieu khien ten lua. Can than vu no gan xe.";
+                return "Enter: trang bị. Space / J: phóng; WASD / mũi tên: lái tên lửa.\n"
+                        + "Bắn lần nữa để kích nổ. Xe đứng yên khi điều khiển tên lửa. Cẩn thận vụ nổ gần xe.";
             case MINE: case MINE2:
-                return "Enter: trang bi. Space / J: dat tren o trong duoi xe.\n"
-                        + "Chi kich hoat khi xe dich de len; an toan voi xe cua ban va dong minh.";
+                return "Enter: trang bị. Space / J: đặt trên ô trống dưới xe.\n"
+                        + "Chỉ kích hoạt khi xe địch đè lên; an toàn với xe của bạn và đồng minh.";
             case DYNAMITE: case DYNAMITE2: case DYNAMITE3:
-                return "Enter: trang bi. Space / J: dat tren o trong duoi xe. Roi xa truoc 3 giay!\n"
-                        + "Vu no giam 1 luc moi o, pha gach/bui/khoi da va gay sat thuong ca xe cua ban.";
+                return "Enter: trang bị. Space / J: đặt trên ô trống dưới xe. Rời xa trước 3 giây!\n"
+                        + "Vụ nổ giảm 1 lực mỗi ô, phá gạch/bụi/khối đá và gây sát thương cả xe của bạn.";
             case AIR_SUPPORT:
-                return "Enter: trang bi. Space / J: mo ngam; WASD / mui ten: chon o.\n"
-                        + "Space / Enter: goi may bay. Q: huy ngam. Can than bom trung xe cua ban.";
+                return "Enter: trang bị. Space / J: mở ngắm; WASD / mũi tên: chọn ô.\n"
+                        + "Space / Enter: gọi máy bay. Q: hủy ngắm. Cẩn thận bom trúng xe của bạn.";
             case REPAIR:
-                return "Enter: dung ngay de hoi day HP cua xe. Khong tieu hao khi xe da day HP.";
+                return "Enter: dùng ngay để hồi đầy HP của xe. Không tiêu hao khi xe đã đầy HP.";
             case SPEED_UP:
-                return "Enter: dung ngay de tang toc di chuyen va nap dan. Thoi gian con lai hien tren HUD.";
+                return "Enter: dùng ngay để tăng tốc di chuyển và nạp đạn. Thời gian còn lại hiện trên màn hình.";
             case FREEZE:
-                return "Enter: dung ngay de dong bang xe, thap phao va dan cua dich trong mot khoang thoi gian.";
+                return "Enter: dùng ngay để đóng băng xe, tháp pháo và đạn của địch trong một khoảng thời gian.";
             case FORCE_FIELD:
-                return "Enter: lap cac mieng khien trong tui den gioi han. Khien tu hoi phuc sau khi ngung bi tan cong.";
+                return "Enter: lắp các miếng khiên trong túi đến giới hạn. Khiên tự hồi phục sau khi ngừng bị tấn công.";
             case ALLY_TANK: case ALLY_TANK2: case ALLY_TANK3:
-                return "Enter: goi xe dong minh tai can cu xuat phat. Xe tu tim dich va bam theo ban.\n"
-                        + "Hay di ra khoi can cu truoc khi goi. Can cu bi chiem cho thi khong mat vat pham.";
+                return "Enter: gọi xe đồng minh tại căn cứ xuất phát. Xe tự tìm địch và bám theo bạn.\n"
+                        + "Hãy đi ra khỏi căn cứ trước khi gọi. Căn cứ bị chiếm chỗ thì không mất vật phẩm.";
             case RADAR:
-                return "Enter: mo ban do tong quan. Radar duoc giu lai sau khi dung.";
-            default: return "Enter: chon vat pham.";
+                return "Enter: mở bản đồ tổng quan. Radar được giữ lại sau khi dùng.";
+            default: return "Enter: chọn vật phẩm.";
         }
     }
 
     public String getUnlockHint(ShopItem item) {
         if (item == ShopItem.EX_CHASSIS && hasExChassis()) {
-            return "[DA SO HUU]";
+            return "[ĐÃ SỞ HỮU]";
         }
         if (item == ShopItem.RADAR && hasRadar()) {
-            return "[DA SO HUU]";
+            return "[ĐÃ SỞ HỮU]";
         }
         if (item.getRequiredTech() != null && getResearchLevel(item.getRequiredTech()) < item.getRequiredTechLevel()) {
             ResearchTech tech = ResearchTech.findById(item.getRequiredTech());
-            return "Can " + (tech == null ? item.getRequiredTech() : tech.getDisplayName()) + " lv" + item.getRequiredTechLevel();
+            return "Cần " + (tech == null ? item.getRequiredTech() : tech.getDisplayName()) + " cấp " + item.getRequiredTechLevel();
         }
-        if (item == ShopItem.AIR_SUPPORT && !hasRadar()) return "Can mua Radar";
+        if (item == ShopItem.AIR_SUPPORT && !hasRadar()) return "Cần mua Radar";
         return "";
     }
 

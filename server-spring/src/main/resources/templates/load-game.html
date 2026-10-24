@@ -7,7 +7,6 @@
 <body>
 <section th:fragment="content" class="page-narrow load-game-page">
     <h2 class="page-title">Load Game</h2>
-    <p class="muted">No save system configured.</p>
 
     <div class="save-slots">
         <div class="card save-slot" th:each="i : ${#numbers.sequence(1,3)}">

@@ -47,9 +47,9 @@ class SpecialAmmoShopTest {
     @Test void descriptionsReflectResearchAndAllOneShotItemsDisableAutofire() {
         PlayerShopState state = new PlayerShopState();
         state.setResearchLevel("artilleryResearch", 5);
-        assertTrue(state.getItemDescription(ShopItem.ARTILLERY).contains("luc 17, tam 5 o, vung no 7 o"));
+        assertTrue(state.getItemDescription(ShopItem.ARTILLERY).contains("lực 17, tầm 5 ô, vùng nổ 7 ô"));
         state.setResearchLevel("airRaidResearch", 3);
-        assertTrue(state.getItemDescription(ShopItem.AIR_SUPPORT).contains("7 bom, luc 21, vung 7 o"));
+        assertTrue(state.getItemDescription(ShopItem.AIR_SUPPORT).contains("7 bom, lực 21, vùng 7 ô"));
         assertTrue(SpecialAmmoRules.repeatsWhileHeld(6));
         assertTrue(SpecialAmmoRules.repeatsWhileHeld(7));
         for (int id = 8; id <= 14; id++) assertFalse(SpecialAmmoRules.repeatsWhileHeld(id));

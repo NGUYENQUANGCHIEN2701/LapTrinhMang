@@ -299,6 +299,8 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         }
         // Debrief fields: chỉ có ý nghĩa khi terminal — fill luôn (renderer tự check status).
         snap.elapsedSeconds = elapsedSec;
+        snap.playerLives = sim.getPlayerLivesRemaining();
+        snap.enemiesRemaining = sim.getEnemyTanksRemaining();
         snap.aiKills = sim.getAiKilledThisMatch();
         snap.hpRemain = 0;
         for (com.tankzors.client.gameplay.interfaces.ITank t : w.getAllTanks()) {
@@ -309,6 +311,10 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         }
         // Reward/from MatchResult (chốt cuối trận). 0 khi chưa kết thúc hoặc DEFEAT.
         if (matchResult != null) {
+            snap.score = matchResult.score;
+            snap.hpRemain = matchResult.hpRemain;
+            snap.aiKills = matchResult.aiKills;
+            snap.elapsedSeconds = matchResult.elapsedSeconds;
             snap.starsEarned = matchResult.starsEarned;
             snap.coinsEarned = matchResult.coinsEarned;
         }
@@ -659,8 +665,13 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
     }
 
     @Override public MatchResult matchResult() { return matchResult; }
-    @Override public boolean canOpenShop() { return phase == Phase.PLAYING && sim != null; }
-    @Override public void setShopOpen(boolean open) { shopOpen = open; }
+    @Override public boolean canOpenShop() {
+        if (phase != Phase.PLAYING || sim == null || briefingOpen) return false;
+        // Cửa hàng giữa hai màn vẫn mở từ báo cáo chiến thắng.
+        return sim.getWorld().getStatus() == GameWorld.Status.VICTORY
+                || sim.isLocalPlayerAtSpawnBase();
+    }
+    @Override public void setShopOpen(boolean open) { shopOpen = open && canOpenShop(); }
     @Override public void onWorkshopItemBought(ShopItem item) {
         if (sim == null || item == null) return;
         sim.applyWorkshopPurchase(item);

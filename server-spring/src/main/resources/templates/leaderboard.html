@@ -8,13 +8,13 @@
 </head>
 <body>
 <section th:fragment="content" class="page-wide leaderboard-page">
-    <h2 class="page-title">Leaderboard</h2>
+    <h2 class="page-title">Bảng xếp hạng</h2>
 
     <div class="map-tabs">
         <a th:each="m : ${maps}"
            th:href="@{/leaderboard(mapId=${m})}"
            th:classappend="${m == currentMap} ? 'active' : ''"
-           th:text="${m}">campaign_1</a>
+           th:text="${#strings.capitalize(#strings.replace(m, '_', ' '))}">Campaign 1</a>
     </div>
 
     <div th:if="${errorMessage}" class="alert alert-warning" role="alert"
@@ -23,11 +23,10 @@
     <table class="leaderboard-table" th:unless="${errorMessage}">
         <thead>
             <tr>
-                <th>Rank</th>
-                <th>Player</th>
-                <th>Map</th>
-                <th>Score</th>
-                <th>Time (s)</th>
+                <th>Hạng</th>
+                <th>Người chơi</th>
+                <th>Điểm</th>
+                <th>Thời gian (giây)</th>
                 <th>HP còn</th>
                 <th>Tạo lúc</th>
             </tr>
@@ -37,22 +36,21 @@
                 th:classappend="${row.rank <= 3} ? 'rank-' + ${row.rank} : ''">
                 <td th:text="${row.rank}">1</td>
                 <td th:text="${row.playerName}">Hero</td>
-                <td th:text="${row.mapId}">campaign_1</td>
                 <td th:text="${row.score}">1000</td>
                 <td th:text="${row.timeSeconds}">60</td>
                 <td th:text="${row.hpRemain}">60</td>
                 <td th:text="${row.createdAt}">01/01/2026 12:00</td>
             </tr>
             <tr th:if="${#lists.isEmpty(leaderboardEntries)}">
-                <td colspan="7" class="empty">
-                    Chưa có điểm nào cho map này. Hãy là người đầu tiên!
+                <td colspan="6" class="empty">
+                    Chưa có điểm nào cho màn này. Hãy là người đầu tiên!
                 </td>
             </tr>
         </tbody>
     </table>
 
     <div class="form-actions">
-        <a class="btn btn-ghost" th:href="@{/menu}">Back</a>
+        <a class="btn btn-ghost" th:href="@{/menu}">Quay lại</a>
     </div>
 </section>
 </body>

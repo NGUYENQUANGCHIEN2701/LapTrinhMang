@@ -9,10 +9,9 @@
 <body>
 <section th:fragment="content" class="page-wide play-page">
     <div class="play-header">
-        <h2 class="page-title">TANKZORS BATTLEFIELD</h2>
         <div class="play-header-right">
             <div class="play-mission-badge">
-                <span class="badge-label">Mission:</span>
+                <span class="badge-label">Nhiệm vụ:</span>
                 <strong th:text="${levelName}">Màn 1</strong>
             </div>
             <div class="play-actions">
@@ -42,7 +41,7 @@
             <noscript>
                 <div class="game-placeholder">
                     <p class="placeholder-title">JavaScript is required</p>
-                    <p class="muted">Game LibGDX HTML5 cần JavaScript để chạy.</p>
+                    <p class="muted">Vui lòng bật JavaScript để chơi.</p>
                 </div>
             </noscript>
         </div>
@@ -54,7 +53,7 @@
             <span><kbd>Space</kbd> / <kbd>J</kbd> Bắn</span>
             <span><kbd>X</kbd> Lùi</span>
             <span><kbd>Q</kbd> Vật phẩm</span>
-            <span><kbd>B</kbd> Workshop</span>
+            <span title="Đứng trên ô hồi sinh màu xanh lá rồi nhấn B"><kbd>B</kbd> Cửa hàng (ô xanh)</span>
             <span><kbd>M</kbd> Âm thanh</span>
             <span><kbd>Enter</kbd> Xác nhận / Màn tiếp</span>
         </div>

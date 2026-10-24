@@ -6,48 +6,48 @@ package com.tankzors.client.shop;
  */
 public enum ShopItem {
     // --- ĐẠN DƯỢC CƠ BẢN (Mua theo lốc 10 viên) ---
-    ROUND(0, "Shell", Category.BASIC_AMMO, 5, 10, 99, null, 0, "Dan tieu chuan co ban cua xe tang."),
-    PLASMA(1, "Plasma", Category.BASIC_AMMO, 15, 10, 99, "shellResearch", 1, "May tao tia plasma nang luong cao."),
-    DOUBLE_ROUND(2, "Double shell", Category.BASIC_AMMO, 30, 10, 40, "shellResearch", 2, "Ban cung luc 2 vien dan nong doi."),
-    DOUBLE_PLASMA(3, "Double plasma", Category.BASIC_AMMO, 55, 10, 40, "shellResearch", 3, "Ban cung luc 2 tia plasma cuc manh."),
-    ROUND2(4, "Armor piercing shell", Category.BASIC_AMMO, 70, 10, 10, "shellResearch", 4,
-            "Dan xuyen giap 3 HP, van bay sau khi pha dan."),
-    ROUND3(5, "Reinforced piercing", Category.BASIC_AMMO, 120, 10, 10, "shellResearch", 5,
-            "Dan xuyen giap cuong hoa, sat thuong 5 HP."),
+    ROUND(0, "Đạn thường", Category.BASIC_AMMO, 5, 10, 99, null, 0, "Đạn tiêu chuẩn cơ bản của xe tăng."),
+    PLASMA(1, "Plasma", Category.BASIC_AMMO, 15, 10, 99, "shellResearch", 1, "Máy tạo tia plasma năng lượng cao."),
+    DOUBLE_ROUND(2, "Đạn đôi", Category.BASIC_AMMO, 30, 10, 40, "shellResearch", 2, "Bắn cùng lúc 2 viên đạn nòng đôi."),
+    DOUBLE_PLASMA(3, "Plasma đôi", Category.BASIC_AMMO, 55, 10, 40, "shellResearch", 3, "Bắn cùng lúc 2 tia plasma cực mạnh."),
+    ROUND2(4, "Đạn xuyên giáp", Category.BASIC_AMMO, 70, 10, 10, "shellResearch", 4,
+            "Đạn xuyên giáp 3 HP, vẫn bay sau khi phá đạn."),
+    ROUND3(5, "Xuyên giáp cường hóa", Category.BASIC_AMMO, 120, 10, 10, "shellResearch", 5,
+            "Đạn xuyên giáp cường hóa, sát thương 5 HP."),
 
     // --- VŨ KHÍ BỔ TRỢ & ĐẶC BIỆT (Mua từng đơn vị) ---
-    ARTILLERY(6, "Artillery", Category.SPECIAL_AMMO, 100, 1, 99, "artilleryResearch", 1, "Phao cau vong, bay qua tuong va no vung."),
-    WARHEAD(7, "Warhead", Category.SPECIAL_AMMO, 60, 1, 99, "missileResearch", 1, "Dau dan tam xa, no vung 3 o."),
-    ROCKET(8, "Guided missile", Category.SPECIAL_AMMO, 320, 1, 99, "missileResearch", 2, "Ten lua dan duong, pha tuong thuong."),
-    MINE(10, "TMD-5 mines", Category.SPECIAL_AMMO, 10, 1, 99, "mineResearch", 1, "Min chong tang co ban."),
-    MINE2(11, "TMD-9 mines", Category.SPECIAL_AMMO, 25, 1, 99, "mineResearch", 2, "Min chong tang sat thuong cao."),
-    DYNAMITE(12, "x70 dynamite", Category.SPECIAL_AMMO, 35, 1, 99, "dynamiteResearch", 1, "Thuoc no cong pha chuong ngai vat."),
-    DYNAMITE2(13, "x100 dynamite", Category.SPECIAL_AMMO, 60, 1, 99, "dynamiteResearch", 2, "Thuoc no cong pha manh pha tuong be tong."),
-    DYNAMITE3(14, "x160 dynamite", Category.SPECIAL_AMMO, 110, 1, 99, "dynamiteResearch", 3, "Thuoc no uy luc cuc dai vung no rong."),
-    AIR_SUPPORT(9, "Air support", Category.SPECIAL_AMMO, 170, 1, 99, "airRaidResearch", 1, "Goi may bay nem bom yem tro."),
+    ARTILLERY(6, "Pháo cầu vồng", Category.SPECIAL_AMMO, 100, 1, 99, "artilleryResearch", 1, "Pháo cầu vồng, bay qua tường và nổ vùng."),
+    WARHEAD(7, "Đầu đạn tầm xa", Category.SPECIAL_AMMO, 60, 1, 99, "missileResearch", 1, "Đầu đạn tầm xa, nổ vùng 3 ô."),
+    ROCKET(8, "Tên lửa dẫn đường", Category.SPECIAL_AMMO, 320, 1, 99, "missileResearch", 2, "Tên lửa dẫn đường, phá tường thường."),
+    MINE(10, "Mìn TMD-5", Category.SPECIAL_AMMO, 10, 1, 99, "mineResearch", 1, "Mìn chống tăng cơ bản."),
+    MINE2(11, "Mìn TMD-9", Category.SPECIAL_AMMO, 25, 1, 99, "mineResearch", 2, "Mìn chống tăng sát thương cao."),
+    DYNAMITE(12, "Thuốc nổ x70", Category.SPECIAL_AMMO, 35, 1, 99, "dynamiteResearch", 1, "Thuốc nổ công phá chướng ngại vật."),
+    DYNAMITE2(13, "Thuốc nổ x100", Category.SPECIAL_AMMO, 60, 1, 99, "dynamiteResearch", 2, "Thuốc nổ công phá mạnh, phá tường bê tông."),
+    DYNAMITE3(14, "Thuốc nổ x160", Category.SPECIAL_AMMO, 110, 1, 99, "dynamiteResearch", 3, "Thuốc nổ uy lực cực đại, vùng nổ rộng."),
+    AIR_SUPPORT(9, "Không kích", Category.SPECIAL_AMMO, 170, 1, 99, "airRaidResearch", 1, "Gọi máy bay ném bom yểm trợ."),
 
     // --- PHÒNG THỦ & HỖ TRỢ ---
-    ARMOR(21, "Temp Armor", Category.DEFENSE, 110, 1, 4, "armorResearch", 1, "Giap tam thoi (+1 HP, mat khi xe bi pha huy)."),
-    ARMOR2(22, "Perm Armor", Category.DEFENSE, 250, 1, 4, "armorResearch", 2, "Giap vinh cuu nang cap do ben xe (+1 HP)."),
-    FORCE_FIELD(20, "Force Field", Category.DEFENSE, 100, 1, 5, "powerFieldResearch", 1, "Khien nang luong tu dong tai tao."),
-    REPAIR(19, "Repair Kit", Category.SUPPORT, 40, 1, 99, null, 0, "Tui cuu thuong hoi phuc HP trong tran."),
-    RADAR(23, "Radar", Category.SUPPORT, 320, 1, 1, null, 0, "Mo ban do tong quan; cho phep mua khong kich."),
-    SPEED_UP(17, "Nitro Speed", Category.SUPPORT, 35, 1, 99, null, 0, "Tang toc do di chuyen va giam hoi nong sung."),
-    FREEZE(15, "Freeze EMP", Category.SUPPORT, 120, 1, 99, null, 0, "Dong bang toan bo xe tang va thap phao dich."),
-    EX_CHASSIS(-1, "Enh. Chassis", Category.SUPPORT, 910, 1, 1, null, 0, "Khung gam mo rong suc chua dan len 99 vien."),
-    ADD_LIFE(-2, "Extra Life", Category.SUPPORT, 170, 1, 9, null, 0, "Them 1 luot hoi sinh khi xe tang bi pha huy."),
+    ARMOR(21, "Giáp tạm thời", Category.DEFENSE, 110, 1, 4, "armorResearch", 1, "Giáp tạm thời (+1 HP, mất khi xe bị phá hủy)."),
+    ARMOR2(22, "Giáp vĩnh cửu", Category.DEFENSE, 250, 1, 4, "armorResearch", 2, "Giáp vĩnh cửu nâng cấp độ bền xe (+1 HP)."),
+    FORCE_FIELD(20, "Khiên năng lượng", Category.DEFENSE, 100, 1, 5, "powerFieldResearch", 1, "Khiên năng lượng tự động tái tạo."),
+    REPAIR(19, "Bộ sửa xe", Category.SUPPORT, 40, 1, 99, null, 0, "Túi cứu thương hồi phục HP trong trận."),
+    RADAR(23, "Radar", Category.SUPPORT, 320, 1, 1, null, 0, "Mở bản đồ tổng quan; cho phép mua không kích."),
+    SPEED_UP(17, "Tăng tốc Nitro", Category.SUPPORT, 35, 1, 99, null, 0, "Tăng tốc độ di chuyển và giảm hồi nòng súng."),
+    FREEZE(15, "Thiết bị đóng băng", Category.SUPPORT, 120, 1, 99, null, 0, "Đóng băng toàn bộ xe tăng và tháp pháo địch."),
+    EX_CHASSIS(-1, "Khung gầm mở rộng", Category.SUPPORT, 910, 1, 1, null, 0, "Khung gầm mở rộng sức chứa đạn lên 99 viên."),
+    ADD_LIFE(-2, "Mạng bổ sung", Category.SUPPORT, 170, 1, 9, null, 0, "Thêm 1 lượt hồi sinh khi xe tăng bị phá hủy."),
 
     // --- XE ĐỒNG MINH ---
-    ALLY_TANK(25, "Ally Tank 1", Category.ALLIES, 90, 1, 3, "allyTankResearch", 1, "Goi xe tang dong minh cap 1 yem tro."),
-    ALLY_TANK2(26, "Ally Tank 2", Category.ALLIES, 210, 1, 3, "allyTankResearch", 2, "Goi xe tang boc thep dong minh cap 2."),
-    ALLY_TANK3(27, "Ally Tank 3", Category.ALLIES, 420, 1, 3, "allyTankResearch", 3, "Goi sieu xe tang dong minh cap 3.");
+    ALLY_TANK(25, "Xe đồng minh cấp 1", Category.ALLIES, 90, 1, 3, "allyTankResearch", 1, "Gọi xe tăng đồng minh cấp 1 yểm trợ."),
+    ALLY_TANK2(26, "Xe đồng minh cấp 2", Category.ALLIES, 210, 1, 3, "allyTankResearch", 2, "Gọi xe tăng bọc thép đồng minh cấp 2."),
+    ALLY_TANK3(27, "Xe đồng minh cấp 3", Category.ALLIES, 420, 1, 3, "allyTankResearch", 3, "Gọi siêu xe tăng đồng minh cấp 3.");
 
     public enum Category {
-        BASIC_AMMO("Dan Duoc"),
-        SPECIAL_AMMO("Vu Khi Dac Biet"),
-        DEFENSE("Phong Thu"),
-        SUPPORT("Ho Tro"),
-        ALLIES("Dong Minh");
+        BASIC_AMMO("Đạn dược"),
+        SPECIAL_AMMO("Vũ khí đặc biệt"),
+        DEFENSE("Phòng thủ"),
+        SUPPORT("Hỗ trợ"),
+        ALLIES("Đồng minh");
 
         private final String displayName;
         Category(String displayName) { this.displayName = displayName; }

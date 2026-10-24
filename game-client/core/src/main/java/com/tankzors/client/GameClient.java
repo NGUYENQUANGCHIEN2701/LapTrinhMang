@@ -36,6 +36,36 @@ public class GameClient implements ApplicationListener {
     private ShopOverlay shopOverlay;
     private ClientInputProcessor input;
     private Runnable backToCampaignsHandler;
+    private boolean continueAfterWorkshop;
+
+    private boolean showingVictory() {
+        return session != null && "VICTORY".equalsIgnoreCase(session.status());
+    }
+
+    private boolean showingDefeat() {
+        return session != null && "DEFEAT".equalsIgnoreCase(session.status());
+    }
+
+    private void defeatAction(int action) {
+        if (action == 1) session.restart();
+        else if (action == 2 && backToCampaignsHandler != null) backToCampaignsHandler.run();
+        if (action != 0 && audio != null) audio.playUiClick();
+    }
+
+    private void continueVictory() {
+        if (!showingVictory()) return;
+        if (shopOverlay != null && session.canOpenShop()) {
+            continueAfterWorkshop = true;
+            shopOverlay.show();
+        } else if (session.hasNextLevel()) session.nextLevel();
+        else if (backToCampaignsHandler != null) backToCampaignsHandler.run();
+    }
+
+    private void victoryAction(int action) {
+        if (action == 1) continueVictory();
+        else if (action == 2 && backToCampaignsHandler != null) backToCampaignsHandler.run();
+        if (action != 0 && audio != null) audio.playUiClick();
+    }
 
     public GameClient(GameSession session) {
         this(null, DEFAULT_LEVEL, null);
@@ -86,6 +116,11 @@ public class GameClient implements ApplicationListener {
                     if (session instanceof LocalCampaignSession) {
                         ((LocalCampaignSession) session).syncShopState();
                     }
+                    if (continueAfterWorkshop) {
+                        continueAfterWorkshop = false;
+                        if (session.hasNextLevel()) session.nextLevel();
+                        else if (backToCampaignsHandler != null) backToCampaignsHandler.run();
+                    }
                 }
                 @Override
                 public void onShopStateChanged() {
@@ -114,6 +149,30 @@ public class GameClient implements ApplicationListener {
         }
 
         input = new ClientInputProcessor(new ClientInputProcessor.Callbacks() {
+            @Override public boolean onResultKey(int key) {
+                if (showingDefeat()) {
+                    defeatAction(renderer.defeatKey(key));
+                    return true;
+                }
+                if (!showingVictory()) return false;
+                victoryAction(renderer.victoryKey(key));
+                return true;
+            }
+            @Override public boolean onResultTouch(float x, float y) {
+                if (showingDefeat()) {
+                    defeatAction(renderer.defeatTouch(x, y));
+                    return true;
+                }
+                if (!showingVictory()) return false;
+                victoryAction(renderer.victoryTouch(x, y));
+                return true;
+            }
+            @Override public boolean onResultScroll(float amount) {
+                if (showingDefeat()) return true;
+                if (!showingVictory()) return false;
+                renderer.victoryScroll(amount);
+                return true;
+            }
             @Override public void onMove(Direction direction, boolean moving) {
                 if (session != null) session.onMove(direction, moving);
             }
@@ -152,11 +211,7 @@ public class GameClient implements ApplicationListener {
                 }
                 if (session == null || !"VICTORY".equalsIgnoreCase(session.status())) return;
                 if (audio != null) audio.playUiClick();
-                if (session.hasNextLevel()) {
-                    session.nextLevel();
-                } else if (session.canOpenShop() && backToCampaignsHandler != null) {
-                    backToCampaignsHandler.run();
-                }
+                continueVictory();
             }
             @Override public void onToggleShop() {
                 if (shopOverlay != null && session != null && session.canOpenShop()) {
@@ -202,7 +257,7 @@ public class GameClient implements ApplicationListener {
                 if (audio != null) audio.toggleMute();
             }
             @Override public void onBackToCampaigns() {
-                if (session != null && session.canOpenShop() && backToCampaignsHandler != null) {
+                if (session != null && backToCampaignsHandler != null) {
                     backToCampaignsHandler.run();
                 }
             }

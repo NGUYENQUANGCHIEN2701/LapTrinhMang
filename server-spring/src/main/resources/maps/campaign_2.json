@@ -813,8 +813,8 @@
   ],
   "mission": {
     "objective": "DESTROY_TANKS",
-    "briefing": "Vai phim huu ich:\nQ - chon dan / vat pham trong tran.\nB - vao Workshop sau khi hoan thanh man.\nTrong kho, ngoai dan con co bo tang toc, dong bang va bo sua xe.\n\nO man nay se co mot xe tang dong minh ho tro ban.\n\nNhiem vu: tieu diet 6 xe tang dich.",
-    "debriefing": "Xuat sac! Choi cung ban that vui.\n\nVe Workshop: trong khi choi ban tich luy Xu va Sao.\nXu dung de mua trang bi, Sao dung de nghien cuu vu khi moi.",
+    "briefing": "Các phím hữu ích:\nQ — chọn đạn hoặc vật phẩm trong trận.\nB — mở cửa hàng khi đứng trên ô hồi sinh màu xanh lá.\nTrong kho có đạn, bộ tăng tốc, thiết bị đóng băng và bộ sửa xe.\n\nMột xe tăng đồng minh sẽ hỗ trợ bạn trong màn này.\n\nNhiệm vụ: tiêu diệt 6 xe tăng địch.",
+    "debriefing": "Xuất sắc! Bạn đã hoàn thành nhiệm vụ.\n\nTrong trận, bạn tích lũy Xu và Sao. Xu dùng để mua trang bị; Sao dùng để nghiên cứu vũ khí mới trong cửa hàng.",
     "enemyWaves": {
       "maxOnField": 1,
       "intervalSeconds": 1.0,
@@ -859,7 +859,7 @@
         "y": 3,
         "active": true,
         "action": "TEXT",
-        "text": "Bam Q de chon vu khi va bo sua xe.",
+        "text": "Bấm Q để chọn vũ khí và bộ sửa xe.",
         "seconds": 6
       },
       {

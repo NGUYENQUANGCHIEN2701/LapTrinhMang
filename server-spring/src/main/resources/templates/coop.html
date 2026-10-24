@@ -1,12 +1,11 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/head :: head('Tankzors - Co-op Lobby')}"></head>
-<body>
+<body class="site-body">
 <div th:replace="~{fragments/navbar :: navbar}"></div>
 
 <main class="coop-lobby container">
   <h1>Co-op Lobby</h1>
-  <p class="note"> MVP: 2 người chơi cùng đánh AI trên map campaign. Host điều khiển trận; người rời trận làm đóng phòng.</p>
 
   <div class="coop-section">
     <h2>Tạo phòng mới</h2>
@@ -36,7 +35,6 @@
   </div>
 
   <div id="gameFrame" style="display:none;">
-    <p>Relay Ä‘Ã£ báº¯t Ä‘áº§u tráº­n. Pháº§n ghÃ©p lobby vá»›i Host/Guest LibGDX session chÆ°a hoÃ n táº¥t.</p>
   </div>
 </main>
 

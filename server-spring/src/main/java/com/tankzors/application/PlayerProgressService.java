@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -71,6 +72,15 @@ public class PlayerProgressService {
     @Transactional
     public synchronized boolean isUnlocked(String sessionId, String levelId) {
         return getUnlocked(sessionId).contains(levelId);
+    }
+
+    /** Continue mở màn xa nhất đang được chơi, không quay lại màn đã hoàn thành. */
+    @Transactional
+    public synchronized Optional<String> getContinueLevel(String sessionId) {
+        List<String> unlocked = getUnlocked(sessionId);
+        return CAMPAIGN_ORDER.stream()
+            .filter(unlocked::contains)
+            .reduce((previous, current) -> current);
     }
 
     /**

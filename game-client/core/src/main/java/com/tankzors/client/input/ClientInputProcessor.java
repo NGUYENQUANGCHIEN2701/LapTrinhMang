@@ -52,6 +52,9 @@ public final class ClientInputProcessor implements InputProcessor {
         /** Bật/tắt nhanh âm thanh (mute/unmute). */
         default void onToggleMute() {}
         default void onBackToCampaigns() {}
+        default boolean onResultKey(int key) { return false; }
+        default boolean onResultTouch(float x, float y) { return false; }
+        default boolean onResultScroll(float amount) { return false; }
     }
 
     private final Callbacks callbacks;
@@ -145,6 +148,7 @@ public final class ClientInputProcessor implements InputProcessor {
         if (shopOverlay != null && shopOverlay.isVisible()) {
             return shopOverlay.handleKeyDown(keycode);
         }
+        if (callbacks.onResultKey(keycode)) return true;
 
         if (callbacks.isRadarOpen()) {
             releaseAll();
@@ -356,6 +360,7 @@ public final class ClientInputProcessor implements InputProcessor {
         if (shopOverlay != null && shopOverlay.isVisible()) {
             return shopOverlay.handleTouchDown(screenX, screenY);
         }
+        if (callbacks.onResultTouch(screenX, screenY)) return true;
         if (callbacks.isInventoryMenuOpen()) {
             releaseAll();
             // HUD Panel nằm ở x: 8..166, y: 48..
@@ -396,6 +401,7 @@ public final class ClientInputProcessor implements InputProcessor {
         if (shopOverlay != null && shopOverlay.isVisible()) {
             return shopOverlay.handleScrolled(amountY);
         }
+        if (callbacks.onResultScroll(amountY)) return true;
         return false;
     }
 }

@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ShopCatalogTest {
     @Test void catalogueMatchesBuildsSectionsAndIncludesEveryItemExactlyOnce() {
         List<ShopCatalog.Row> rows=ShopCatalog.rows();
-        assertEquals(List.of("Basic ammunition","Add. ammunition","Ally tanks","Defend","Repair","Other","Research"),
+        assertEquals(List.of("Đạn cơ bản","Vũ khí đặc biệt","Xe đồng minh","Phòng thủ","Sửa chữa","Hỗ trợ","Nghiên cứu"),
                 rows.stream().filter(r->r.kind==ShopCatalog.Kind.HEADER).map(r->r.title).collect(Collectors.toList()));
         List<Integer> ids=rows.stream().filter(r->r.item!=null).map(r->r.item.getId()).collect(Collectors.toList());
         assertEquals(List.of(0,1,2,3,4,5,6,7,8,10,11,12,13,14,9,25,26,27,21,22,20,19,23,-1,-2,17,15),ids);

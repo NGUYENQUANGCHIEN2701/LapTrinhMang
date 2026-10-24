@@ -36,6 +36,22 @@ class ResultServiceTest {
     @Autowired
     private PlayerTotalsRepository totalsRepo;
 
+    @Autowired
+    private MatchResultRepository matchResults;
+
+    @Autowired
+    private com.tankzors.leaderboard.LeaderboardRepository leaderboard;
+
+    @Test
+    void authenticatedResultStoresFullAccountNameAndDoesNotMergeMatchingInitials() {
+        for (String username : new String[]{"name-check-alice", "name-check-andrew"}) {
+            String runId = "run-" + username;
+            resultService.submit(campaignVictory(runId, "campaign_1", 3, 100), "user:" + username);
+            assertEquals(username, matchResults.findByRunId(runId).orElseThrow().getPlayerName());
+            assertTrue(leaderboard.findByPlayerNameAndMapId(username, "campaign_1").isPresent());
+        }
+    }
+
     private String player;
 
     @BeforeEach

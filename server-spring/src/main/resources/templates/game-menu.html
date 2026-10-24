@@ -19,10 +19,14 @@
     <p class="page-subtitle">Chọn chế độ chơi</p>
 
     <div class="mode-list">
-        <a class="btn mode-btn" th:href="@{/play}">
+        <a class="btn mode-btn" th:if="${continueAvailable}" th:href="@{/play}">
             Continue
-            <span class="btn-hint">Vào trận với level mặc định</span>
+            <span class="btn-hint" th:text="${continueHint}">Tiếp tục màn hiện tại</span>
         </a>
+        <span class="btn mode-btn disabled" th:unless="${continueAvailable}" aria-disabled="true">
+            Continue
+            <span class="btn-hint" th:text="${continueHint}">Chưa tải được tiến độ</span>
+        </span>
         <a class="btn mode-btn" th:href="@{/campaigns}">
             Campaigns
             <span class="btn-hint">3 màn chơi tuần tự</span>
@@ -31,10 +35,6 @@
             Online Levels
             <span class="badge-soon">Coming soon</span>
         </span>
-        <a class="btn mode-btn" th:href="@{/load-game}">
-            Load Game
-            <span class="btn-hint">Đọc save đã lưu</span>
-        </a>
         <span class="btn mode-btn disabled" title="Coming soon">
             Practice
             <span class="badge-soon">Coming soon</span>
@@ -63,7 +63,5 @@
         });
     </script>
 </section>
-</body>
-</html>
 </body>
 </html>

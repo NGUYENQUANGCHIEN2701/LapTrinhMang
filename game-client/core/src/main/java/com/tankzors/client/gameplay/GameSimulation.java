@@ -51,6 +51,12 @@ public class GameSimulation {
     private boolean matchEndFired = false;
     private String currentLevelId = "campaign_1";
     private boolean coopMode = false;
+    private int campaignLivesRemaining;
+
+    public int getPlayerLivesRemaining() {
+        if (coopMode) return -1;
+        return campaignLivesRemaining + (shopState == null ? 0 : shopState.getItemCount(ShopItem.ADD_LIFE.getId()));
+    }
 
     private MatchEndHandler matchEndHandler;
     private com.tankzors.client.shop.PlayerShopState shopState;
@@ -133,6 +139,17 @@ public class GameSimulation {
 
     public GameWorld getWorld() { return world; }
     public String getCurrentLevelId() { return currentLevelId; }
+
+    /** Chỉ ô hồi sinh xanh (không phải căn cứ địch hay vùng sáng quanh bệ). */
+    public boolean isLocalPlayerAtSpawnBase() {
+        IMap map = world.getCurrentMap();
+        ITank player = world.getTank(localPlayerId);
+        if (!world.isPlaying() || map == null || player == null || !player.isAlive()) return false;
+        int col = cellOf(player.getPosition().getX(), map.getTileSize());
+        int row = cellOf(player.getPosition().getY(), map.getTileSize());
+        return col >= 0 && row >= 0 && col < map.getWidth() && row < map.getHeight()
+                && map.getTileAt(col, row) == TileType.SPAWN_PLAYER;
+    }
 
     // ========== INPUT (queue, áp dụng trong step) ==========
     public void enqueueMove(Direction direction, boolean moving) {
@@ -241,6 +258,7 @@ public class GameSimulation {
         matchElapsedSeconds = 0;
         aiKilledThisMatch = 0;
         matchEndFired = false;
+        campaignLivesRemaining = GameplayConfig.CAMPAIGN_PLAYER_LIVES;
         commandQueue.clear();
         speedBoostRemaining = 0;
         freezeRemaining = 0;
@@ -427,7 +445,7 @@ public class GameSimulation {
     public void cancelAirAim() {
         airAimActive = false;
         airAimDirection = null;
-        if (hintText != null && hintText.startsWith("AIR STRIKE:")) { hintText = null; hintRemaining = 0; }
+        if (hintText != null && hintText.startsWith("KHÔNG KÍCH:")) { hintText = null; hintRemaining = 0; }
     }
 
     private static boolean canPlaceOn(TileType tile) {
@@ -957,7 +975,7 @@ public class GameSimulation {
                                 airAimCol = cellOf(player.getPosition().getX(), world.getCurrentMap().getTileSize());
                                 airAimRow = cellOf(player.getPosition().getY(), world.getCurrentMap().getTileSize());
                                 airAimDirection = null;
-                                showHint("AIR STRIKE: WASD/arrows aim, Space/Enter fire, Q cancel", 3600);
+                                showHint("KHÔNG KÍCH: WASD/mũi tên để ngắm, Space/Enter để gọi, Q để hủy", 3600);
                                 break;
                             }
                             if (wid == 10 || wid == 11) {
@@ -1198,11 +1216,11 @@ public class GameSimulation {
     private void openBox(MapDefinition md, int col, int row) {
         MissionConfig.BoxConfig box = mission != null ? mission.boxAt(col, row) : null;
         if (box == null || box.itemId == -1) {
-            showHint("Thung rong.", HINT_SECONDS);
+            showHint("Thùng rỗng.", HINT_SECONDS);
             return;
         }
         if (box.itemId == -2) {
-            showHint("Thung bay! Tranh xa!", HINT_SECONDS);
+            showHint("Thùng bẫy! Tránh xa!", HINT_SECONDS);
             md.setTileAt(col, row, TileType.DYNAMITE);
             dynamites.add(new Dynamite(col, row, 0, TRAP_FUSE_SECONDS));
             return;
@@ -1210,7 +1228,7 @@ public class GameSimulation {
         shopState.setItemCount(box.itemId, shopState.getItemCount(box.itemId) + box.count);
         shopStateDirty = true;
         ShopItem item = ShopItem.findById(box.itemId);
-        showHint((item != null ? item.getDisplayName() : "Vat pham") + " (" + box.count + ")", HINT_SECONDS);
+        showHint((item != null ? item.getDisplayName() : "Vật phẩm") + " (" + box.count + ")", HINT_SECONDS);
     }
 
     private void applyRepair(PlayerTank player) {
@@ -1427,12 +1445,21 @@ public class GameSimulation {
 
 
     private void cleanupDeadTanks() {
+        PlayerTank campaignPlayer = localPlayer();
+        if (!coopMode && campaignPlayer != null && !campaignPlayer.isAlive()) {
+            if (!respawnCampaignPlayer(campaignPlayer)) {
+                world.removeTank(campaignPlayer.getId());
+                world.setStatus(GameWorld.Status.DEFEAT);
+                fireMatchEnd(GameWorld.Status.DEFEAT, 0);
+                return;
+            }
+        }
         if (isCaptureFlagMode()) {
             respawnCaptureFlagTanks();
             return;
         }
         PlayerTank player = localPlayer();
-        if (player != null && !player.isAlive() && shopState != null) {
+        if (coopMode && player != null && !player.isAlive() && shopState != null) {
             // Builds removes one temporary plate for every lost life, regardless
             // of whether another Extra Life is available. Permanent plates stay.
             if (shopState.consumeItem(ShopItem.ARMOR.getId())) {
@@ -1483,6 +1510,31 @@ public class GameSimulation {
         }
     }
 
+    /** A death spends exactly one life; only exhausted lives end a campaign. */
+    private boolean respawnCampaignPlayer(PlayerTank player) {
+        if (shopState != null) {
+            if (shopState.consumeItem(ShopItem.ARMOR.getId())) shopStateDirty = true;
+            if (shopState.getInstalledForceField() > 0) {
+                shopState.clearInstalledForceField();
+                shopStateDirty = true;
+            }
+        }
+        campaignLivesRemaining = Math.max(0, campaignLivesRemaining - 1);
+        if (campaignLivesRemaining == 0 && shopState != null
+                && shopState.consumeItem(ShopItem.ADD_LIFE.getId())) {
+            campaignLivesRemaining = 1;
+            shopStateDirty = true;
+        }
+        if (campaignLivesRemaining == 0) return false;
+        RespawnPoint spawn = respawnPoints.get(player.getId());
+        if (spawn == null) return false;
+        world.removeTank(player.getId());
+        spawnPlayerAt(player.getId(), new Position(spawn.x, spawn.y));
+        commandQueue.clear();
+        cancelAirAim();
+        return true;
+    }
+
     private boolean isCaptureFlagMode() {
         if (coopMode || world.getCurrentMap() == null) return false;
         IMap map = world.getCurrentMap();
@@ -1516,22 +1568,9 @@ public class GameSimulation {
         for (String id : deadIds) {
             RespawnPoint spawn = respawnPoints.get(id);
             world.removeTank(id);
-            if (spawn == null) continue;
-            if (spawn.player) {
-                // Capture Flag creates a fresh player instance on respawn. Consume
-                // temporary armor before doing so, otherwise spawnPlayerAt() would
-                // read the unchanged inventory and grant the same plate again.
-                if (shopState != null && shopState.consumeItem(ShopItem.ARMOR.getId())) {
-                    shopStateDirty = true;
-                }
-                if (shopState != null && shopState.getInstalledForceField() > 0) {
-                    shopState.clearInstalledForceField();
-                    shopStateDirty = true;
-                }
-                spawnPlayerAt(id, new Position(spawn.x, spawn.y));
-            } else {
-                spawnEnemyAt(id, spawn.x, spawn.y, spawn.difficulty);
-            }
+            // Player respawns are handled by the finite campaign-life path above.
+            if (spawn == null || spawn.player) continue;
+            spawnEnemyAt(id, spawn.x, spawn.y, spawn.difficulty);
         }
     }
 
@@ -1579,7 +1618,7 @@ public class GameSimulation {
             int size = map.getTileSize();
             int col = cellOf(spawn.x, size), row = cellOf(spawn.y, size);
             if (!isCellFree(col, row)) {
-                showHint("Can cu dang bi chiem cho. Hay di xe ra khoi can cu de goi dong minh.", 3000);
+                showHint("Căn cứ đang bị chiếm chỗ. Hãy di chuyển xe ra khỏi căn cứ để gọi đồng minh.", 3000);
                 return false;
             }
             AITank ally = AITank.support("ally-support-" + (missionSerial++), spawn.x, spawn.y, itemId);

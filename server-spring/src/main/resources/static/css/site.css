@@ -45,7 +45,12 @@
     padding: 0;
 }
 
+html {
+    scroll-padding-top: calc(var(--nav-offset, var(--nav-height)) + 16px);
+}
+
 body.site-body {
+    padding-top: var(--nav-offset, var(--nav-height));
     font-family: var(--font-stack);
     background-color: #120303;
     background-image:
@@ -63,9 +68,12 @@ body.site-body {
 
 /* ===== Navbar ===== */
 .site-nav {
-    height: var(--nav-height);
-    padding: 0 1.5rem;
-    background: rgba(0, 0, 0, 0.5);
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: 1000;
+    min-height: var(--nav-height);
+    padding: 0.5rem 1.5rem;
+    background: #080303;
     border-bottom: 2px solid var(--color-accent);
     display: flex;
     align-items: center;
@@ -375,15 +383,6 @@ code {
     padding: 0.1rem 0.4rem;
     border-radius: 3px;
     font-size: 0.85em;
-}
-
-/* ===== Footer ===== */
-.site-footer {
-    font-size: 0.75rem;
-    padding: 0.6rem;
-    text-align: center;
-    border-top: 1px solid var(--color-border);
-    color: var(--color-text-muted);
 }
 
 /* ===== Nav Auth (Login/Register/User info) ===== */
