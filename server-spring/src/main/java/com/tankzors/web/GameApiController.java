@@ -177,8 +177,8 @@ public class GameApiController {
     }
 
     private static String nextLevel(String current) {
-        if ("campaign_1".equals(current)) return "campaign_2";
-        if ("campaign_2".equals(current)) return "campaign_3";
-        return null;
+        List<String> order = PlayerProgressService.CAMPAIGN_ORDER;
+        int idx = order.indexOf(current);
+        return idx >= 0 && idx < order.size() - 1 ? order.get(idx + 1) : null;
     }
 }

@@ -16,6 +16,13 @@ class PlayerIdentityResolverTest {
         request.setUserPrincipal(() -> "tank-commander");
 
         assertEquals("user:tank-commander", resolver.resolve(request));
-        assertEquals("user:tank-commander", resolver.resolveExisting(request));
+    }
+
+    @Test
+    void clientHeaderCannotChooseIdentity() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Player-Session", "user:victim");
+
+        org.junit.jupiter.api.Assertions.assertNotEquals("user:victim", resolver.resolve(request));
     }
 }

@@ -125,7 +125,8 @@ Volume `-v` xóa `tankzors_pg_data` → migration chạy lại từ V1.
 ### Reset progression của 1 session
 
 ```bash
-curl -XPOST -H 'X-Player-Session: <sessionId>' http://localhost:8081/api/progress/reset
+# Cần cookie phiên của tài khoản đã đăng nhập và CSRF token (lấy từ trình duyệt).
+curl -XPOST -b 'JSESSIONID=<cookie>' -H 'X-CSRF-TOKEN: <token>' http://localhost:8081/api/progress/reset
 ```
 
 ### Query leaderboard trực tiếp từ DB

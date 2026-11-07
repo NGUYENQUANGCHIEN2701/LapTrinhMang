@@ -66,7 +66,7 @@ public class HtmlLauncher extends GwtApplication {
             // start() (fetch bootstrap ban đầu) được GameClient.create() gọi.
             // Restart/nextLevel sau này cũng qua cùng requestLevel path.
         }
-        // else: legacy server-authoritative (chỉ tới khi Bước E tích hợp host/guest).
+        // else (mode=coop): chưa nối Host/GuestGameSession, xem docs co-op.
 
         return client;
     }
@@ -111,7 +111,7 @@ public class HtmlLauncher extends GwtApplication {
         String protocol = Window.Location.getProtocol();
         String host = Window.Location.getHost();
         String scheme = "https:".equalsIgnoreCase(protocol) ? "wss" : "ws";
-        return scheme + "://" + host + "/game";
+        return scheme + "://" + host + "/coop"; // /game là static HTML5, co-op relay ở /coop
     }
 
     // ===== JSNI bridge cho REST bootstrap/result (async) =====

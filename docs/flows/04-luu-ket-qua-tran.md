@@ -25,11 +25,12 @@ Server:
               ├─ đã có, cùng hash   → 200 alreadySaved=true, không đổi gì
               ├─ đã có, khác hash   → 409
               └─ chưa có:
+                   VICTORY CAMPAIGN mà màn chưa mở/đã xong → 400
                    clampReward(), chèn match_result
                    nếu VICTORY và CAMPAIGN:
                      markVictory()      khoá màn, mở màn kế      xem [05]
                      submitScore()      cập nhật xếp hạng        xem [07]
-                     creditTotals()     cộng Sao/Xu vào player_totals
+                     (ví player_totals không đổi: client đã sync ví gồm thưởng)
                    200 saved
 ```
 
@@ -169,17 +170,23 @@ private static int[] clampReward(ResultPayload payload, MatchResultEntity row) {
 
 [ResultService.java:99-110](../../server-spring/src/main/java/com/tankzors/result/ResultService.java#L99-L110)
 ```java
-if ("VICTORY".equalsIgnoreCase(payload.status) && "CAMPAIGN".equalsIgnoreCase(row.getMode())) {
+if (campaignVictory) {
     // Màn vừa thắng bị khoá; danh sách trả về là các màn còn được chơi.
     progressService.markVictory(playerId, payload.levelId);
     unlocked = progressService.getUnlocked(playerId);
     bestScore = leaderboardService.submitScore(
             playerNameFor(playerId), payload.levelId,
             payload.score, payload.elapsedSeconds, payload.hpRemain).getScore();
-    // Credit totals đúng 1 lần: gate bởi insert row UNIQUE(runId).
-    int[] totals = creditTotals(playerId, reward[0], reward[1]);
-    totalStars = totals[0];
-    totalCoins = totals[1];
+}
+```
+
+Ví (`player_totals`) chỉ do [`/api/game/shop/sync`](06-cua-hang-va-tui-do.md) ghi. Client đã cộng thưởng vào ví và sync trước khi gửi kết quả, nên `submit` không cộng thêm; `stars_earned`/`coins_earned` trong `match_result` chỉ là lịch sử.
+
+Trước khi chèn, `submit` từ chối (400) một kết quả thắng campaign nếu màn đó chưa mở hoặc đã hoàn thành:
+
+```java
+if (campaignVictory && !progressService.isUnlocked(playerId, payload.levelId)) {
+    throw new IllegalArgumentException("Màn chưa mở hoặc đã hoàn thành: " + payload.levelId);
 }
 ```
 
@@ -194,19 +201,18 @@ Client không dùng phản hồi của API này: `postJsonWithRetry` chỉ xét 
 | `match_result` | Chèn một dòng | Mọi kết quả mới, kể cả thua |
 | `player_progress` | Khoá màn, mở màn kế | Thắng |
 | `leaderboard` | Thêm hoặc nâng điểm | Thắng |
-| `player_totals` | Cộng Sao/Xu | Thắng |
 
 ## Hạn chế cần biết
 
 Các điểm sau đọc được trực tiếp từ code, chưa dựng kịch bản khai thác để xác nhận:
 
 - **`runId` không được đối chiếu.** [Bootstrap sinh `runId`](../../server-spring/src/main/java/com/tankzors/web/GameApiController.java#L72) nhưng không lưu, nên `submit` chấp nhận mọi `runId` mới. Cơ chế này chống gửi lại, không chống tự tạo kết quả.
-- **`submit` không kiểm tra màn đang chơi.** Một yêu cầu thắng tự tạo vẫn được xử lý như lượt mới.
+- **Chỉ kiểm tra màn đang mở, không kiểm tra đã thật sự chơi.** Một yêu cầu thắng tự tạo cho màn hiện tại vẫn được chấp nhận.
 - **Điểm không bị kẹp theo bản đồ**, chỉ chặn ngưỡng 1.000.000. Server không tính lại điểm.
-- **Thứ tự sync và results.** Client gọi sync ví trước khi gửi kết quả, cả hai đều bất đồng bộ. Nếu sync được xử lý trước, `creditTotals` cộng thêm lần nữa lên số đã gồm thưởng, cho tới lần sync kế tiếp. Xem [06](06-cua-hang-va-tui-do.md).
+- **Ví do client giữ.** `/api/game/shop/sync` ghi đè tổng Sao/Xu bằng số client gửi; giới hạn thưởng theo bản đồ chỉ áp dụng cho dòng lịch sử `match_result`.
 - **Gửi đồng thời cùng `runId`.** Ràng buộc UNIQUE chỉ cho một dòng thành công, nhưng lỗi vi phạm chưa được xử lý riêng nên yêu cầu còn lại nhiều khả năng nhận lỗi 500. Hiện chưa có test đồng thời.
 
 ## Test kiểm chứng
 
-- [ResultServiceTest.java](../../server-spring/src/test/java/com/tankzors/result/ResultServiceTest.java): `retrySameRunIdPayloadDoesNotDoubleCredit`, `retrySameRunIdDifferentPayloadConflicts`, `clientOverreportClampedToMapRewards`, `defeatDoesNotCredit`, `victoryCreditsTotalsAndStoresRewardRow`
+- [ResultServiceTest.java](../../server-spring/src/test/java/com/tankzors/result/ResultServiceTest.java): `retrySameRunIdPayloadDoesNotDoubleCredit`, `retrySameRunIdDifferentPayloadConflicts`, `clientOverreportClampedToMapRewards`, `defeatDoesNotCredit`, `victoryStoresRewardRowWithoutCreditingWallet`, `walletSyncedBeforeResultIsCreditedOnlyOnce`, `secondVictoryOnCompletedLevelIsRejected`, `victoryOnLockedLevelIsRejected`
 - [LocalCampaignSessionTest.java](../../game-client/core/src/test/java/com/tankzors/client/session/LocalCampaignSessionTest.java): `victoryMatchResultCarriesMapReward`

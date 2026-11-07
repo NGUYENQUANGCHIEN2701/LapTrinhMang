@@ -92,6 +92,8 @@ public class RoomRelayHandler extends TextWebSocketHandler {
     }
 
     private void handleCreate(WebSocketSession session, JsonNode root) {
+        // Rời phòng hiện tại trước, nếu không phòng cũ giữ thành viên ma mãi mãi.
+        disconnectFromRoom(session, "PLAYER_LEFT");
         String playerId = playerIdOf(session);
         Room room = registry.create(playerId);
         if (!room.addMember(new Room.Member(session.getId(), playerId, true))) {
@@ -115,6 +117,8 @@ public class RoomRelayHandler extends TextWebSocketHandler {
             sendError(session, "ROOM_NOT_JOINABLE", "Phòng đang " + room.getStatus());
             return;
         }
+        if (registry.findByConnection(session.getId()).orElse(null) == room) return; // đã ở trong phòng này
+        disconnectFromRoom(session, "PLAYER_LEFT");
         String playerId = playerIdOf(session);
         if (!room.addMember(new Room.Member(session.getId(), playerId, false))) {
             sendError(session, "ROOM_FULL", "Phòng đã đủ 2 người");
@@ -230,17 +234,17 @@ public class RoomRelayHandler extends TextWebSocketHandler {
     private void disconnectFromRoom(WebSocketSession session, String reason) {
         Room room = registry.unbindConnection(session.getId());
         if (room != null) {
-            room.setCloseReason(reason);
             // Nếu host rời -> đóng phòng.
             Room.Member wasHost = room.host();
             if (wasHost == null || reason.equals("HOST_DISCONNECTED")) {
                 room.setStatus(Room.Status.CLOSED);
-                room.setCloseReason("HOST_DISCONNECTED");
                 ObjectNode closed = envelope("v2", "ROOM_CLOSED", room.getRoomId(), null, 0,
                         Map.of("reason", "HOST_DISCONNECTED"));
                 for (Room.Member m : room.members()) {
                     WebSocketSession s = memberSession(session, m.connectionId);
                     if (s != null && s.isOpen()) send(s, closed);
+                    // Gỡ guest khỏi phòng đã đóng để registry xoá phòng khỏi bộ nhớ.
+                    registry.unbindConnection(m.connectionId);
                 }
             } else {
                 broadcastRoomState(room);

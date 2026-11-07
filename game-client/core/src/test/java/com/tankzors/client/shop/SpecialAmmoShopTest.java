@@ -34,7 +34,7 @@ class SpecialAmmoShopTest {
             state.setResearchLevel(item.getRequiredTech(), item.getRequiredTechLevel());
             if (item == ShopItem.AIR_SUPPORT) {
                 assertFalse(state.isItemUnlocked(item));
-                assertEquals("Can mua Radar", state.getUnlockHint(item));
+                assertEquals("Cần mua Radar", state.getUnlockHint(item));
                 state.setItemCount(23, 1);
             }
             assertTrue(state.isItemUnlocked(item));

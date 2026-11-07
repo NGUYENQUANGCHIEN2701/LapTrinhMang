@@ -111,16 +111,13 @@ public String resolve(HttpServletRequest request) {
     if (principal != null && principal.getName() != null && !principal.getName().isBlank()) {
         return "user:" + principal.getName();
     }
-    // 2. Header surrogate (client chủ động gửi).
-    String header = request.getHeader("X-Player-Session");
-    if (header != null && !header.isBlank()) return header.trim();
-    // 3. Thuộc tính trong HttpSession (identity ứng dụng).
+    // 2. Thuộc tính trong HttpSession (identity ứng dụng).
     HttpSession session = request.getSession(false);
     if (session != null) {
         Object attr = session.getAttribute(SESSION_ATTR);
         if (attr instanceof String s && !s.isBlank()) return s;
     }
-    // 4. Fallback: tạo session mới + phát id ổn định cho phiên.
+    // 3. Fallback: tạo session mới + phát id ổn định cho phiên.
     HttpSession newSession = request.getSession(true);
     String sid = newSession.getId();
     newSession.setAttribute(SESSION_ATTR, sid);
@@ -128,7 +125,7 @@ public String resolve(HttpServletRequest request) {
 }
 ```
 
-Với người chơi đã đăng nhập, nhánh 1 luôn chạy, nên `playerId` không đổi dù cookie phiên được tạo lại. Client hiện tại không gửi header `X-Player-Session`.
+Với người chơi đã đăng nhập, nhánh 1 luôn chạy, nên `playerId` không đổi dù cookie phiên được tạo lại. Server không nhận danh tính từ header do client gửi (header `X-Player-Session` cũ đã bị gỡ vì ai cũng giả được).
 
 **Vì sao game không tự gửi playerId?** Game chạy trong iframe cùng nguồn gốc với website, nên trình duyệt tự đính kèm cookie `JSESSIONID` vào mọi lời gọi API. Server tự biết ai đang gọi. Thân yêu cầu không có trường nào quyết định danh tính, nhờ đó client không thể giả mạo tài khoản khác.
 

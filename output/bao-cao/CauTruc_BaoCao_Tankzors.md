@@ -1,0 +1,88 @@
+# Cấu trúc báo cáo Tankzors theo mẫu
+
+Định dạng áp dụng: Times New Roman; nội dung 13 pt, giãn dòng 1,5; tiêu đề đề tài 16 pt; phần chính và mục 14 pt; khổ A4; lề trên/dưới 3 cm, trái 3,5 cm, phải 2 cm. Bìa giữ logo, giảng viên và thông tin ba sinh viên của tài liệu Tankzors.
+
+Phần đầu: bìa ngoài, bìa trong, lời cam đoan, lời cảm ơn, mục lục, danh mục hình, danh mục bảng, thuật ngữ.
+
+- I. GIỚI THIỆU ĐỀ TÀI
+  - 1.1. Lý do chọn đề tài
+  - 1.2. Giới thiệu bài toán
+  - 1.3. Mục tiêu và câu hỏi định hướng
+  - 1.4. Đối tượng, phạm vi và nguồn tư liệu
+  - 1.5. Yêu cầu của đề tài
+    - 1.5.1. Yêu cầu chức năng
+    - 1.5.2. Yêu cầu phi chức năng
+  - 1.6. Công nghệ và cơ sở lựa chọn
+    - 1.6.1. Lý do lựa chọn công nghệ
+  - 1.7. Phương pháp thực hiện
+  - 1.8. Bố cục báo cáo
+- II. CƠ SỞ LÝ THUYẾT VÀ CÔNG NGHỆ
+  - 2.1. Mô hình client – server
+  - 2.2. Bộ giao thức TCP/IP và giao thức TCP
+  - 2.3. Giao thức HTTP và kiến trúc REST
+    - 2.3.1. Tính idempotent
+  - 2.4. Mô hình đồng bộ trạng thái trong game mạng
+    - 2.4.1. Vòng lặp bước cố định và nội suy
+  - 2.5. Xác thực phiên, BCrypt và CSRF
+  - 2.6. Các công nghệ nền tảng
+    - 2.6.1. Spring Boot
+    - 2.6.2. LibGDX và GWT
+    - 2.6.3. PostgreSQL, JPA và Flyway
+    - 2.6.4. Docker
+  - 2.7. WebSocket và mô hình co-op host-authoritative
+- III. PHƯƠNG PHÁP, PHÂN TÍCH VÀ THIẾT KẾ
+  - 3.1. Tác nhân và ca sử dụng
+  - 3.2. Kiến trúc tổng thể
+    - 3.2.1. Quy tắc phụ thuộc
+    - 3.2.2. Phân rã module
+  - 3.3. Thiết kế luồng xử lý
+    - 3.3.1. Luồng chơi chiến dịch
+    - 3.3.2. Luồng co-op và giới hạn tích hợp
+  - 3.4. Thiết kế cơ sở dữ liệu
+  - 3.5. Thiết kế API
+    - 3.5.1. REST API
+  - 3.6. Thiết kế gameplay
+    - 3.6.1. Bản đồ và nhiệm vụ
+    - 3.6.2. Thực thể và luật chơi
+- IV. CÀI ĐẶT VÀ KIỂM THỬ HỆ THỐNG
+  - 4.1. Cấu trúc mã nguồn
+  - 4.2. Cài đặt phía server
+    - 4.2.1. Cấp phát màn chơi (bootstrap)
+    - 4.2.2. Lưu kết quả và chống ghi trùng
+    - 4.2.3. Tiến trình: mỗi màn chỉ chơi một lần
+    - 4.2.4. Tiếp tục chiến dịch và bảng xếp hạng theo tài khoản
+    - 4.2.5. Bảo mật
+  - 4.3. Cài đặt phía client
+    - 4.3.1. Vòng lặp mô phỏng bước cố định
+    - 4.3.2. Di chuyển theo ô và va chạm giữa các xe
+    - 4.3.3. Trí tuệ nhân tạo của xe tăng
+    - 4.3.4. Giao tiếp mạng từ trình duyệt
+    - 4.3.5. Cửa hàng, túi đồ và radar
+    - 4.3.6. Màn hình kết thúc trận và giao diện tiếng Việt
+  - 4.4. Giao diện chương trình
+  - 4.5. Đóng gói và triển khai
+  - 4.6. Chiến lược kiểm thử
+  - 4.7. Các ca kiểm thử tiêu biểu
+  - 4.8. Kết quả kiểm thử và phạm vi xác nhận
+- V. KẾT QUẢ, THẢO LUẬN VÀ KẾT LUẬN
+  - 5.1. Kết quả đạt được
+  - 5.2. Hạn chế và giá trị của bằng chứng
+  - 5.3. Thảo luận theo câu hỏi định hướng
+    - 5.3.1. Ranh giới mô phỏng và dịch vụ mạng
+    - 5.3.2. Lưu kết quả và tính bền vững
+    - 5.3.3. Đóng gói và khả năng kiểm chứng
+  - 5.4. Kết luận
+  - 5.5. Hướng phát triển
+- TÀI LIỆU THAM KHẢO
+- PHỤ LỤC
+  - Phụ lục A. Cài đặt và sử dụng hệ thống
+    - A.1. Yêu cầu môi trường
+    - A.2. Khởi động
+    - A.3. Cập nhật, dừng và khởi động lại
+  - Phụ lục B. Thực thi và lưu bằng chứng kiểm thử
+  - Phụ lục C. Phím điều khiển
+  - Phụ lục D. Tóm tắt giao tiếp campaign và co-op
+  - Phụ lục E. Cấu trúc mẫu và đối chiếu từng mục
+  - Phụ lục F. Đối chiếu phiên bản và giới hạn xác nhận
+
+Số liệu kiểm thử là mốc lịch sử từ tài liệu đầu vào; khác biệt với mã nguồn đối chiếu được trình bày trong Phụ lục F.

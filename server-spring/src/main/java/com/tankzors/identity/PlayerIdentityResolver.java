@@ -9,8 +9,9 @@ import java.security.Principal;
 /**
  * Resolve player identity thống nhất cho page / REST API / WS handshake.
  *
- * <p>Khi đã đăng nhập, username là khóa bền vững của tài khoản. Header/session
- * chỉ là fallback cho client ẩn danh hoặc công cụ phát triển.</p>
+ * <p>Khi đã đăng nhập, username là khóa bền vững của tài khoản. Session ẩn danh
+ * chỉ là fallback (profile test tắt bảo mật). Không nhận identity từ header do client
+ * tự gửi: ai cũng giả được.</p>
  *
  * <p>WS sessionId chỉ là connectionId — handshake gán connectionId -> playerId.
  * Không dùng WS sessionId làm khóa progression.</p>
@@ -33,40 +34,16 @@ public class PlayerIdentityResolver {
         if (principal != null && principal.getName() != null && !principal.getName().isBlank()) {
             return "user:" + principal.getName();
         }
-        // 2. Header surrogate (client chủ động gửi).
-        String header = request.getHeader("X-Player-Session");
-        if (header != null && !header.isBlank()) return header.trim();
-        // 3. Thuộc tính trong HttpSession (identity ứng dụng).
+        // 2. Thuộc tính trong HttpSession (identity ứng dụng).
         HttpSession session = request.getSession(false);
         if (session != null) {
             Object attr = session.getAttribute(SESSION_ATTR);
             if (attr instanceof String s && !s.isBlank()) return s;
         }
-        // 4. Fallback: tạo session mới + phát id ổn định cho phiên.
+        // 3. Fallback: tạo session mới + phát id ổn định cho phiên.
         HttpSession newSession = request.getSession(true);
         String sid = newSession.getId();
         newSession.setAttribute(SESSION_ATTR, sid);
         return sid;
-    }
-
-    /**
-     * Resolve KHÔNG tự tạo session (cho WS handshake chỉ đọc).
-     * Trả về id từ header hoặc thuộc tính session hiện có; null nếu chưa có.
-     */
-    public String resolveExisting(HttpServletRequest request) {
-        if (request == null) return null;
-        Principal principal = request.getUserPrincipal();
-        if (principal != null && principal.getName() != null && !principal.getName().isBlank()) {
-            return "user:" + principal.getName();
-        }
-        String header = request.getHeader("X-Player-Session");
-        if (header != null && !header.isBlank()) return header.trim();
-        HttpSession session = request.getSession(false);
-        if (session != null) {
-            Object attr = session.getAttribute(SESSION_ATTR);
-            if (attr instanceof String s && !s.isBlank()) return s;
-            return session.getId();
-        }
-        return null;
     }
 }

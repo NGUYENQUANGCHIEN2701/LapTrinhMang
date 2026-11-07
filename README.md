@@ -93,7 +93,7 @@ Sau đó mở <http://localhost:8081/>, tạo tài khoản và chơi.
 | Cài đặt âm lượng | <http://localhost:8081/settings> | Có |
 | Quản trị | <http://localhost:8081/admin> | Có, quyền admin |
 
-Tài khoản quản trị được tạo tự động ở lần chạy đầu: `admin` / `admin123`. Tài khoản này chỉ dùng khi phát triển, hãy đổi mật khẩu nếu triển khai thật.
+Tài khoản quản trị `admin` được tạo ở lần chạy đầu với mật khẩu lấy từ biến môi trường `ADMIN_PASSWORD`. Docker Compose đặt mặc định `admin123` cho môi trường phát triển; khi triển khai thật, chạy `ADMIN_PASSWORD=<mật-khẩu-mạnh> docker compose ...`. Nếu biến này trống (ví dụ chạy `mvn spring-boot:run` trực tiếp), server không tạo tài khoản admin.
 
 ### Dừng và bật lại
 
@@ -412,7 +412,6 @@ Trừ `/api/health`, mọi API đều cần phiên đăng nhập (cookie `JSESSI
 | `GET` | `/api/progress` | Danh sách màn đang chơi được |
 | `POST` | `/api/progress/reset` | Đặt lại tiến trình về màn 1 (cần CSRF token) |
 | `GET` | `/api/leaderboard/{mapId}` | Top điểm của một màn |
-| `POST` | `/api/leaderboard` | Gửi điểm (cần CSRF token) |
 
 Ví dụ kết quả gửi lên `POST /api/game/results`:
 
@@ -587,7 +586,7 @@ Hạn chế về an toàn, cần biết trước khi đưa ra Internet:
 
 - **Server không kiểm chứng trận đấu.** Điểm và kết quả do client báo, server chỉ kiểm tra giới hạn và kẹp phần thưởng. Người dùng có thể tự gọi API để gửi kết quả giả. Đây là đánh đổi của kiến trúc client-authoritative.
 - **Ví do client quyết định.** `POST /api/game/shop/sync` ghi đè ví và túi đồ theo giá trị client gửi, không kiểm tra giá. Muốn chặt chẽ cần chuyển giao dịch sang server.
-- **Mật khẩu mặc định.** `admin/admin123` và mật khẩu database trong Compose chỉ dành cho phát triển.
+- **Mật khẩu mặc định.** `ADMIN_PASSWORD=admin123` và mật khẩu database trong Compose chỉ dành cho phát triển.
 
 ## 11. Tài liệu sâu hơn
 

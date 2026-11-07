@@ -10,7 +10,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import org.springframework.transaction.annotation.Transactional;
+
 import com.tankzors.leaderboard.LeaderboardEntry;
+import com.tankzors.progress.PlayerProgressRepository;
+import com.tankzors.progress.PlayerShopStateRepository;
+import com.tankzors.progress.PlayerTotalsRepository;
 import com.tankzors.leaderboard.LeaderboardRepository;
 import com.tankzors.result.MatchResultEntity;
 import com.tankzors.result.MatchResultRepository;
@@ -45,15 +50,24 @@ public class AdminController {
     private final LeaderboardRepository leaderboardRepository;
     private final MatchResultRepository matchResultRepository;
     private final PageModelFactory pageModelFactory;
+    private final PlayerProgressRepository progressRepository;
+    private final PlayerTotalsRepository totalsRepository;
+    private final PlayerShopStateRepository shopStateRepository;
 
     public AdminController(UserRepository userRepository,
                            LeaderboardRepository leaderboardRepository,
                            MatchResultRepository matchResultRepository,
-                           PageModelFactory pageModelFactory) {
+                           PageModelFactory pageModelFactory,
+                           PlayerProgressRepository progressRepository,
+                           PlayerTotalsRepository totalsRepository,
+                           PlayerShopStateRepository shopStateRepository) {
         this.userRepository = userRepository;
         this.leaderboardRepository = leaderboardRepository;
         this.matchResultRepository = matchResultRepository;
         this.pageModelFactory = pageModelFactory;
+        this.progressRepository = progressRepository;
+        this.totalsRepository = totalsRepository;
+        this.shopStateRepository = shopStateRepository;
     }
 
     @GetMapping
@@ -127,6 +141,7 @@ public class AdminController {
     }
 
     @PostMapping("/users/{id}/delete")
+    @Transactional
     public String deleteUser(@PathVariable Long id,
                              RedirectAttributes redirectAttributes) {
         UserEntity user = userRepository.findById(id).orElse(null);
@@ -140,6 +155,13 @@ public class AdminController {
             return "redirect:/admin";
         }
         String username = user.getUsername();
+        // Dữ liệu chơi khoá theo tên tài khoản: xoá cùng user, nếu không người đăng ký
+        // lại đúng tên này sẽ thừa kế tiến trình, ví và thứ hạng của người cũ.
+        String playerId = "user:" + username;
+        progressRepository.deleteBySessionId(playerId);
+        totalsRepository.findByPlayerId(playerId).ifPresent(totalsRepository::delete);
+        shopStateRepository.findByPlayerId(playerId).ifPresent(shopStateRepository::delete);
+        leaderboardRepository.deleteByPlayerName(username);
         userRepository.delete(user);
         logger.info("[AdminController] Deleted user: {}", username);
         redirectAttributes.addFlashAttribute("flashSuccess",

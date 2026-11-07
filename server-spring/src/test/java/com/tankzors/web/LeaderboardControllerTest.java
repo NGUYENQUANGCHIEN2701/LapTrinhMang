@@ -7,11 +7,13 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.tankzors.application.LeaderboardService;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * Phase 4 REST endpoint integration test.
+ * REST leaderboard: chỉ đọc. Điểm được ghi qua ResultService, không có API ghi trực tiếp.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -21,14 +23,12 @@ class LeaderboardControllerTest {
     @Autowired
     private MockMvc mvc;
 
+    @Autowired
+    private LeaderboardService leaderboardService;
+
     @Test
-    void submitScoreReturnsOkAndTopScoresCanQuery() throws Exception {
-        mvc.perform(post("/api/leaderboard")
-                .contentType("application/json")
-                .content("{\"playerName\":\"RestHeroUnique\",\"mapId\":\"campaign_unique_99\",\"score\":900,\"timeSeconds\":40,\"hpRemain\":75}"))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.status").value("OK"))
-            .andExpect(jsonPath("$.score").value(900));
+    void topScoresCanQuery() throws Exception {
+        leaderboardService.submitScore("RestHeroUnique", "campaign_unique_99", 900, 40, 75);
 
         mvc.perform(get("/api/leaderboard/campaign_unique_99"))
             .andExpect(status().isOk())
@@ -36,10 +36,13 @@ class LeaderboardControllerTest {
     }
 
     @Test
-    void submitInvalidReturns400() throws Exception {
+    void directScoreWriteEndpointsAreGone() throws Exception {
         mvc.perform(post("/api/leaderboard")
                 .contentType("application/json")
-                .content("{\"mapId\":\"campaign_2\",\"score\":900}"))
-            .andExpect(status().isBadRequest());
+                .content("{\"playerName\":\"admin\",\"mapId\":\"campaign_1\",\"score\":999999}"))
+            .andExpect(status().is4xxClientError());
+        mvc.perform(post("/api/leaderboard/submit-from-client")
+                .param("playerName", "admin").param("score", "999999"))
+            .andExpect(status().is4xxClientError());
     }
 }

@@ -15,12 +15,12 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * <p>Coverage:</p>
  * <ul>
- *   <li>VICTORY campaign → row + player_totals credit.</li>
+ *   <li>VICTORY campaign → row lưu reward; ví do shop/sync giữ, submit không cộng thêm.</li>
  *   <li>Same runId + same payload → alreadySaved, totals unchanged (idempotent).</li>
  *   <li>Same runId + different payload → 409 conflict.</li>
  *   <li>DEFEAT → no credit.</li>
  *   <li>Client over-reports → clamp về map rewards.</li>
- *   <li>Two runs different runId same player → totals accumulate.</li>
+ *   <li>VICTORY lần hai trên màn đã hoàn thành → bị từ chối.</li>
  * </ul>
  *
  * <p>Dùng profile "test" → H2 in-memory, Flyway V1..V4 apply. Map campaign_1
@@ -35,6 +35,9 @@ class ResultServiceTest {
 
     @Autowired
     private PlayerTotalsRepository totalsRepo;
+
+    @Autowired
+    private com.tankzors.application.PlayerShopService shopService;
 
     @Autowired
     private MatchResultRepository matchResults;
@@ -60,10 +63,10 @@ class ResultServiceTest {
         player = "test-player-" + System.nanoTime();
     }
 
-    // ===== 1. VICTORY → credit =====
+    // ===== 1. VICTORY → lưu reward, không tự cộng ví =====
 
     @Test
-    void victoryCreditsTotalsAndStoresRewardRow() {
+    void victoryStoresRewardRowWithoutCreditingWallet() {
         ResultService.ResultPayload p = campaignVictory("run-v1", "campaign_1", 3, 100);
 
         ResultService.SubmitOutcome out = resultService.submit(p, player);
@@ -71,8 +74,20 @@ class ResultServiceTest {
         assertFalse(out.alreadySaved, "First submit phải là save mới, không idempotent");
         assertEquals(3, out.view.starsEarned, "Row phải lưu stars theo client");
         assertEquals(100, out.view.coinsEarned);
-        assertEquals(3, out.totalStars, "player_totals đã credit stars");
-        assertEquals(100, out.totalCoins, "player_totals đã credit coins");
+        assertEquals(0, out.totalStars, "Ví không đổi khi chưa sync");
+        assertEquals(0, out.totalCoins);
+    }
+
+    @Test
+    void walletSyncedBeforeResultIsCreditedOnlyOnce() {
+        // Client cộng thưởng 100 xu vào ví 0 rồi sync, sau đó mới gửi kết quả.
+        shopService.syncShopData(player, new com.tankzors.application.PlayerShopService.SyncRequest(100, 3, null, null));
+
+        ResultService.SubmitOutcome out = resultService.submit(campaignVictory("run-once", "campaign_1", 3, 100), player);
+
+        assertEquals(100, out.totalCoins, "Thưởng chỉ được cộng một lần");
+        assertEquals(100, totalsCoins(player));
+        assertEquals(3, totalsStars(player));
     }
 
     // ===== 2. Idempotency: same runId + payload → no double credit =====
@@ -138,8 +153,6 @@ class ResultServiceTest {
 
         assertEquals(3, out.view.starsEarned, "Server phải clamp stars về max của map");
         assertEquals(100, out.view.coinsEarned, "Server phải clamp coins về max của map");
-        assertEquals(3, totalsStars(player), "Totals chỉ nhận giá trị đã clamp");
-        assertEquals(100, totalsCoins(player));
     }
 
     @Test
@@ -153,15 +166,21 @@ class ResultServiceTest {
         assertEquals(10, out.view.coinsEarned);
     }
 
-    // ===== 6. Accumulate across runs =====
+    // ===== 6. Màn đã hoàn thành / chưa mở =====
 
     @Test
-    void twoVictoriesAccumulate() {
+    void secondVictoryOnCompletedLevelIsRejected() {
         resultService.submit(campaignVictory("run-acc-1", "campaign_1", 3, 100), player);
-        resultService.submit(campaignVictory("run-acc-2", "campaign_1", 3, 100), player);
 
-        assertEquals(6, totalsStars(player), "2 VICTORY → 6 stars");
-        assertEquals(200, totalsCoins(player), "2 VICTORY → 200 coins");
+        assertThrows(IllegalArgumentException.class,
+                () -> resultService.submit(campaignVictory("run-acc-2", "campaign_1", 3, 100), player));
+        assertTrue(matchResults.findByRunId("run-acc-2").isEmpty(), "Kết quả bị từ chối không được lưu");
+    }
+
+    @Test
+    void victoryOnLockedLevelIsRejected() {
+        assertThrows(IllegalArgumentException.class,
+                () -> resultService.submit(campaignVictory("run-skip", "campaign_3", 3, 100), player));
     }
 
     // ===== helpers =====

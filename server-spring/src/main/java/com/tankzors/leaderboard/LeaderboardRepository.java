@@ -26,4 +26,6 @@ public interface LeaderboardRepository extends JpaRepository<LeaderboardEntry, L
      * Tìm entry của player trên map (để upsert best score).
      */
     Optional<LeaderboardEntry> findByPlayerNameAndMapId(String playerName, String mapId);
+
+    long deleteByPlayerName(String playerName);
 }

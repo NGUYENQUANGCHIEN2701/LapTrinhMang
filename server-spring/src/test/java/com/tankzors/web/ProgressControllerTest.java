@@ -7,6 +7,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -29,16 +30,17 @@ class ProgressControllerTest {
     }
 
     @Test
-    void getProgressWithExplicitSessionHeader() throws Exception {
-        mvc.perform(get("/api/progress").header("X-Player-Session", "explicit-session-xyz"))
+    void getProgressUsesAccountAndIgnoresSpoofedHeader() throws Exception {
+        mvc.perform(get("/api/progress").with(user("progress-user"))
+                .header("X-Player-Session", "someone-else"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.sessionId").value("explicit-session-xyz"))
+            .andExpect(jsonPath("$.sessionId").value("user:progress-user"))
             .andExpect(jsonPath("$.unlockedLevels[0]").value("campaign_1"));
     }
 
     @Test
     void resetProgressReturnsDefault() throws Exception {
-        mvc.perform(post("/api/progress/reset").header("X-Player-Session", "session-to-reset"))
+        mvc.perform(post("/api/progress/reset").with(user("reset-user")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.unlockedLevels[0]").value("campaign_1"));
     }

@@ -208,6 +208,10 @@ public class ShopOverlay {
         batch.begin();
         batch.setColor(Color.WHITE);
         image(batch, assets.getShopBottom(), 0, 0, 16, 97, winX, winY + height - 97 * scale, width, 97 * scale);
+        // Clip nội dung cuộn: hàng/trang help vắt qua mép không được tràn ra ngoài cửa sổ.
+        batch.flush();
+        Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_SCISSOR_TEST);
+        Gdx.gl.glScissor((int) winX, (int) (screenH - winY - winH), (int) winW, (int) winH);
         if (help || wallet) {
             renderHelp(batch);
         } else {
@@ -220,6 +224,7 @@ public class ShopOverlay {
         }
         batch.setColor(Color.WHITE);
         batch.end();
+        Gdx.gl.glDisable(com.badlogic.gdx.graphics.GL20.GL_SCISSOR_TEST);
 
         // Thanh cuộn thanh mảnh bên mép phải cửa sổ
         float maximum = help || wallet ? maxHelpScroll : maxScroll;

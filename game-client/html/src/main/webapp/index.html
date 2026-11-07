@@ -54,6 +54,8 @@
         (function () {
             var loading = document.getElementById('loading');
             var observer = new MutationObserver(function () {
+                // Preloader LibGDX (logo + thanh tiến trình) cũng căn giữa: ẩn chữ để không đè lên logo.
+                if (document.querySelector('.gdx-preloader')) loading.classList.add('hidden');
                 var canvas = document.querySelector('canvas');
                 if (canvas) {
                     // Đảm bảo iframe/canvas nhận bàn phím ngay khi game sẵn sàng.

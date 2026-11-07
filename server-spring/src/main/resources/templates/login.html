@@ -16,6 +16,9 @@
         <div th:if="${param.error}" class="alert alert-error">
             Sai tên đăng nhập hoặc mật khẩu.
         </div>
+        <div th:if="${param.disabled}" class="alert alert-error">
+            Tài khoản của bạn đã bị vô hiệu hóa.
+        </div>
         <div th:if="${param.logout}" class="alert alert-success">
             Bạn đã đăng xuất thành công.
         </div>

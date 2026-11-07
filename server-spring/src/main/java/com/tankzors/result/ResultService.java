@@ -66,6 +66,13 @@ public class ResultService {
             throw new ConflictException("runId " + payload.runId + " đã tồn tại với payload khác");
         }
 
+        boolean campaignVictory = "VICTORY".equalsIgnoreCase(payload.status)
+                && (payload.mode == null || "CAMPAIGN".equalsIgnoreCase(payload.mode));
+        // Mỗi màn chỉ thắng một lần: chặn kết quả của màn chưa mở hoặc đã hoàn thành.
+        if (campaignVictory && !progressService.isUnlocked(playerId, payload.levelId)) {
+            throw new IllegalArgumentException("Màn chưa mở hoặc đã hoàn thành: " + payload.levelId);
+        }
+
         // 2. Insert mới.
         MatchResultEntity row = new MatchResultEntity();
         row.setRunId(payload.runId);
@@ -91,24 +98,22 @@ public class ResultService {
         log.info("[Result] Lưu runId={} player={} status={} score={} stars={} coins={}",
                 payload.runId, playerId, payload.status, payload.score, reward[0], reward[1]);
 
-        // 3. Chỉ VICTORY campaign unlock + bestScore + credit totals.
+        // 3. Chỉ VICTORY campaign unlock + bestScore. Ví (player_totals) do /api/game/shop/sync
+        // giữ: client đã cộng thưởng và sync tổng mới, cộng thêm ở đây sẽ thành cộng hai lần.
         int bestScore = payload.score;
         List<String> unlocked = List.of();
-        int totalStars = reward[0];
-        int totalCoins = reward[1];
-        if ("VICTORY".equalsIgnoreCase(payload.status) && "CAMPAIGN".equalsIgnoreCase(row.getMode())) {
+        if (campaignVictory) {
             // Màn vừa thắng bị khoá; danh sách trả về là các màn còn được chơi.
             progressService.markVictory(playerId, payload.levelId);
             unlocked = progressService.getUnlocked(playerId);
             bestScore = leaderboardService.submitScore(
                     playerNameFor(playerId), payload.levelId,
                     payload.score, payload.elapsedSeconds, payload.hpRemain).getScore();
-            // Credit totals đúng 1 lần: gate bởi insert row UNIQUE(runId).
-            int[] totals = creditTotals(playerId, reward[0], reward[1]);
-            totalStars = totals[0];
-            totalCoins = totals[1];
         }
-        return SubmitOutcome.saved(view(row, playerId), bestScore, unlocked, totalStars, totalCoins);
+        PlayerTotals totals = totalsRepo.findByPlayerId(playerId)
+                .orElseGet(() -> new PlayerTotals(playerId, 0, 0));
+        return SubmitOutcome.saved(view(row, playerId), bestScore, unlocked,
+                totals.getTotalStars(), totals.getTotalCoins());
     }
 
     /**
@@ -127,17 +132,6 @@ public class ResultService {
         int stars = Math.max(0, Math.min(payload.starsEarned, maxStars));
         int coins = Math.max(0, Math.min(payload.coinsEarned, maxCoins));
         return new int[]{stars, coins};
-    }
-
-    /** Cộng reward vào player_totals (read-or-default), trong cùng tx của submit. */
-    private int[] creditTotals(String playerId, int stars, int coins) {
-        PlayerTotals t = totalsRepo.findByPlayerId(playerId)
-                .orElseGet(() -> new PlayerTotals(playerId, 0, 0));
-        t.setTotalStars(t.getTotalStars() + stars);
-        t.setTotalCoins(t.getTotalCoins() + coins);
-        t.setUpdatedAt(Instant.now());
-        PlayerTotals saved = totalsRepo.save(t);
-        return new int[]{saved.getTotalStars(), saved.getTotalCoins()};
     }
 
     private void validate(ResultPayload p) {

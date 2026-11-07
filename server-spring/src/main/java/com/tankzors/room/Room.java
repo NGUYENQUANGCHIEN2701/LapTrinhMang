@@ -36,9 +36,7 @@ public final class Room {
     private final Map<String, Member> members = new LinkedHashMap<>(); // connectionId -> Member
     private Status status = Status.LOBBY;
     private String levelId;
-    private String mapVersion;
     private String runId;
-    private String closeReason;
 
     public Room(String roomId, String hostPlayerId) {
         this.roomId = roomId;
@@ -51,12 +49,8 @@ public final class Room {
     public void setStatus(Status status) { this.status = status; }
     public String getLevelId() { return levelId; }
     public void setLevelId(String levelId) { this.levelId = levelId; }
-    public String getMapVersion() { return mapVersion; }
-    public void setMapVersion(String v) { this.mapVersion = v; }
     public String getRunId() { return runId; }
     public void setRunId(String runId) { this.runId = runId; }
-    public String getCloseReason() { return closeReason; }
-    public void setCloseReason(String r) { this.closeReason = r; }
 
     public synchronized List<Member> members() { return new ArrayList<>(members.values()); }
 

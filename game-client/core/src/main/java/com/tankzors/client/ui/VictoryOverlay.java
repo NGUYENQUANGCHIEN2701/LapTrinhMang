@@ -75,8 +75,10 @@ public final class VictoryOverlay implements Disposable {
         shapes.end();
 
         // Clip only the report: action buttons remain visible while scrolling.
+        // Clip from below the rule, not from `top`: y is the cap line, Vietnamese marks sit above it.
+        float clipTop = 14 * scale;
         Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_SCISSOR_TEST);
-        Gdx.gl.glScissor(0, (int)(h - viewBottom), (int)w, Math.max(1, (int)(viewBottom - top)));
+        Gdx.gl.glScissor(0, (int)(h - viewBottom), (int)w, Math.max(1, (int)(viewBottom - clipTop)));
         float y = top - scroll;
         batch.begin();
         text(batch, "NHIỆM VỤ HOÀN THÀNH", x, y, cw, 1.04f * scale, gold);

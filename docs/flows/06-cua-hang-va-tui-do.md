@@ -179,7 +179,7 @@ Chọn vật phẩm Radar sẽ [mở bản đồ tổng quan](../../game-client/
 
 | Bảng | Cột | Khi nào |
 |---|---|---|
-| `player_totals` | `total_coins`, `total_stars` | Mỗi lần sync, và cộng thêm khi lưu trận thắng |
+| `player_totals` | `total_coins`, `total_stars` | Mỗi lần sync (lưu trận thắng không cộng thêm) |
 | `player_shop_state` | `research_json`, `inventory_json` | Mỗi lần sync |
 
 ## Hạn chế cần biết

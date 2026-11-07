@@ -1,5 +1,6 @@
 package com.tankzors.room;
 
+import java.security.SecureRandom;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -9,14 +10,17 @@ import org.springframework.stereotype.Component;
 @Component
 public class RoomRegistry {
 
+    private static final String ROOM_ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    private static final SecureRandom RANDOM = new SecureRandom();
+
     private final Map<String, Room> roomsById = new ConcurrentHashMap<>();
     private final Map<String, Room> roomByConnection = new ConcurrentHashMap<>();
 
     public Room create(String hostPlayerId) {
-        String id = generateRoomId();
-        Room room = new Room(id, hostPlayerId);
-        roomsById.put(id, room);
-        return room;
+        while (true) {
+            Room room = new Room(generateRoomId(), hostPlayerId);
+            if (roomsById.putIfAbsent(room.getRoomId(), room) == null) return room;
+        }
     }
 
     public Room get(String roomId) { return roomId == null ? null : roomsById.get(roomId); }
@@ -42,13 +46,9 @@ public class RoomRegistry {
     }
 
     private static String generateRoomId() {
-        // 6 ký tự; không dùng Math.random ở lớp util để dù test lặp vẫn OK.
-        long n = System.nanoTime() & 0xFFFFFFL;
         StringBuilder sb = new StringBuilder();
-        String alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
         for (int i = 0; i < 6; i++) {
-            sb.append(alphabet.charAt((int) (n % alphabet.length())));
-            n /= alphabet.length();
+            sb.append(ROOM_ID_ALPHABET.charAt(RANDOM.nextInt(ROOM_ID_ALPHABET.length())));
         }
         return sb.toString();
     }

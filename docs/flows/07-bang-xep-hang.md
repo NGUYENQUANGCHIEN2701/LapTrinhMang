@@ -118,7 +118,7 @@ try {
 ## Hạn chế cần biết
 
 - **Điểm do client khai**, server không tính lại, chỉ chặn ngưỡng 1.000.000.
-- **Có hai đường ghi không qua `ResultService`:** [`POST /api/leaderboard`](../../server-spring/src/main/java/com/tankzors/web/LeaderboardController.java#L42-L57) và [`POST /api/leaderboard/submit-from-client`](../../server-spring/src/main/java/com/tankzors/web/PageController.java#L239-L252). Cả hai lấy tên người chơi và điểm từ yêu cầu, không có ngưỡng trên. Game hiện không gọi hai endpoint này.
+- **Chỉ một đường ghi:** điểm chỉ vào bảng qua `ResultService` (`POST /api/game/results`). [`LeaderboardController`](../../server-spring/src/main/java/com/tankzors/web/LeaderboardController.java) chỉ còn API đọc.
 
 ## Test kiểm chứng
 

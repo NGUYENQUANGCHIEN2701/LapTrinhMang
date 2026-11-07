@@ -57,6 +57,8 @@ public class AuthController {
     @PostMapping("/register")
     public String processRegister(@ModelAttribute RegisterForm form,
                                   RedirectAttributes redirectAttributes) {
+        // Cắt một lần: kiểm tra độ dài, kiểm tra trùng và lưu phải cùng một giá trị.
+        if (form.getUsername() != null) form.setUsername(form.getUsername().trim());
         // Validate
         if (form.getUsername() == null || form.getUsername().isBlank()
             || form.getUsername().length() < 3) {
@@ -87,11 +89,11 @@ public class AuthController {
 
         // Create user
         UserEntity user = new UserEntity();
-        user.setUsername(form.getUsername().trim());
+        user.setUsername(form.getUsername());
         user.setEmail(form.getEmail());
         user.setPassword(passwordEncoder.encode(form.getPassword()));
         user.setDisplayName(form.getDisplayName() != null && !form.getDisplayName().isBlank()
-            ? form.getDisplayName().trim() : form.getUsername().trim());
+            ? form.getDisplayName().trim() : form.getUsername());
         user.setRole("ROLE_USER");
         user.setEnabled(true);
         Instant now = Instant.now();

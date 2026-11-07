@@ -14,7 +14,6 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.tankzors.application.CampaignLevelView;
@@ -53,7 +52,7 @@ public class PageController {
     private static final Logger logger = LoggerFactory.getLogger(PageController.class);
 
     static final String DEFAULT_LEVEL = "campaign_1";
-    static final List<String> LEADERBOARD_MAPS = List.of("campaign_1", "campaign_2", "campaign_3");
+    static final List<String> LEADERBOARD_MAPS = PlayerProgressService.CAMPAIGN_ORDER;
 
     private static final DateTimeFormatter CREATED_AT_FORMAT =
         DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm").withZone(ZoneId.systemDefault());
@@ -234,21 +233,6 @@ public class PageController {
     public String error404(Model model) {
         pageModelFactory.apply(model, "404", "error");
         return "error/404";
-    }
-
-    @PostMapping("/api/leaderboard/submit-from-client")
-    @ResponseBody
-    public Map<String, Object> submitScoreFromClient(@RequestParam Map<String, String> body) {
-        String playerName = body.getOrDefault("playerName", "Anonymous");
-        String mapId = body.getOrDefault("mapId", "campaign_1");
-        int score = Integer.parseInt(body.getOrDefault("score", "0"));
-        int timeSeconds = Integer.parseInt(body.getOrDefault("timeSeconds", "0"));
-        int hpRemain = Integer.parseInt(body.getOrDefault("hpRemain", "0"));
-        LeaderboardEntry saved = leaderboardService.submitScore(playerName, mapId, score, timeSeconds, hpRemain);
-        Map<String, Object> resp = new HashMap<>();
-        resp.put("status", "OK");
-        resp.put("bestScore", saved.getScore());
-        return resp;
     }
 
     /**

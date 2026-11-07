@@ -42,6 +42,9 @@ class PageControllerTest {
     @Autowired
     private PlayerProgressService progressService;
 
+    @Autowired
+    private com.tankzors.leaderboard.LeaderboardRepository leaderboardRepository;
+
     @Test
     void getRootReturnsMenuPage() throws Exception {
         mvc.perform(get("/"))
@@ -247,6 +250,8 @@ class PageControllerTest {
 
     @Test
     void getLeaderboardRendersPageAndMapTabs() throws Exception {
+        // H2 dùng chung giữa các test class: dọn để kiểm tra trạng thái bảng rỗng.
+        leaderboardRepository.deleteAll();
         mvc.perform(get("/leaderboard"))
             .andExpect(status().isOk())
             .andExpect(view().name("leaderboard"))

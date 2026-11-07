@@ -2,6 +2,7 @@ package com.tankzors.security;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,10 +14,9 @@ import java.time.Instant;
  * Seed dữ liệu mặc định khi khởi động:
  *
  * <ul>
- *   <li>Tạo tài khoản admin mặc định {@code admin / admin123} nếu chưa tồn tại.</li>
+ *   <li>Tạo tài khoản {@code admin} nếu chưa tồn tại, mật khẩu lấy từ biến môi trường
+ *       {@code ADMIN_PASSWORD}. Biến rỗng → không tạo (không có mật khẩu mặc định trong code).</li>
  * </ul>
- *
- * <p>Log cảnh báo thông tin đăng nhập nếu đây là tài khoản được tạo mới.</p>
  */
 @Configuration
 public class DataInitializer {
@@ -25,9 +25,14 @@ public class DataInitializer {
 
     @Bean
     CommandLineRunner seedAdminAccount(UserRepository userRepository,
-                                       PasswordEncoder passwordEncoder) {
+                                       PasswordEncoder passwordEncoder,
+                                       @Value("${ADMIN_PASSWORD:}") String adminPassword) {
         return args -> {
             String adminUsername = "admin";
+            if (adminPassword == null || adminPassword.isBlank()) {
+                logger.info("[DataInitializer] ADMIN_PASSWORD trống, bỏ qua tạo tài khoản admin.");
+                return;
+            }
             if (userRepository.existsByUsername(adminUsername)) {
                 logger.info("[DataInitializer] Admin account '{}' already exists, skip seed.", adminUsername);
                 return;
@@ -36,7 +41,7 @@ public class DataInitializer {
             UserEntity admin = new UserEntity();
             admin.setUsername(adminUsername);
             admin.setEmail("admin@tankzors.local");
-            admin.setPassword(passwordEncoder.encode("admin123"));
+            admin.setPassword(passwordEncoder.encode(adminPassword));
             admin.setDisplayName("Administrator");
             admin.setRole("ROLE_ADMIN");
             admin.setEnabled(true);
@@ -46,12 +51,7 @@ public class DataInitializer {
 
             userRepository.save(admin);
 
-            logger.warn("========================================================");
-            logger.warn("  [DataInitializer] Default admin account created!");
-            logger.warn("  Username: admin");
-            logger.warn("  Password: admin123");
-            logger.warn("  >>> CHANGE THE PASSWORD IMMEDIATELY! <<<");
-            logger.warn("========================================================");
+            logger.warn("[DataInitializer] Đã tạo tài khoản admin từ ADMIN_PASSWORD.");
         };
     }
 }

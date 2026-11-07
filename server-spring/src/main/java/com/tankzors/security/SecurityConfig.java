@@ -3,12 +3,18 @@ package com.tankzors.security;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.authentication.ExceptionMappingAuthenticationFailureHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+
+import java.util.Map;
 
 /**
  * Spring Security configuration cho Tankzors Pro.
@@ -33,18 +39,29 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        var loginFailureHandler = new ExceptionMappingAuthenticationFailureHandler();
+        loginFailureHandler.setDefaultFailureUrl("/login?error=true");
+        loginFailureHandler.setExceptionMappings(Map.of(
+            DisabledException.class.getName(), "/login?disabled=true"));
+
         http
             .authorizeHttpRequests(auth -> auth
                 // Static resources — public
                 .requestMatchers("/css/**", "/js/**", "/images/**", "/play/**", "/game/**",
                                  "/favicon.ico", "/webjars/**").permitAll()
-                // Public pages
-                .requestMatchers("/", "/menu", "/register", "/api/health", "/error/**").permitAll()
+                // Public pages. "/login" khai báo tường minh: formLogin().permitAll() so khớp cả
+                // query string nên không phủ được /login?disabled=true khi dùng failureHandler.
+                .requestMatchers("/", "/menu", "/login", "/register", "/api/health", "/error/**").permitAll()
                 // Admin-only
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 // Everything else requires authentication
                 .anyRequest().authenticated()
             )
+            // API trả 401 thay vì 302 về /login: XHR đi theo redirect sẽ nhận trang HTML
+            // mã 200 và tưởng đã lưu kết quả thành công.
+            .exceptionHandling(ex -> ex.defaultAuthenticationEntryPointFor(
+                new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
+                new AntPathRequestMatcher("/api/**")))
             .headers(headers -> headers
                 .frameOptions(frameOptions -> frameOptions.sameOrigin())
             )
@@ -52,7 +69,7 @@ public class SecurityConfig {
                 .loginPage("/login")
                 .loginProcessingUrl("/login")
                 .defaultSuccessUrl("/menu", true)
-                .failureUrl("/login?error=true")
+                .failureHandler(loginFailureHandler)
                 .permitAll()
             )
             .logout(logout -> logout

@@ -21,7 +21,6 @@ public class GameClient implements ApplicationListener {
 
     private static final String TAG = "GameClient";
 
-    public static final String DEFAULT_WS_URL = "ws://localhost:8081/game";
     public static final String DEFAULT_LEVEL = "campaign_1";
 
     private final String wsUrl;
