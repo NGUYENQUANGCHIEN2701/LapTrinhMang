@@ -1,218 +1,56 @@
 # 04. Kết thúc trận và lưu kết quả
 
-**Tóm tắt:** Khi trận kết thúc, client tính điểm, tự cộng thưởng vào ví, đồng bộ ví rồi gửi `POST /api/game/results` kèm `runId`. Server dùng `runId` để phân biệt 3 trường hợp: kết quả mới, gửi lại y hệt, hoặc cùng `runId` nhưng nội dung khác. Nhờ vậy dù client gửi lại nhiều lần do mạng chập chờn, kết quả chỉ được ghi và cộng thưởng một lần.
+Client tính điểm và báo thắng/thua; server kiểm tra lượt và ghi dữ liệu tài khoản. Browser không tự cộng thưởng vào ví rồi gửi snapshot.
 
-**File chính:** [LocalCampaignSession.java](../../game-client/core/src/main/java/com/tankzors/client/session/LocalCampaignSession.java), [GwtAppBridge.java](../../game-client/html/src/main/java/com/tankzors/client/html/GwtAppBridge.java), [GameApiController.java](../../server-spring/src/main/java/com/tankzors/web/GameApiController.java), [ResultService.java](../../server-spring/src/main/java/com/tankzors/result/ResultService.java)
-
-## Sơ đồ
+## Luồng
 
 ```text
-fireMatchEnd()                           GameSimulation.java:1577
-  └─ onMatchEnd()                        LocalCampaignSession.java:641
-       ├─ calculate()                    ScoreCalculator.java:11      tính điểm
-       ├─ thắng: cộng Xu, Sao vào ví, syncShopState()                 xem [06]
-       └─ resultHandler.onResult(matchResult)
-            └─ submitResult()            GwtAppBridge.java:21
-                 └─ postJsonWithRetry()  GwtAppBridge.java:85         POST /api/game/results
-
-Server:
-  └─ submitResult()                      GameApiController.java:148
-       identity.resolve(request)
-       └─ submit()                       ResultService.java:52
-            validate(payload)            sai → 400
-            hash = FNV-1a của nội dung
-            tìm theo runId:
-              ├─ đã có, cùng hash   → 200 alreadySaved=true, không đổi gì
-              ├─ đã có, khác hash   → 409
-              └─ chưa có:
-                   VICTORY CAMPAIGN mà màn chưa mở/đã xong → 400
-                   clampReward(), chèn match_result
-                   nếu VICTORY và CAMPAIGN:
-                     markVictory()      khoá màn, mở màn kế      xem [05]
-                     submitScore()      cập nhật xếp hạng        xem [07]
-                     (ví player_totals không đổi: client đã sync ví gồm thưởng)
-                   200 saved
+GameSimulation kết thúc
+  LocalCampaignSession.onMatchEnd
+    chốt MatchResult một lần
+    flush journal shop còn lại
+    đặt resultSaved=false → CampaignPersistence.submit
+      GwtAppBridge: xếp sau các giao dịch trước, persist outbox, POST results
+        GameApiController: resolve session identity
+          ResultService.submit trong transaction:
+            validate DTO → acquire PlayerStateLock
+            kiểm tra game_run owner + level/version
+            kết quả đã có:
+              cùng SHA-256 → trả metadata hiện tại, không credit lại
+              khác payload → 409
+            kết quả mới:
+              kiểm tra hạn và quyền màn
+              insert match_result
+              thưởng = map + Extra Interest từ nghiên cứu đã lưu
+              cộng ví + tăng revision + finish run
+              thắng campaign: markVictory + best score
+            commit → 200 saved
+      callback.saved: nhận số dư, resultSaved=true
+      callback.failed: hiện lý do, giữ trạng thái chưa lưu
 ```
 
-## Bước 1: Client chốt kết quả
+Nguồn: [LocalCampaignSession](../../game-client/core/src/main/java/com/tankzors/client/session/LocalCampaignSession.java), [CampaignPersistence](../../game-client/core/src/main/java/com/tankzors/client/session/CampaignPersistence.java), [GwtAppBridge](../../game-client/html/src/main/java/com/tankzors/client/html/GwtAppBridge.java), [ResultService](../../server-spring/src/main/java/com/tankzors/result/ResultService.java).
 
-[LocalCampaignSession.java:641-663](../../game-client/core/src/main/java/com/tankzors/client/session/LocalCampaignSession.java#L641-L663)
-```java
-private void onMatchEnd(String lvl, String status, int hpRemain, int aiKills, int elapsedSeconds) {
-    if (matchResultFired) return;
-    matchResultFired = true;
-    int score = ScoreCalculator.calculate(hpRemain, aiKills, elapsedSeconds);
-    // Chỉ tính reward khi VICTORY; map reward lấy theo màn hiện tại.
-    boolean victory = "VICTORY".equalsIgnoreCase(status);
-    int stars = victory ? currentRewardStars : 0;
-    int coins = victory ? currentRewardCoins : 0;
-    if (victory) {
-        int extraPercent = shopState.getExtraInterestPercent();
-        if (extraPercent > 0) {
-            coins += (coins * extraPercent / 100);
-        }
-        shopState.addCoins(coins);
-        shopState.addStars(stars);
-        syncShopState();
-    }
-    matchResult = new MatchResult(runId, mode, lvl, mapVersion != null ? mapVersion : "",
-            status, score, hpRemain, aiKills, elapsedSeconds, stars, coins);
-    if (resultHandler != null) {
-        try { resultHandler.onResult(matchResult); }
-        catch (Exception ignored) { /* kết quả vẫn hiển thị */ }
-    }
+## Điểm và thưởng
+
+Điểm vẫn tính trong core:
+
+```text
+HP còn lại × 10 + số xe hạ × 200 + max(0, 1000 − số giây × 10)
 ```
 
-Công thức điểm:
+Server giới hạn số liệu nhưng không replay để chứng minh điểm là thật. Thưởng thực ghi lấy từ metadata map và nghiên cứu server, không lấy số Xu/Sao client yêu cầu. DEFEAT không có thưởng. Kết quả, ví, tiến trình và leaderboard nằm trong cùng transaction, dưới khóa row tài khoản đến commit.
 
-[ScoreCalculator.java:11-16](../../game-client/core/src/main/java/com/tankzors/client/gameplay/rules/ScoreCalculator.java#L11-L16)
-```java
-public static int calculate(int hpRemain, int aiKills, int timeSeconds) {
-    int hp = Math.max(0, hpRemain) * 10;
-    int kill = Math.max(0, aiKills) * 200;
-    int timeBonus = Math.max(0, 1000 - Math.max(0, timeSeconds) * 10);
-    return hp + kill + timeBonus;
-}
-```
+## Retry và chuyển màn
 
-Trận thua cũng được gửi lên, với Sao và Xu bằng 0.
+- Cùng run/owner/payload trả 200 `alreadySaved=true`; totals, revision, best score và unlocked levels là dữ liệu hiện tại.
+- Cùng lượt, nội dung khác hoặc owner sai trả 409. Browser không coi đó là thành công.
+- Lỗi mạng, 429 và 5xx được retry tối đa ba lần; body giữ nguyên. Các ghi sau không vượt hàng đợi.
+- UI hiển thị đang lưu/lỗi và không cho next/restart/rời kết quả trước xác nhận. `R` thử lại khi lỗi tạm thời; 400/409 yêu cầu tải lại state server.
+- Outbox lưu trong sessionStorage của đúng tài khoản. Reload cùng tab gửi lại trước bootstrap; không có bảo đảm giữ sau đóng tab/xóa/cấm storage.
 
-## Bước 2: Gửi đi, lỗi thì thử lại
+Các request bị server từ chối được giữ riêng để chẩn đoán, không tự áp lại lên revision mới. Chi tiết mã HTTP, trường dữ liệu và giới hạn ở [networking](../networking.md).
 
-JSON được [ghép tay](../../game-client/html/src/main/java/com/tankzors/client/html/GwtAppBridge.java#L44-L61) vì GWT không có sẵn thư viện JSON như trên server. Khi gửi:
+## Test hồi quy
 
-[GwtAppBridge.java:88-98](../../game-client/html/src/main/java/com/tankzors/client/html/GwtAppBridge.java#L88-L98)
-```java
-var xhr = new XMLHttpRequest();
-xhr.open("POST", url, true);
-xhr.setRequestHeader("Content-Type", "application/json");
-xhr.onreadystatechange = $entry(function() {
-    if (xhr.readyState !== 4) return;
-    var ok = (xhr.status >= 200 && xhr.status < 300) || xhr.status === 409;
-    if (!ok && attempt < 3) {
-        $wnd.setTimeout(function() {
-            self.@com.tankzors.client.html.GwtAppBridge::postJsonWithRetry(Ljava/lang/String;Ljava/lang/String;I)(url, body, attempt + 1);
-        }, 1000 * (attempt + 1));
-    } else if (!ok) {
-```
-
-- Lỗi thì thử lại tối đa 3 lần, chờ 1 giây, 2 giây, 3 giây. Một kết quả có thể tới server tối đa 4 lần.
-- Coi 409 là "đã xong", không thử lại vì thử nữa cũng vẫn 409.
-- Hết lượt thử thì chỉ ghi log, người chơi không thấy thông báo.
-
-Vì vậy server **bắt buộc** phải chịu được việc nhận trùng. Đó là việc của bước 4.
-
-## Bước 3: Controller nhận yêu cầu
-
-[GameApiController.java:148-152](../../server-spring/src/main/java/com/tankzors/web/GameApiController.java#L148-L152)
-```java
-public ResponseEntity<Map<String, Object>> submitResult(
-        @RequestBody ResultService.ResultPayload payload,
-        HttpServletRequest request) {
-    String playerId = identity.resolve(request);
-    ResultService.SubmitOutcome out = resultService.submit(payload, playerId);
-```
-
-`playerId` lấy từ phiên đăng nhập, không lấy từ thân yêu cầu. Hai loại lỗi được chuyển thành mã HTTP ở [cuối file](../../server-spring/src/main/java/com/tankzors/web/GameApiController.java#L168-L177): `ConflictException` → 409, `IllegalArgumentException` → 400.
-
-## Bước 4: Phân ba nhánh
-
-Đây là phần cốt lõi của cơ chế chống ghi trùng.
-
-[ResultService.java:55-67](../../server-spring/src/main/java/com/tankzors/result/ResultService.java#L55-L67)
-```java
-validate(payload);
-
-String hash = payloadHash(payload);
-
-// 1. Đã có runId?
-MatchResultEntity existing = resultRepo.findByRunId(payload.runId).orElse(null);
-if (existing != null) {
-    if (hash.equals(existing.getPayloadHash())) {
-        // Idempotent retry: trả đã lưu, không mutate.
-        return SubmitOutcome.idempotent(view(existing, playerId));
-    }
-    throw new ConflictException("runId " + payload.runId + " đã tồn tại với payload khác");
-}
-```
-
-| Tình huống | Hash | Kết quả | Dữ liệu |
-|---|---|---|---|
-| `runId` mới | | 200, `alreadySaved=false` | Chèn và cộng thưởng |
-| `runId` đã có | Giống | 200, `alreadySaved=true` | Không đổi |
-| `runId` đã có | Khác | 409 | Không đổi |
-
-- [`validate`](../../server-spring/src/main/java/com/tankzors/result/ResultService.java#L143-L163) kiểm tra các trường có hợp lệ và không vượt ngưỡng (ví dụ điểm trong khoảng 0 đến 1.000.000).
-- [`payloadHash`](../../server-spring/src/main/java/com/tankzors/result/ResultService.java#L166-L177) băm nội dung kết quả bằng FNV-1a 64 bit, không gồm `runId`.
-- Chốt chặn cuối là ràng buộc [`match_result_run_unique`](../../server-spring/src/main/resources/db/migration/V3__match_result_dedup.sql#L16) trong database: mỗi `run_id` chỉ có một dòng.
-
-## Bước 5: Kẹp phần thưởng
-
-Client tự khai Sao và Xu, nên server không tin mà đối chiếu với tệp bản đồ của chính nó:
-
-[ResultService.java:119-130](../../server-spring/src/main/java/com/tankzors/result/ResultService.java#L119-L130)
-```java
-private static int[] clampReward(ResultPayload payload, MatchResultEntity row) {
-    boolean victory = "VICTORY".equalsIgnoreCase(payload.status)
-            && "CAMPAIGN".equalsIgnoreCase(row.getMode());
-    if (!victory) return new int[]{0, 0};
-    GameMap map = MapLoader.load(payload.levelId);
-    if (map == null || map.getRewards() == null) return new int[]{0, 0};
-    int maxStars = Math.max(0, map.getRewards().getStars());
-    int maxCoins = Math.max(0, map.getRewards().getCoins());
-    int stars = Math.max(0, Math.min(payload.starsEarned, maxStars));
-    int coins = Math.max(0, Math.min(payload.coinsEarned, maxCoins));
-    return new int[]{stars, coins};
-}
-```
-
-## Bước 6: Chỉ trận thắng mới có tác dụng phụ
-
-[ResultService.java:99-110](../../server-spring/src/main/java/com/tankzors/result/ResultService.java#L99-L110)
-```java
-if (campaignVictory) {
-    // Màn vừa thắng bị khoá; danh sách trả về là các màn còn được chơi.
-    progressService.markVictory(playerId, payload.levelId);
-    unlocked = progressService.getUnlocked(playerId);
-    bestScore = leaderboardService.submitScore(
-            playerNameFor(playerId), payload.levelId,
-            payload.score, payload.elapsedSeconds, payload.hpRemain).getScore();
-}
-```
-
-Ví (`player_totals`) chỉ do [`/api/game/shop/sync`](06-cua-hang-va-tui-do.md) ghi. Client đã cộng thưởng vào ví và sync trước khi gửi kết quả, nên `submit` không cộng thêm; `stars_earned`/`coins_earned` trong `match_result` chỉ là lịch sử.
-
-Trước khi chèn, `submit` từ chối (400) một kết quả thắng campaign nếu màn đó chưa mở hoặc đã hoàn thành:
-
-```java
-if (campaignVictory && !progressService.isUnlocked(playerId, payload.levelId)) {
-    throw new IllegalArgumentException("Màn chưa mở hoặc đã hoàn thành: " + payload.levelId);
-}
-```
-
-Toàn bộ `submit` nằm trong [một transaction](../../server-spring/src/main/java/com/tankzors/result/ResultService.java#L51). Lỗi giữa chừng thì không có gì được ghi.
-
-Client không dùng phản hồi của API này: `postJsonWithRetry` chỉ xét mã trạng thái.
-
-## Dữ liệu thay đổi
-
-| Bảng | Thay đổi | Khi nào |
-|---|---|---|
-| `match_result` | Chèn một dòng | Mọi kết quả mới, kể cả thua |
-| `player_progress` | Khoá màn, mở màn kế | Thắng |
-| `leaderboard` | Thêm hoặc nâng điểm | Thắng |
-
-## Hạn chế cần biết
-
-Các điểm sau đọc được trực tiếp từ code, chưa dựng kịch bản khai thác để xác nhận:
-
-- **`runId` không được đối chiếu.** [Bootstrap sinh `runId`](../../server-spring/src/main/java/com/tankzors/web/GameApiController.java#L72) nhưng không lưu, nên `submit` chấp nhận mọi `runId` mới. Cơ chế này chống gửi lại, không chống tự tạo kết quả.
-- **Chỉ kiểm tra màn đang mở, không kiểm tra đã thật sự chơi.** Một yêu cầu thắng tự tạo cho màn hiện tại vẫn được chấp nhận.
-- **Điểm không bị kẹp theo bản đồ**, chỉ chặn ngưỡng 1.000.000. Server không tính lại điểm.
-- **Ví do client giữ.** `/api/game/shop/sync` ghi đè tổng Sao/Xu bằng số client gửi; giới hạn thưởng theo bản đồ chỉ áp dụng cho dòng lịch sử `match_result`.
-- **Gửi đồng thời cùng `runId`.** Ràng buộc UNIQUE chỉ cho một dòng thành công, nhưng lỗi vi phạm chưa được xử lý riêng nên yêu cầu còn lại nhiều khả năng nhận lỗi 500. Hiện chưa có test đồng thời.
-
-## Test kiểm chứng
-
-- [ResultServiceTest.java](../../server-spring/src/test/java/com/tankzors/result/ResultServiceTest.java): `retrySameRunIdPayloadDoesNotDoubleCredit`, `retrySameRunIdDifferentPayloadConflicts`, `clientOverreportClampedToMapRewards`, `defeatDoesNotCredit`, `victoryStoresRewardRowWithoutCreditingWallet`, `walletSyncedBeforeResultIsCreditedOnlyOnce`, `secondVictoryOnCompletedLevelIsRejected`, `victoryOnLockedLevelIsRejected`
-- [LocalCampaignSessionTest.java](../../game-client/core/src/test/java/com/tankzors/client/session/LocalCampaignSessionTest.java): `victoryMatchResultCarriesMapReward`
+`ResultServiceTest` kiểm tra run tự đặt, owner khác, metadata/hạn, credit một lần, retry metadata, rollback và submit đồng thời. `LocalCampaignSessionTest` kiểm tra callback về chậm/lỗi, UI gate và không tự credit browser. Browser smoke kiểm tra mất response sau commit, 409 và reload outbox; xem [HTML5 README](../../game-client/html/README.md#kiểm-thử-browser-tùy-chọn).

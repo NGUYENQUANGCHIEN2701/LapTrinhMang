@@ -1,256 +1,75 @@
-# Runbook
+# Runbook Tankzors
 
-Hướng dẫn build, run, troubleshoot Tankzors Pro. Tài liệu chính của repo.
+Workflow chuẩn là Docker multi-stage, build GWT bằng JDK 17 và Spring bằng JDK 21. Chạy lệnh từ root repository. Chi tiết cấu hình, Watch và backup/restore nằm trong [infra README](../infra/README.md).
 
-## 1. Yêu cầu môi trường
-
-| Tool | Version | Lý do |
-|---|---|---|
-| **JDK** | 17+ (test 17 và 21) | Spring Boot + game-client |
-| **Maven** | 3.9+ | Build server-spring |
-| **Docker Desktop** | 4.20+ | Chạy PostgreSQL 16 qua docker compose |
-| **Git** | 2.40+ | Để clone & commit |
-| **Browser** | bất kỳ hiện | Thymeleaf website |
-
-### Lưu ý đặc thù
-
-- **Maven**: Repo không kèm Maven wrapper. Cài Maven system-wide (3.9+) và
-  kiểm tra bằng `mvn -version`.
-
-- **Java**: kiểm tra `java -version`. Game-client yêu cầu Java 17 (do LibGDX 1.12.1), server-spring có thể chạy Java 21.
-
-- **Docker**: kiểm tra `docker info`. Nếu daemon chưa start, chạy Docker Desktop trước.
-
-## 2. Quick start (môi trường dev)
-
-### Bước 1: Khởi động PostgreSQL
-
-```bash
-docker compose -f infra/docker-compose.yml up -d
-
-# Verify
-docker compose -f infra/docker-compose.yml ps
-# tankzors-postgres   Up   (healthy)   0.0.0.0:5432->5432/tcp
-```
-
-Connection params mặc định:
-
-| Param | Value |
-|---|---|
-| Host | `localhost` |
-| Port | `5432` |
-| DB | `tankzors` |
-| User | `tankzors` |
-| Pass | `tankzors_dev_password` |
-
-Override qua env: `DB_URL`, `DB_USER`, `DB_PASSWORD` (xem `application.yml`).
-
-### Bước 2: Build server-spring
-
-```bash
-mvn -f server-spring/pom.xml clean package -DskipTests
-```
-
-Output fat jar: `server-spring/target/tankzors-server-spring-1.0-SNAPSHOT.jar` (~50 MB).
-
-### Bước 3: Chạy server-spring
-
-```bash
-java -jar server-spring/target/tankzors-server-spring-1.0-SNAPSHOT.jar
-```
-
-Log khi boot thành công sẽ có Spring Boot, Flyway và datasource; scheduler
-server-side được tắt mặc định vì campaign chạy trong LibGDX client.
-
-```
-INFO  com.tankzors.TankzorsApplication  : Starting TankzorsApplication v1.0-SNAPSHOT
-INFO  o.f.c.i.s.JdbcTableSchemaHistory  : Schema history table "public"."flyway_schema_history" does not exist yet
-INFO  o.f.core.internal.command.DbMigrate: Migrating schema "public" to version "1 - init"
-INFO  o.f.core.internal.command.DbMigrate: Migrating schema "public" to version "2 - player progress"
-INFO  com.tankzors.TankzorsApplication   : Started TankzorsApplication in 4.123 seconds
-```
-
-Truy cập:
-
-- [http://localhost:8081/](http://localhost:8081/) — Home Thymeleaf
-- [http://localhost:8081/campaigns](http://localhost:8081/campaigns) — Chọn màn
-- [http://localhost:8081/play?levelId=campaign_1](http://localhost:8081/play?levelId=campaign_1) — Chơi LibGDX HTML5
-- [http://localhost:8081/leaderboard](http://localhost:8081/leaderboard) — Bảng xếp hạng
-- [http://localhost:8081/api/health](http://localhost:8081/api/health) — Health JSON
-
-### Bước 4 (optional): Build lại HTML5 client
+## 1. Khởi động và xác nhận
 
 ```powershell
-Set-Location game-client
-.\gradlew.bat html:copyToServer
-Set-Location ..
-```
-
-## 3. Test suite
-
-```bash
-# Full server-spring (141 tests, qua WSL bash nếu Maven chưa có)
-mvn -f server-spring/pom.xml test
-
-# LibGDX client
-Set-Location game-client
-.\gradlew.bat test
-```
-
-Test coverage (Phase 5):
-
-| Module | Test count | Ghi chú |
-|---|---|---|
-| server-spring engine | 60 | BulletManager, CollisionManager, EndToEndIntegration |
-| server-spring ai | 13 | AIController, Chase/Patrol/Shoot |
-| server-spring entity | 14 | PlayerTank |
-| server-spring map | 11 | MapLoader, CampaignMaps |
-| server-spring engine progression | 5 | CampaignProgressionTest |
-| server-spring application | 15 | ScoreCalc + LeaderboardSvc + PlayerProgressSvc + MatchEndSvc |
-| server-spring leaderboard/progress JPA | 3 | LeaderboardRepositoryTest |
-| server-spring web | 7 | LeaderboardController + ProgressController |
-| server-spring context | 3 | TankzorsApplicationContextTest |
-
-## 4. Common operations
-
-### Reset database
-
-```bash
-docker compose -f infra/docker-compose.yml down -v
-docker compose -f infra/docker-compose.yml up -d
-```
-
-Volume `-v` xóa `tankzors_pg_data` → migration chạy lại từ V1.
-
-### Reset progression của 1 session
-
-```bash
-# Cần cookie phiên của tài khoản đã đăng nhập và CSRF token (lấy từ trình duyệt).
-curl -XPOST -b 'JSESSIONID=<cookie>' -H 'X-CSRF-TOKEN: <token>' http://localhost:8081/api/progress/reset
-```
-
-### Query leaderboard trực tiếp từ DB
-
-```bash
-docker exec -it tankzors-postgres psql -U tankzors -d tankzors
-tankzors=# SELECT player_name, map_id, score FROM leaderboard ORDER BY score DESC LIMIT 10;
-tankzors=# SELECT * FROM player_progress WHERE session_id = 'verify-restart-session';
-tankzors=# \q
-```
-
-### Đổi port server
-
-Sửa `server-spring/src/main/resources/application.yml`:
-
-```yaml
-server:
-  port: 8080     # mặc định 8081
-```
-
-Hoặc override qua env khi run:
-
-```bash
-SERVER_PORT=9000 java -jar server-spring/target/...
-```
-
-### Override database connection
-
-```bash
-DB_URL=jdbc:postgresql://prod-db:5432/tankzors_prod \
-DB_USER=admin \
-DB_PASSWORD=secret \
-java -jar server-spring/target/tankzors-server-spring-1.0-SNAPSHOT.jar
-```
-
-## 5. Troubleshooting
-
-### Server không start: "Connection refused localhost:5432"
-
-Postgres chưa chạy:
-
-```bash
-docker compose -f infra/docker-compose.yml up -d postgres
+docker version
+docker compose version
+docker compose -f infra/docker-compose.yml up --build -d
 docker compose -f infra/docker-compose.yml ps
+docker compose -f infra/docker-compose.yml logs --tail 200 app
+curl.exe http://localhost:8081/api/health
 ```
 
-Nếu vẫn không được, thử:
+Database phải healthy và log app có `Started TankzorsApplication`. Health `UP` chỉ xác nhận HTTP của app. Tiếp tục smoke test:
 
-```bash
-docker ps -a | findstr postgres        # check container state
-docker logs tankzors-postgres          # xem log chi tiết
+1. Mở `http://localhost:8081/`, đăng ký hoặc đăng nhập.
+2. Vào màn đang mở; Network có bootstrap `200`, game tải đủ ảnh/âm thanh.
+3. Chơi đến kết thúc; kiểm tra POST kết quả trả `saved: true`, xem shop sync nếu ví/inventory đổi.
+4. Reload trang, kiểm tra tiến trình, ví và bảng xếp hạng phù hợp. Đóng/mở lại app để xác nhận dữ liệu DB còn nguyên.
+
+Admin chỉ được seed nếu chưa tồn tại và `ADMIN_PASSWORD` có giá trị. Compose mặc định `admin123` cho dev; thay biến không đổi mật khẩu đã lưu. Đọc [các hạn chế](../README.md#10-trạng-thái-và-hạn-chế) trước khi đưa bản dev ra môi trường dùng chung.
+
+## 2. Sau khi sửa code
+
+```powershell
+docker compose -f infra/docker-compose.yml up --build -d
 ```
 
-### Flyway báo "Validate failed"
+`restart app` không build source. Sau khi app khởi động, tải lại browser để dùng bundle mới. Mỗi lần thay app sẽ mất session/phòng trong RAM; database giữ trong volume. Dockerfile không chạy test, xem [DEVELOPMENT](DEVELOPMENT.md#6-kiểm-tra-và-bàn-giao) để chạy test trước.
 
-Có thể đã chỉnh schema manually. Reset hoặc dùng baseline:
+Chạy local ngoài Docker chỉ khi cần debug: bật riêng service `postgres`, build `html:copyToServer` bằng JDK 17, rồi chạy Spring bằng JDK 21/Maven. Trình tự đầy đủ ở [README gốc](../README.md#chạy-không-dùng-docker).
 
-```bash
-docker compose -f infra/docker-compose.yml down -v
-docker compose -f infra/docker-compose.yml up -d
+## 3. Chẩn đoán theo triệu chứng
+
+| Triệu chứng | Kiểm tra và xử lý |
+|---|---|
+| Không có lệnh Docker | Kiểm tra Docker, PATH và Docker Desktop; chưa thể kiểm chứng pipeline Docker chỉ bằng Maven |
+| App không nối được DB | Xem `ps`, log `postgres`, credential; Compose dùng `postgres:5432`, server local dùng cổng host |
+| Cổng bận | Đổi `POSTGRES_HOST_PORT` cho DB; đổi mapping host `8081:8081` nếu cổng web bận |
+| GWT build hết bộ nhớ | Cấp thêm RAM cho Docker; GWT có heap cấu hình 2 GB, toàn stack cần phần bộ nhớ khác |
+| Thiếu asset/màn đen | Console WebGL/GWT, Network `404`; build lại toàn image, kiểm tra source asset và chữ hoa/thường |
+| Xe không nhận phím | Click iframe; đóng briefing/túi đồ/cửa hàng trước khi thử |
+| Bootstrap `403` | Level chưa mở hoặc đã thắng; kiểm tra progress, không bypass ở client |
+| API `401` | Phiên hết hạn/chưa đăng nhập; đăng nhập lại, không retry vô hạn |
+| Kết quả `400` | Xem body lỗi; kiểm tra level, status và miền giá trị; không mặc định là lỗi mạng |
+| Kết quả `409` | Cùng run ID có payload khác; không coi là đã lưu nội dung mới |
+| Thắng nhưng không mở màn | Đọc trạng thái lưu; kiểm tra POST results và DB. Game chờ xác nhận trước Next; 401 cần đăng nhập lại |
+| Giao dịch bị từ chối/409 | Không coi là đã lưu; nhấn R nạp lại state server. Request bị từ chối được giữ riêng trong sessionStorage để chẩn đoán |
+| Flyway validate lỗi | Đối chiếu migration, checksum và schema; không sửa SQL cũ hoặc reset dữ liệu cần giữ |
+
+Không có WebSocket `/game`. `/game/libgdx/**` là static bundle; relay co-op duy nhất là `/coop`. Handshake relay cần phiên đăng nhập. Campaign không cần WebSocket để di chuyển/bắn. Co-op chưa được nối thành luồng chơi hoàn chỉnh, vì vậy mở socket thành công chưa chứng minh đã chơi co-op được.
+
+## 4. Kiểm tra dữ liệu
+
+```powershell
+docker exec -it tankzors-postgres psql -U tankzors -d tankzors
 ```
 
-### WebSocket không connect
+Trong psql:
 
-1. Check server đang listen 8081 (`netstat -ano | findstr :8081` trên Windows, `lsof -i :8081` trên Unix).
-2. Check CORS: `WebSocketConfig.java` đang `setAllowedOrigins("*")` nên không phải vấn đề.
-3. Test bằng wscat:
-   ```bash
-   npm install -g wscat
-   wscat -c ws://localhost:8081/game
-   # Server gửi CONNECT packet ngay
-   ```
-
-### Tank không di chuyển
-
-1. Click vào iframe game để chuyển focus.
-2. Mở browser console và kiểm tra lỗi GWT hoặc asset.
-3. Xác nhận bootstrap trả `200`: `/api/game/bootstrap?levelId=campaign_1`.
-4. Nếu vừa sửa client, chạy lại `game-client\\gradlew.bat html:copyToServer`.
-
-### VICTORY nhưng leaderboard không có entry
-
-Kết quả campaign được client gửi tới `POST /api/game/results`. Nếu chưa có:
-
-1. Browser Network kiểm tra request `/api/game/results`.
-2. DB trực tiếp: `SELECT * FROM leaderboard ORDER BY id DESC LIMIT 1;`.
-3. Logic: nếu score mới thấp hơn existing → không insert (best-score upsert).
-
-### LibGDX HTML5 không tải
-
-1. Kiểm tra `server-spring/src/main/resources/static/game/libgdx/index.html`.
-2. Build lại bằng `game-client\\gradlew.bat html:copyToServer`.
-3. Mở browser console để xem lỗi GWT và kiểm tra asset trả HTTP 200.
-
-## 6. Production deploy
-
-Tham khảo `infra/docker-compose.yml` cho single-machine deploy. Production nên có:
-
-- Nginx/Caddy reverse proxy phía trước (terminate TLS, gzip).
-- PostgreSQL managed (RDS, Cloud SQL) thay vì container.
-- Spring Boot profile `prod`:
-  ```yaml
-  # application-prod.yml
-  spring:
-    jpa:
-      hibernate:
-        ddl-auto: validate
-  logging:
-    level:
-      root: WARN
-      com.tankzors: INFO
-  server:
-    port: 8080
-  ```
-
-Run:
-
-```bash
-java -jar server-spring.jar --spring.profiles.active=prod
+```sql
+SELECT version, description, success FROM flyway_schema_history ORDER BY installed_rank;
+SELECT run_id, player_id, map_id, status, score FROM match_result ORDER BY id DESC LIMIT 20;
+SELECT * FROM player_progress WHERE session_id = 'user:<username>';
+SELECT * FROM player_totals WHERE player_id = 'user:<username>';
+SELECT player_name, map_id, score FROM leaderboard ORDER BY score DESC LIMIT 20;
 ```
 
-## 7. Trạng thái cutover
+Progress reset qua `POST /api/progress/reset` cần cookie và CSRF token; thao tác này không reset ví/nghiên cứu/lịch sử. Chỉ chạy `down -v` khi chủ đích xóa toàn bộ database thử; với dữ liệu cần giữ, backup và thử restore trước khi thay schema. Xem [database README](../server-spring/src/main/resources/db/README.md).
 
-LibGDX HTML5 đã thay React trong luồng `/play`; các module React, Javalin và
-`shared-protocol` thử nghiệm đã được xóa. Công việc tiếp theo tập trung vào
-hoàn thiện co-op, reward/debriefing và loại endpoint compatibility `/game` khi
-không còn caller.
+## 5. Bằng chứng khi bàn giao sự cố
+
+Ghi commit, cách chạy (Docker/local), bước tái hiện, HTTP status/body, đoạn log liên quan và kết quả kiểm tra DB. Loại cookie, mật khẩu và dữ liệu tài khoản khỏi log chia sẻ. Đánh dấu lỗi đã tái hiện hay mới suy ra từ code, kiểm tra nào chưa chạy. Danh sách vấn đề của lần rà soát ngày 09/11/2026 ở [CODE-REVIEW](CODE-REVIEW.md).

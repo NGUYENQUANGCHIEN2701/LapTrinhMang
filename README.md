@@ -26,6 +26,7 @@ Game xe tăng PvE chạy ngay trên trình duyệt, đồ án môn **Lập trìn
 9. [Xử lý lỗi thường gặp](#9-xử-lý-lỗi-thường-gặp)
 10. [Trạng thái và hạn chế](#10-trạng-thái-và-hạn-chế)
 11. [Tài liệu sâu hơn](#11-tài-liệu-sâu-hơn)
+12. [Hướng phát triển và bàn giao](#12-hướng-phát-triển-và-bàn-giao)
 
 ## 1. Dự án này làm gì
 
@@ -34,7 +35,7 @@ Tankzors gồm hai phần ghép lại thành một website:
 - **Game** viết bằng Java với LibGDX, được GWT biên dịch sang JavaScript để chạy trong trình duyệt. Toàn bộ trận đấu (xe, đạn, AI, va chạm, điểm) được tính ngay trên máy người chơi.
 - **Server** viết bằng Spring Boot, lo phần còn lại: website, đăng nhập, cấp bản đồ, lưu kết quả, tiến trình, ví, bảng xếp hạng và trang quản trị.
 
-Ý tưởng mạng cốt lõi: trong lúc chơi, game gần như không cần server. Server chỉ tham gia **đầu trận** (cấp bản đồ và mã lượt chơi `runId`) và **cuối trận** (nhận và lưu kết quả). Kiến trúc này gọi là **client-authoritative**: trình duyệt là nguồn sự thật của trận đấu. Nhờ đó trận đấu không phụ thuộc độ trễ mạng và server rất nhẹ. Cái giá là server phải tin phần lớn những gì client gửi lên, xem [Trạng thái và hạn chế](#10-trạng-thái-và-hạn-chế).
+Ý tưởng mạng cốt lõi: **mô phỏng trận đấu chạy ở client**, còn **dữ liệu tài khoản và giao dịch do server kiểm tra**. Server cấp bản đồ và lượt chơi, nhận các thao tác thay đổi kho/ví trong trận, rồi lưu kết quả cuối trận. Không truyền liên tục toàn bộ world lên server. Campaign vẫn client-authoritative về điểm và thắng/thua; xem [Trạng thái và hạn chế](#10-trạng-thái-và-hạn-chế).
 
 Tính năng hiện có:
 
@@ -93,7 +94,7 @@ Sau đó mở <http://localhost:8081/>, tạo tài khoản và chơi.
 | Cài đặt âm lượng | <http://localhost:8081/settings> | Có |
 | Quản trị | <http://localhost:8081/admin> | Có, quyền admin |
 
-Tài khoản quản trị `admin` được tạo ở lần chạy đầu với mật khẩu lấy từ biến môi trường `ADMIN_PASSWORD`. Docker Compose đặt mặc định `admin123` cho môi trường phát triển; khi triển khai thật, chạy `ADMIN_PASSWORD=<mật-khẩu-mạnh> docker compose ...`. Nếu biến này trống (ví dụ chạy `mvn spring-boot:run` trực tiếp), server không tạo tài khoản admin.
+Tài khoản quản trị `admin` được tạo khi chưa tồn tại với mật khẩu lấy từ biến môi trường `ADMIN_PASSWORD`. Docker Compose đặt mặc định `admin123` cho môi trường phát triển. Trong PowerShell, đặt `$env:ADMIN_PASSWORD = "<mật-khẩu-mạnh>"` trước khi chạy Compose. Đổi biến này không đổi mật khẩu tài khoản đã tồn tại. Nếu biến này trống (ví dụ chạy `mvn spring-boot:run` trực tiếp), server không tạo tài khoản admin.
 
 ### Dừng và bật lại
 
@@ -229,8 +230,8 @@ Một số món trong cửa hàng chưa có gameplay. Danh sách món dùng đư
 
 ### Kết thúc trận
 
-- **Thắng:** bảng kết quả hiện ra, `Enter` đi tiếp vào cửa hàng rồi sang màn kế, `Esc` về danh sách màn. Kết quả được lưu lên server, màn kế được mở và Sao, Xu được cộng.
-- **Thua:** khi hết cả 4 mạng. Nhấn `R` để chơi lại, `Esc` để về danh sách màn. Chơi lại khôi phục túi đồ về đầu màn.
+- **Thắng:** game hiện trạng thái lưu. Sau khi server xác nhận, `Enter` vào cửa hàng rồi sang màn kế, `Esc` về danh sách màn. Kết quả, Sao/Xu, tiến trình và bảng xếp hạng được cập nhật trong cùng transaction. Khi lỗi mạng, game báo rõ và cho nhấn `R` để thử lại.
+- **Thua:** khi hết cả 4 mạng. Nhấn `R` để chơi lại, `Esc` để về danh sách màn. Bản browser tiếp tục dùng túi đồ đã lưu; vật phẩm đã tiêu hao không tự hoàn lại. Nếu kho hết mọi loại đạn và ví không đủ 5 Xu mua đạn thường, server cấp lại 99 đạn thường khi bootstrap lượt mới để tránh kẹt tiến trình.
 
 Điểm được tính theo công thức:
 
@@ -307,8 +308,8 @@ sequenceDiagram
     S-->>U: Trang có iframe, trình duyệt tải game
     G->>S: GET /api/game/bootstrap
     S-->>G: Bản đồ, runId, ví, túi đồ
-    Note over G: Chơi 30 bước mô phỏng mỗi giây.<br/>Không gọi server, trừ khi đổi ví hoặc túi đồ.
-    G->>S: POST /api/game/shop/sync (khi mua đồ)
+    Note over G: Chơi 30 bước mô phỏng mỗi giây.<br/>Chỉ gửi giao dịch tài khoản khi có thay đổi; không gửi world.
+    G->>S: POST /api/game/shop/sync (journal giao dịch có revision)
     G->>S: POST /api/game/results kèm runId
     S->>D: Lưu kết quả, mở màn kế, xếp hạng, cộng thưởng
     S-->>G: Các màn đã mở, tổng Sao và Xu
@@ -316,8 +317,8 @@ sequenceDiagram
 
 Vài cơ chế đáng chú ý:
 
-- **Chống ghi trùng bằng `runId`.** Mỗi lần bootstrap sinh một `runId` mới. Khi nhận kết quả, server tìm theo `runId`: chưa có thì lưu, có rồi và giống hệt thì trả về thành công mà không cộng thưởng lần nữa, có rồi nhưng khác nội dung thì trả `409`. Nhờ vậy client được phép gửi lại khi mạng chập chờn.
-- **Kẹp phần thưởng.** Sao và Xu trong kết quả không được vượt mức thưởng khai báo trong file bản đồ của màn.
+- **Lượt chơi được cấp và kiểm tra.** Bootstrap lưu `runId`, tài khoản, màn, version và hạn 24 giờ. Server kiểm tra quyền sở hữu trước khi nhận kết quả. Cùng lượt và nội dung là retry; khác nội dung trả `409`. Khóa row theo tài khoản giữ các thay đổi tuần tự đến lúc commit.
+- **Thưởng do server tính.** Server lấy thưởng từ map và nghiên cứu đã lưu, rồi cộng ví đúng một lần. Giá trị Sao/Xu client báo không quyết định số dư.
 - **Định danh.** Sau khi đăng nhập, mọi dữ liệu game gắn với khóa `user:<tên đăng nhập>` lấy từ phiên, không lấy từ dữ liệu client gửi.
 
 ### Bên trong một khung hình
@@ -408,7 +409,8 @@ Trừ `/api/health`, mọi API đều cần phiên đăng nhập (cookie `JSESSI
 | `GET` | `/api/health` | Kiểm tra server còn sống |
 | `GET` | `/api/game/bootstrap?levelId=campaign_1` | Lấy bản đồ, `runId`, ví, túi đồ. Trả `403` nếu màn chưa mở hoặc đã thắng |
 | `POST` | `/api/game/results` | Gửi kết quả trận. `400` khi dữ liệu sai, `409` khi trùng `runId` khác nội dung |
-| `POST` | `/api/game/shop/sync` | Lưu ví, nghiên cứu và túi đồ |
+| `GET` | `/api/game/account` | Lấy định danh, số dư và revision để khôi phục hàng đợi browser |
+| `POST` | `/api/game/shop/sync` | Gửi giao dịch có `requestId`, `expectedRevision`; server kiểm tra giá, kho và nghiên cứu |
 | `GET` | `/api/progress` | Danh sách màn đang chơi được |
 | `POST` | `/api/progress/reset` | Đặt lại tiến trình về màn 1 (cần CSRF token) |
 | `GET` | `/api/leaderboard/{mapId}` | Top điểm của một màn |
@@ -487,7 +489,9 @@ docker run --rm -v "${PWD}/server-spring:/src:ro" maven:3.9-eclipse-temurin-21 s
 docker run --rm -v "${PWD}/game-client:/src:ro" gradle:8.10.2-jdk17 sh -c "cp -r /src /w && cd /w && gradle --no-daemon core:test"
 ```
 
-Kết quả tại commit `543ce0f`: server 76 test, 75 đạt, 1 bỏ qua. Client 191 test, 190 đạt, 1 lỗi đã biết: `SpecialAmmoShopTest.pricesLimitsAndUnlocksMatchBuilds` vẫn so với chuỗi cũ `Can mua Radar`, trong khi giao diện đã đổi thành `Cần mua Radar` có dấu. Lỗi nằm ở test, không ảnh hưởng game.
+Đợt sửa ngày 09/11/2026: **113 test server và 199 test core đạt**, GWT/JDK 17 và JAR build thành công; ba kịch bản browser về lưu/retry/conflict/reload đạt. Docker/PostgreSQL chưa kiểm chứng vì môi trường thiếu CLI/daemon hoạt động. Xem phạm vi thực tế trong [báo cáo sửa lỗi](docs/CODE-REVIEW.md).
+
+Khi bàn giao phiên bản khác, đọc kết quả mới tại `server-spring/target/surefire-reports/` và `game-client/core/build/reports/tests/test/index.html`; không lấy số lượng test của mốc cũ làm bằng chứng. Cách chạy browser regression và checklist nằm trong [hướng dẫn phát triển](docs/DEVELOPMENT.md).
 
 ### Quy ước
 
@@ -509,6 +513,7 @@ Các biến môi trường chính:
 | `DB_PASSWORD` | `tankzors_dev_password` | Mật khẩu database, chỉ dùng khi phát triển |
 | `SERVER_PORT` | `8081` | Cổng Spring Boot khi chạy ngoài Docker |
 | `POSTGRES_HOST_PORT` | `5432` | Cổng PostgreSQL mở ra máy host |
+| `ADMIN_PASSWORD` | Compose: `admin123`; chạy trực tiếp: không tạo admin nếu trống | Mật khẩu tạo admin ban đầu, không phải cơ chế đổi mật khẩu |
 
 Xem dữ liệu trực tiếp:
 
@@ -522,8 +527,10 @@ Các bảng chính, do Flyway tạo từ `server-spring/src/main/resources/db/mi
 |---|---|
 | `app_user` | Tài khoản, mật khẩu BCrypt, vai trò |
 | `player_progress` | Màn đã mở và đã thắng của từng người chơi |
-| `player_totals` | Tổng Sao và Xu |
+| `player_totals` | Số dư Sao/Xu và revision của tài khoản |
 | `player_shop_state` | Nghiên cứu và túi đồ dạng JSON |
+| `game_run` | Lượt đã cấp, chủ sở hữu, hạn dùng và pickup đã ghi nhận |
+| `shop_request` | Khóa và hash chống áp dụng lại giao dịch |
 | `match_result` | Lịch sử trận, `run_id` là khóa chống trùng |
 | `leaderboard` | Điểm cao nhất theo người chơi và màn |
 
@@ -565,11 +572,11 @@ Màn đó chưa mở hoặc đã thắng. Mỗi màn chỉ thắng được mộ
 
 ### Thắng rồi nhưng màn kế không mở hoặc không có điểm
 
-Mở `F12`, tab **Network**, xem request `POST /api/game/results`. Nếu lỗi, kết quả chưa được lưu. Bảng xếp hạng chỉ giữ điểm cao nhất, nên điểm thấp hơn điểm cũ sẽ không thay đổi bảng.
+Đọc thông báo lưu trong game và kiểm tra `POST /api/game/results` ở Network. Lỗi mạng/5xx được retry theo thứ tự; `401` cần đăng nhập lại. `400/409` không được coi là thành công: game yêu cầu nạp lại dữ liệu server, giữ bản request bị từ chối riêng để chẩn đoán. Bảng xếp hạng chỉ giữ điểm tốt nhất.
 
 ### Server báo Flyway `Validate failed`
 
-Thường do đã sửa migration cũ hoặc sửa schema bằng tay. Ở môi trường phát triển, cách nhanh nhất là tạo lại database bằng `down -v` rồi `up --build -d`. Thao tác này xóa toàn bộ dữ liệu.
+Đối chiếu file migration với checksum và schema trước. Không sửa migration đã áp dụng; tạo migration mới. Chỉ dùng `down -v` khi chủ đích xóa database thử. Với dữ liệu cần giữ, backup và thử restore trước khi thay schema; xem [database README](server-spring/src/main/resources/db/README.md).
 
 ## 10. Trạng thái và hạn chế
 
@@ -580,18 +587,22 @@ Chưa hoàn thiện:
 - **Co-op chưa dùng được.** Relay `/coop`, trang phòng và lớp host/guest đã có trong code nhưng chưa nối vào game. Trong menu, Online Levels và Practice đang là "Coming soon".
 - **`/load-game` chỉ là trang giữ chỗ.**
 - **Một số món trong cửa hàng chưa có gameplay**, xem [hướng dẫn vật phẩm](docs/CLIENT-SHOP-ITEMS-GUIDE.md).
-- **Tải lại trang giữa trận sẽ mất lượt đang chơi**, vì trạng thái trận chỉ nằm trong bộ nhớ trình duyệt.
+- **Tải lại trang không khôi phục world đang chơi.** Hàng đợi ghi tài khoản/kết quả được lưu trong `sessionStorage` theo tài khoản và gửi lại trước bootstrap, nếu trình duyệt cho phép storage. Đóng hẳn tab hoặc xóa storage có thể làm mất request chưa gửi.
 
 Hạn chế về an toàn, cần biết trước khi đưa ra Internet:
 
-- **Server không kiểm chứng trận đấu.** Điểm và kết quả do client báo, server chỉ kiểm tra giới hạn và kẹp phần thưởng. Người dùng có thể tự gọi API để gửi kết quả giả. Đây là đánh đổi của kiến trúc client-authoritative.
-- **Ví do client quyết định.** `POST /api/game/shop/sync` ghi đè ví và túi đồ theo giá trị client gửi, không kiểm tra giá. Muốn chặt chẽ cần chuyển giao dịch sang server.
+- **Điểm và thắng/thua vẫn do client báo.** Có kiểm tra lượt đã cấp, owner, map/version và giới hạn số liệu; server không replay trận để chứng minh kết quả. Bảng xếp hạng hiện phù hợp đồ án/demo hơn là thi đấu có chống gian lận.
+- **Không xác minh được đường đi và thao tác thật trong trận.** Server kiểm tra catalog, tiền, số lượng, lượt và pickup đúng ô map, nhưng không biết xe có thực sự đến ô đó hay số đạn báo đã dùng có đúng không. Không coi cơ chế này là chống gian lận hoàn chỉnh.
 - **Mật khẩu mặc định.** `ADMIN_PASSWORD=admin123` và mật khẩu database trong Compose chỉ dành cho phát triển.
 
 ## 11. Tài liệu sâu hơn
 
 | Tài liệu | Nội dung |
 |---|---|
+| [docs/README.md](docs/README.md) | Điểm bắt đầu và thứ tự đọc tài liệu cho người tiếp quản |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Cách thêm gameplay, màn, vật phẩm, API; test và tiêu chí bàn giao |
+| [docs/CODE-REVIEW.md](docs/CODE-REVIEW.md) | Lỗi tiềm ẩn, bằng chứng trong code, cách tái hiện và hướng khắc phục |
+| [game-client/README.md](game-client/README.md), [server-spring/README.md](server-spring/README.md), [infra/README.md](infra/README.md) | Hướng dẫn theo module và vận hành Docker |
 | [docs/flows/](docs/flows/README.md) | Trace từng luồng theo code: đăng nhập, vào trận, vòng lặp game, lưu kết quả, tiến trình, cửa hàng, xếp hạng, build. **Nên đọc đầu tiên nếu muốn hiểu code** |
 | [docs/architecture.md](docs/architecture.md) | Ranh giới trách nhiệm và quy tắc phụ thuộc |
 | [docs/networking.md](docs/networking.md) | REST campaign và WebSocket co-op |
@@ -601,3 +612,34 @@ Hạn chế về an toàn, cần biết trước khi đưa ra Internet:
 | [docs/runbook.md](docs/runbook.md) | Thao tác vận hành |
 
 Khi có khác biệt về cách chạy, README này và [infra/docker-compose.yml](infra/docker-compose.yml) là nguồn hiện hành.
+
+## 12. Hướng phát triển và bàn giao
+
+Người mới nên chạy Docker, chơi một màn, đọc [chỉ mục tài liệu](docs/README.md), rồi lần theo `LocalCampaignSession`, `GwtAppBridge`, `GameApiController` và các service. [DEVELOPMENT](docs/DEVELOPMENT.md) hướng dẫn thêm màn, vật phẩm, API và test. [CODE-REVIEW](docs/CODE-REVIEW.md) ghi lại cách khắc phục 10 vấn đề đã rà soát cùng giới hạn xác minh.
+
+### Nền tảng đã bổ sung
+
+- Lượt campaign có metadata cấp phát, owner, map/version và hạn dùng.
+- Server kiểm tra giao dịch theo catalog; thưởng, tiến trình và leaderboard được ghi cùng transaction.
+- Giao dịch có revision và request ID; browser gửi tuần tự, giữ nguyên request khi retry và lưu hàng đợi qua reload trong cùng tab.
+- Game chờ xác nhận trước khi sang màn; lỗi lưu được hiển thị. Khóa/xóa tài khoản làm phiên cũ bị từ chối và đóng kết nối co-op.
+- Contract `MATCH_STARTED` đã có danh sách thành viên và run ID đúng. Launcher co-op vẫn là phần cần làm tiếp.
+
+### Công việc tiếp theo
+
+| Ưu tiên | Phạm vi | Tiêu chí hoàn thành |
+|---|---|---|
+| 1 | CI chạy core/Spring test, GWT và Docker với PostgreSQL | Mỗi PR có kết quả tự động; kiểm tra migration từ bản trước và test transaction đồng thời trên PostgreSQL |
+| 2 | Hoàn thiện co-op lobby → launcher → host/guest | Hai browser có hai xe; guest chỉ gửi input; host gửi snapshot; xử lý rời phòng, timeout và rematch |
+| 3 | Củng cố protocol co-op | Kiểm tra phase/run/sequence, giới hạn lưu lượng, đủ dữ liệu snapshot, chính sách lưu kết quả co-op rõ ràng |
+| 4 | Gom catalog campaign và kinh tế | Thêm màn/vật phẩm không bỏ sót metadata, thứ tự chuyển màn hoặc giá; có test parity và schema |
+| 5 | Mở rộng nội dung | Nhiệm vụ, AI, màn và trang bị mới nằm trong core, có test và thử desktop/browser |
+| 6 | Vận hành môi trường dùng chung | TLS, credential riêng, phân trang admin, dọn lượt/giao dịch cũ theo chính sách, backup/restore và theo dõi lỗi |
+
+Nếu muốn chơi lại màn đã thắng hoặc thay đổi thưởng, cần thiết kế cùng lúc quyền bootstrap, thưởng lần đầu, reset và leaderboard. Nếu muốn chống gian lận mạnh hơn, cần quyết định kiến trúc riêng; cấp run ID và kiểm tra giao dịch không chứng minh điểm số client là thật.
+
+### Quy tắc khi mở rộng
+
+Gameplay ở `game-client/core`; Spring giữ web, API, identity, persistence, room và relay. Co-op dùng protocol v2 tại `/coop`. Không tạo gameplay engine thứ hai trong Spring, không sửa bundle sinh ra bằng tay và không sửa migration đã áp dụng.
+
+Mỗi PR mô tả hành vi trước/sau, dữ liệu/protocol có đổi không và kết quả test thực tế. Cập nhật README module, tài liệu flow liên quan và chạy pipeline Docker cho thay đổi tích hợp. Checklist ở [DEVELOPMENT](docs/DEVELOPMENT.md#6-kiểm-tra-và-bàn-giao).
