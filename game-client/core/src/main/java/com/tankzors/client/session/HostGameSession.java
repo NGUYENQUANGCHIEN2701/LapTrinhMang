@@ -143,6 +143,9 @@ public class HostGameSession implements GameSession {
             // Server relay thông báo match thực sự bắt đầu; khởi tạo simulation.
             JsonValue p = root.get("payload");
             if (p != null) {
+                runId = p.getString("runId", root.getString("runId", runId));
+                levelId = p.getString("levelId", levelId);
+                mapVersion = p.getString("mapVersion", mapVersion);
                 List<String> ids = new ArrayList<>();
                 JsonValue members = p.get("members");
                 if (members != null) {

@@ -66,4 +66,29 @@ class RoomRelayHandlerTest {
         assertNull(roomOf(guest), "Guest không còn bị gắn vào phòng đã đóng");
         handler.afterConnectionClosed(guest, CloseStatus.NORMAL);
     }
+    @Test void matchStartedContainsBothPlayersAndCannotStartTwice() throws Exception {
+        WebSocketSession host = connect("start-host", "user:host");
+        WebSocketSession guest = connect("start-guest", "user:guest");
+        send(host, "{\"version\":\"v2\",\"type\":\"CREATE_ROOM\"}");
+        String id = roomOf(host).getRoomId();
+        send(guest, "{\"version\":\"v2\",\"type\":\"JOIN_ROOM\",\"roomId\":\"" + id + "\"}");
+        send(host, "{\"version\":\"v2\",\"type\":\"READY\",\"payload\":{\"ready\":true,\"levelId\":\"campaign_1\"}}");
+        send(guest, "{\"version\":\"v2\",\"type\":\"READY\",\"payload\":{\"ready\":true}}");
+        send(host, "{\"version\":\"v2\",\"type\":\"START_MATCH\"}");
+        var messages = org.mockito.ArgumentCaptor.forClass(org.springframework.web.socket.WebSocketMessage.class);
+        org.mockito.Mockito.verify(host, org.mockito.Mockito.atLeastOnce()).sendMessage(messages.capture());
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var start = messages.getAllValues().stream().map(message -> {
+            try { return mapper.readTree(message.getPayload().toString()); } catch (Exception e) { throw new RuntimeException(e); }
+        }).filter(packet -> "MATCH_STARTED".equals(packet.path("type").asText())).findFirst().orElseThrow();
+        assertEquals(2, start.path("payload").path("members").size());
+        assertEquals("user:guest", start.path("payload").path("members").get(1).path("playerId").asText());
+        String run = roomOf(host).getRunId();
+        send(host, "{\"version\":\"v2\",\"type\":\"START_MATCH\"}");
+        assertEquals(run, roomOf(host).getRunId());
+        handler.revokePlayer("user:host");
+        org.mockito.Mockito.verify(host).close(CloseStatus.POLICY_VIOLATION);
+        assertNull(registry.get(id));
+        handler.afterConnectionClosed(guest, CloseStatus.NORMAL);
+    }
 }

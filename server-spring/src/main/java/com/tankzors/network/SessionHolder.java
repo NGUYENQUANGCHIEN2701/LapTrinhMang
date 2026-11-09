@@ -18,6 +18,7 @@ public final class SessionHolder {
     static void put(WebSocketSession s) { if (s != null && s.getId() != null) SESSIONS.put(s.getId(), s); }
     static void remove(String id) { if (id != null) SESSIONS.remove(id); }
     public static WebSocketSession get(String id) { return id == null ? null : SESSIONS.get(id); }
+    static java.util.List<WebSocketSession> all() { return java.util.List.copyOf(SESSIONS.values()); }
 
     /** Gọi khi close nhận diện để dọn. */
     public static void onClosed(String id) { remove(id); }
