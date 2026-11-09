@@ -53,6 +53,10 @@ public class AdminController {
     private final PlayerProgressRepository progressRepository;
     private final PlayerTotalsRepository totalsRepository;
     private final PlayerShopStateRepository shopStateRepository;
+    private final com.tankzors.result.GameRunRepository runs;
+    private final com.tankzors.progress.ShopRequestRepository shopRequests;
+    private final com.tankzors.network.RoomRelayHandler relay;
+    private final com.tankzors.application.PlayerStateLock stateLock;
 
     public AdminController(UserRepository userRepository,
                            LeaderboardRepository leaderboardRepository,
@@ -60,7 +64,11 @@ public class AdminController {
                            PageModelFactory pageModelFactory,
                            PlayerProgressRepository progressRepository,
                            PlayerTotalsRepository totalsRepository,
-                           PlayerShopStateRepository shopStateRepository) {
+                           PlayerShopStateRepository shopStateRepository,
+                           com.tankzors.result.GameRunRepository runs,
+                           com.tankzors.progress.ShopRequestRepository shopRequests,
+                           com.tankzors.network.RoomRelayHandler relay,
+                           com.tankzors.application.PlayerStateLock stateLock) {
         this.userRepository = userRepository;
         this.leaderboardRepository = leaderboardRepository;
         this.matchResultRepository = matchResultRepository;
@@ -68,6 +76,7 @@ public class AdminController {
         this.progressRepository = progressRepository;
         this.totalsRepository = totalsRepository;
         this.shopStateRepository = shopStateRepository;
+        this.runs = runs; this.shopRequests = shopRequests; this.relay = relay; this.stateLock = stateLock;
     }
 
     @GetMapping
@@ -134,6 +143,7 @@ public class AdminController {
         user.setEnabled(!user.isEnabled());
         user.setUpdatedAt(java.time.Instant.now());
         userRepository.save(user);
+        if (!user.isEnabled()) relay.revokePlayer("user:" + user.getUsername());
         logger.info("[AdminController] Toggle user {} -> enabled={}", user.getUsername(), user.isEnabled());
         redirectAttributes.addFlashAttribute("flashSuccess",
             "Đã " + (user.isEnabled() ? "kích hoạt" : "vô hiệu hóa") + " user: " + user.getUsername());
@@ -158,6 +168,10 @@ public class AdminController {
         // Dữ liệu chơi khoá theo tên tài khoản: xoá cùng user, nếu không người đăng ký
         // lại đúng tên này sẽ thừa kế tiến trình, ví và thứ hạng của người cũ.
         String playerId = "user:" + username;
+        stateLock.acquire(playerId);
+        relay.revokePlayer(playerId);
+        shopRequests.deleteByPlayerId(playerId);
+        runs.deleteByPlayerId(playerId);
         progressRepository.deleteBySessionId(playerId);
         totalsRepository.findByPlayerId(playerId).ifPresent(totalsRepository::delete);
         shopStateRepository.findByPlayerId(playerId).ifPresent(shopStateRepository::delete);

@@ -43,18 +43,22 @@ public class GameApiController {
     private final PlayerProgressService progress;
     private final ResultService resultService;
     private final com.tankzors.application.PlayerShopService shopService;
+    private final com.tankzors.result.GameRunService runs;
 
     public GameApiController(PlayerIdentityResolver identity,
                              PlayerProgressService progress,
                              ResultService resultService,
-                             com.tankzors.application.PlayerShopService shopService) {
+                             com.tankzors.application.PlayerShopService shopService,
+                             com.tankzors.result.GameRunService runs) {
         this.identity = identity;
         this.progress = progress;
         this.resultService = resultService;
         this.shopService = shopService;
+        this.runs = runs;
     }
 
     @GetMapping("/bootstrap")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<Map<String, Object>> bootstrap(
             @RequestParam(name = "levelId", defaultValue = "campaign_1") String levelId,
             HttpServletRequest request) {
@@ -69,7 +73,7 @@ public class GameApiController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("error", "Không tìm thấy map: " + levelId));
         }
-        String runId = "run-" + UUID.randomUUID();
+        String runId = runs.issue(playerId, levelId).getRunId();
         String nextLevelId = nextLevel(levelId);
 
         Map<String, Object> mapPayload = new HashMap<>();
@@ -121,11 +125,12 @@ public class GameApiController {
         body.put("unlockedLevels", progress.getUnlocked(playerId));
         body.put("runId", runId);
 
-        com.tankzors.application.PlayerShopService.ShopData shopData = shopService.getShopData(playerId);
+        com.tankzors.application.PlayerShopService.ShopData shopData = shopService.beginRun(playerId);
         body.put("totalCoins", shopData.totalCoins());
         body.put("totalStars", shopData.totalStars());
         body.put("researchJson", shopData.researchJson());
         body.put("inventoryJson", shopData.inventoryJson());
+        body.put("revision", shopData.revision());
         return ResponseEntity.ok(body);
     }
 
@@ -141,7 +146,16 @@ public class GameApiController {
         body.put("researchJson", updated.researchJson());
         body.put("inventoryJson", updated.inventoryJson());
         body.put("status", "OK");
+        body.put("revision", updated.revision());
         return ResponseEntity.ok(body);
+    }
+
+    @GetMapping("/account")
+    public Map<String, Object> account(HttpServletRequest request) {
+        String playerId = identity.resolve(request);
+        var data = shopService.getShopData(playerId);
+        return Map.of("playerId", playerId, "totalCoins", data.totalCoins(), "totalStars", data.totalStars(),
+                "revision", data.revision());
     }
 
     @PostMapping("/results")
@@ -162,6 +176,7 @@ public class GameApiController {
         body.put("coinsEarned", out.view.coinsEarned);
         body.put("totalStars", out.totalStars);
         body.put("totalCoins", out.totalCoins);
+        body.put("revision", out.revision);
         return ResponseEntity.ok(body);
     }
 

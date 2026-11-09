@@ -84,4 +84,23 @@ class LoginFailureMessageTest {
             .andExpect(content().string(containsString(BAD_CREDENTIALS_MESSAGE)))
             .andExpect(content().string(not(containsString(DISABLED_MESSAGE))));
     }
+
+    @Test void disablingAccountRevokesAnAlreadyAuthenticatedSession() throws Exception {
+        saveUser("revoke-active", true);
+        var result = login("revoke-active", "secret123").andExpect(redirectedUrl("/menu")).andReturn();
+        var session = (org.springframework.mock.web.MockHttpSession) result.getRequest().getSession(false);
+        mvc.perform(get("/api/game/account").session(session)).andExpect(status().isOk());
+        var user = users.findByUsername("revoke-active").orElseThrow(); user.setEnabled(false); users.save(user);
+        mvc.perform(get("/api/game/account").session(session)).andExpect(status().isUnauthorized());
+        org.junit.jupiter.api.Assertions.assertTrue(session.isInvalid());
+    }
+
+    @Test void recreatedUsernameCannotReuseDeletedAccountsSession() throws Exception {
+        saveUser("recreate-user", true);
+        var result = login("recreate-user", "secret123").andReturn();
+        var session = (org.springframework.mock.web.MockHttpSession) result.getRequest().getSession(false);
+        users.delete(users.findByUsername("recreate-user").orElseThrow());
+        saveUser("recreate-user", true);
+        mvc.perform(get("/api/game/account").session(session)).andExpect(status().isUnauthorized());
+    }
 }

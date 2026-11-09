@@ -38,13 +38,14 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, UserRepository users) throws Exception {
         var loginFailureHandler = new ExceptionMappingAuthenticationFailureHandler();
         loginFailureHandler.setDefaultFailureUrl("/login?error=true");
         loginFailureHandler.setExceptionMappings(Map.of(
             DisabledException.class.getName(), "/login?disabled=true"));
 
         http
+            .addFilterAfter(new AccountStatusFilter(users), org.springframework.security.web.authentication.AnonymousAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
                 // Static resources — public
                 .requestMatchers("/css/**", "/js/**", "/images/**", "/play/**", "/game/**",

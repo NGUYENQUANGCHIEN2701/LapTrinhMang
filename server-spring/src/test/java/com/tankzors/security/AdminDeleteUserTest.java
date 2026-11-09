@@ -48,7 +48,9 @@ class AdminDeleteUserTest {
         u = users.save(u);
         String playerId = "user:doomed-user";
         progress.markVictory(playerId, "campaign_1");
-        shop.syncShopData(playerId, new PlayerShopService.SyncRequest(500, 3, "{}", "{}"));
+        shop.getShopData(playerId);
+        var wallet = totalsRepo.findByPlayerId(playerId).orElseThrow();
+        wallet.setTotalCoins(500); wallet.setTotalStars(3); totalsRepo.save(wallet);
         leaderboard.submitScore("doomed-user", "campaign_1", 900, 30, 50);
 
         mvc.perform(post("/admin/users/" + u.getId() + "/delete")).andExpect(redirectedUrl("/admin"));
@@ -58,5 +60,20 @@ class AdminDeleteUserTest {
         assertTrue(totalsRepo.findByPlayerId(playerId).isEmpty());
         assertTrue(shopRepo.findByPlayerId(playerId).isEmpty());
         assertTrue(leaderboardRepo.findByPlayerNameAndMapId("doomed-user", "campaign_1").isEmpty());
+    }
+    @Test void requestThatPassedAuthenticationCannotRecreateDeletedAccountsWallet() {
+        UserEntity user = new UserEntity(); user.setUsername("pending-deleted-user"); user.setPassword("x");
+        user.setDisplayName("Pending"); user.setRole("ROLE_USER"); user.setCreatedAt(Instant.now()); user.setUpdatedAt(Instant.now());
+        user = users.save(user);
+        AccountPrincipal principal = new AccountPrincipal(user);
+        users.delete(user);
+        var context = org.springframework.security.core.context.SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(new org.springframework.security.authentication.TestingAuthenticationToken(principal, null, "ROLE_USER"));
+        org.springframework.security.core.context.SecurityContextHolder.setContext(context);
+        try {
+            assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                    () -> shop.getShopData("user:pending-deleted-user"));
+        } finally { org.springframework.security.core.context.SecurityContextHolder.clearContext(); }
+        assertTrue(totalsRepo.findByPlayerId("user:pending-deleted-user").isEmpty());
     }
 }

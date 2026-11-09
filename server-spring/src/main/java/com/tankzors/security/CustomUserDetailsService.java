@@ -33,11 +33,6 @@ public class CustomUserDetailsService implements UserDetailsService {
             new SimpleGrantedAuthority(entity.getRole())
         );
 
-        return User.builder()
-            .username(entity.getUsername())
-            .password(entity.getPassword())
-            .disabled(!entity.isEnabled())
-            .authorities(authorities)
-            .build();
+        return new AccountPrincipal(entity);
     }
 }

@@ -37,14 +37,17 @@ public class PlayerProgressService {
     );
 
     private final PlayerProgressRepository repository;
+    private final PlayerStateLock lock;
 
-    public PlayerProgressService(PlayerProgressRepository repository) {
+    public PlayerProgressService(PlayerProgressRepository repository, PlayerStateLock lock) {
         this.repository = repository;
+        this.lock = lock;
     }
 
     /** Các màn đang được chơi (đã mở và chưa thắng), theo thứ tự campaign. */
     @Transactional
-    public synchronized List<String> getUnlocked(String sessionId) {
+    public List<String> getUnlocked(String sessionId) {
+        lock.acquire(sessionId);
         List<PlayerProgress> rows = repository.findBySessionId(sessionId);
         if (rows.isEmpty()) {
             // First-touch: insert campaign_1 default
@@ -61,7 +64,7 @@ public class PlayerProgressService {
 
     /** Các màn đã thắng và bị khoá, theo thứ tự campaign. */
     @Transactional(readOnly = true)
-    public synchronized List<String> getCompleted(String sessionId) {
+    public List<String> getCompleted(String sessionId) {
         return repository.findBySessionId(sessionId).stream()
             .filter(PlayerProgress::isCompleted)
             .map(PlayerProgress::getUnlockedLevel)
@@ -70,13 +73,13 @@ public class PlayerProgressService {
     }
 
     @Transactional
-    public synchronized boolean isUnlocked(String sessionId, String levelId) {
+    public boolean isUnlocked(String sessionId, String levelId) {
         return getUnlocked(sessionId).contains(levelId);
     }
 
     /** Continue mở màn xa nhất đang được chơi, không quay lại màn đã hoàn thành. */
     @Transactional
-    public synchronized Optional<String> getContinueLevel(String sessionId) {
+    public Optional<String> getContinueLevel(String sessionId) {
         List<String> unlocked = getUnlocked(sessionId);
         return CAMPAIGN_ORDER.stream()
             .filter(unlocked::contains)
@@ -89,7 +92,8 @@ public class PlayerProgressService {
      * @return màn vừa được mở, hoặc {@code null} nếu không có màn mới.
      */
     @Transactional
-    public synchronized String markVictory(String sessionId, String levelId) {
+    public String markVictory(String sessionId, String levelId) {
+        lock.acquire(sessionId);
         // Ensure session initialized
         getUnlocked(sessionId);
         Map<String, PlayerProgress> rows = repository.findBySessionId(sessionId).stream()
@@ -122,7 +126,8 @@ public class PlayerProgressService {
     }
 
     @Transactional
-    public synchronized void reset(String sessionId) {
+    public void reset(String sessionId) {
+        lock.acquire(sessionId);
         repository.deleteBySessionId(sessionId);
         repository.save(new PlayerProgress(sessionId, "campaign_1"));
         logger.info("[PlayerProgress] reset session={}", sessionId);
