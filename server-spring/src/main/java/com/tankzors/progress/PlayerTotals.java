@@ -11,7 +11,7 @@ import java.time.Instant;
  * Tổng reward tích lũy của một player: stars/coins.
  *
  * <p>Được {@link com.tankzors.result.ResultService} credit khi một VICTORY campaign
- * được lưu (mỗi runId chỉ credit 1 lần nhờ {@code match_result.run_id UNIQUE}).
+ * được lưu (account lock + issued run bảo vệ credit một lần).
  * Khóa theo playerId từ {@link com.tankzors.identity.PlayerIdentityResolver}.</p>
  */
 @Entity
@@ -27,6 +27,9 @@ public class PlayerTotals {
 
     @Column(name = "total_coins", nullable = false)
     private int totalCoins;
+
+    @Column(name = "revision", nullable = false)
+    private long revision;
 
     @Column(name = "updated_at")
     private Instant updatedAt;
@@ -48,6 +51,8 @@ public class PlayerTotals {
 
     public int getTotalCoins() { return totalCoins; }
     public void setTotalCoins(int totalCoins) { this.totalCoins = totalCoins; }
+    public long getRevision() { return revision; }
+    public void advanceRevision() { revision++; updatedAt = Instant.now(); }
 
     public Instant getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
