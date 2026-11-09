@@ -39,4 +39,14 @@ class RegisterTest {
     void spacesDoNotCountTowardMinimumLength() throws Exception {
         register("  ab  ").andExpect(redirectedUrl("/register"));
     }
+    @Test void oversizedDisplayNameAndEmailReturnFormError() throws Exception {
+        mvc.perform(post("/register").param("username", "long-profile")
+                .param("password", "secret123").param("confirmPassword", "secret123")
+                .param("displayName", "x".repeat(81)))
+                .andExpect(redirectedUrl("/register")).andExpect(flash().attributeExists("flashError"));
+        mvc.perform(post("/register").param("username", "long-email")
+                .param("password", "secret123").param("confirmPassword", "secret123")
+                .param("email", "x".repeat(101)))
+                .andExpect(redirectedUrl("/register")).andExpect(flash().attributeExists("flashError"));
+    }
 }

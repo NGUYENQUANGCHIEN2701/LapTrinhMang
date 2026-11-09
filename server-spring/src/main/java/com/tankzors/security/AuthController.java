@@ -59,6 +59,13 @@ public class AuthController {
                                   RedirectAttributes redirectAttributes) {
         // Cắt một lần: kiểm tra độ dài, kiểm tra trùng và lưu phải cùng một giá trị.
         if (form.getUsername() != null) form.setUsername(form.getUsername().trim());
+        if (form.getEmail() != null) form.setEmail(form.getEmail().trim());
+        if (form.getDisplayName() != null) form.setDisplayName(form.getDisplayName().trim());
+        if ((form.getEmail() != null && form.getEmail().length() > 100)
+                || (form.getDisplayName() != null && form.getDisplayName().length() > 80)) {
+            redirectAttributes.addFlashAttribute("flashError", "Email tối đa 100 ký tự, tên hiển thị tối đa 80 ký tự.");
+            return "redirect:/register";
+        }
         // Validate
         if (form.getUsername() == null || form.getUsername().isBlank()
             || form.getUsername().length() < 3) {
@@ -81,6 +88,10 @@ public class AuthController {
                 "Mật khẩu xác nhận không khớp.");
             return "redirect:/register";
         }
+        if (form.getPassword().getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72) {
+            redirectAttributes.addFlashAttribute("flashError", "Mật khẩu tối đa 72 byte UTF-8.");
+            return "redirect:/register";
+        }
         if (userRepository.existsByUsername(form.getUsername())) {
             redirectAttributes.addFlashAttribute("flashError",
                 "Tên đăng nhập đã tồn tại.");
@@ -100,7 +111,11 @@ public class AuthController {
         user.setCreatedAt(now);
         user.setUpdatedAt(now);
 
-        userRepository.save(user);
+        try { userRepository.saveAndFlush(user); }
+        catch (org.springframework.dao.DataIntegrityViolationException e) {
+            redirectAttributes.addFlashAttribute("flashError", "Tên đăng nhập đã tồn tại.");
+            return "redirect:/register";
+        }
         logger.info("[AuthController] New user registered: {}", user.getUsername());
 
         redirectAttributes.addFlashAttribute("flashSuccess",
