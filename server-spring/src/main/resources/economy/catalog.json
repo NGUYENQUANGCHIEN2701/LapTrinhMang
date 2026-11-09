@@ -1,0 +1,307 @@
+{
+  "items": [
+    {
+      "id": 0,
+      "price": 5,
+      "pack": 10,
+      "limit": 99,
+      "tech": null,
+      "level": 0
+    },
+    {
+      "id": 1,
+      "price": 15,
+      "pack": 10,
+      "limit": 99,
+      "tech": "shellResearch",
+      "level": 1
+    },
+    {
+      "id": 2,
+      "price": 30,
+      "pack": 10,
+      "limit": 40,
+      "tech": "shellResearch",
+      "level": 2
+    },
+    {
+      "id": 3,
+      "price": 55,
+      "pack": 10,
+      "limit": 40,
+      "tech": "shellResearch",
+      "level": 3
+    },
+    {
+      "id": 4,
+      "price": 70,
+      "pack": 10,
+      "limit": 10,
+      "tech": "shellResearch",
+      "level": 4
+    },
+    {
+      "id": 5,
+      "price": 120,
+      "pack": 10,
+      "limit": 10,
+      "tech": "shellResearch",
+      "level": 5
+    },
+    {
+      "id": 6,
+      "price": 100,
+      "pack": 1,
+      "limit": 99,
+      "tech": "artilleryResearch",
+      "level": 1
+    },
+    {
+      "id": 7,
+      "price": 60,
+      "pack": 1,
+      "limit": 99,
+      "tech": "missileResearch",
+      "level": 1
+    },
+    {
+      "id": 8,
+      "price": 320,
+      "pack": 1,
+      "limit": 99,
+      "tech": "missileResearch",
+      "level": 2
+    },
+    {
+      "id": 10,
+      "price": 10,
+      "pack": 1,
+      "limit": 99,
+      "tech": "mineResearch",
+      "level": 1
+    },
+    {
+      "id": 11,
+      "price": 25,
+      "pack": 1,
+      "limit": 99,
+      "tech": "mineResearch",
+      "level": 2
+    },
+    {
+      "id": 12,
+      "price": 35,
+      "pack": 1,
+      "limit": 99,
+      "tech": "dynamiteResearch",
+      "level": 1
+    },
+    {
+      "id": 13,
+      "price": 60,
+      "pack": 1,
+      "limit": 99,
+      "tech": "dynamiteResearch",
+      "level": 2
+    },
+    {
+      "id": 14,
+      "price": 110,
+      "pack": 1,
+      "limit": 99,
+      "tech": "dynamiteResearch",
+      "level": 3
+    },
+    {
+      "id": 9,
+      "price": 170,
+      "pack": 1,
+      "limit": 99,
+      "tech": "airRaidResearch",
+      "level": 1
+    },
+    {
+      "id": 21,
+      "price": 110,
+      "pack": 1,
+      "limit": 4,
+      "tech": "armorResearch",
+      "level": 1
+    },
+    {
+      "id": 22,
+      "price": 250,
+      "pack": 1,
+      "limit": 4,
+      "tech": "armorResearch",
+      "level": 2
+    },
+    {
+      "id": 20,
+      "price": 100,
+      "pack": 1,
+      "limit": 5,
+      "tech": "powerFieldResearch",
+      "level": 1
+    },
+    {
+      "id": 19,
+      "price": 40,
+      "pack": 1,
+      "limit": 99,
+      "tech": null,
+      "level": 0
+    },
+    {
+      "id": 23,
+      "price": 320,
+      "pack": 1,
+      "limit": 1,
+      "tech": null,
+      "level": 0
+    },
+    {
+      "id": 17,
+      "price": 35,
+      "pack": 1,
+      "limit": 99,
+      "tech": null,
+      "level": 0
+    },
+    {
+      "id": 15,
+      "price": 120,
+      "pack": 1,
+      "limit": 99,
+      "tech": null,
+      "level": 0
+    },
+    {
+      "id": -1,
+      "price": 910,
+      "pack": 1,
+      "limit": 1,
+      "tech": null,
+      "level": 0
+    },
+    {
+      "id": -2,
+      "price": 170,
+      "pack": 1,
+      "limit": 9,
+      "tech": null,
+      "level": 0
+    },
+    {
+      "id": 25,
+      "price": 90,
+      "pack": 1,
+      "limit": 3,
+      "tech": "allyTankResearch",
+      "level": 1
+    },
+    {
+      "id": 26,
+      "price": 210,
+      "pack": 1,
+      "limit": 3,
+      "tech": "allyTankResearch",
+      "level": 2
+    },
+    {
+      "id": 27,
+      "price": 420,
+      "pack": 1,
+      "limit": 3,
+      "tech": "allyTankResearch",
+      "level": 3
+    }
+  ],
+  "research": [
+    {
+      "id": "shellResearch",
+      "prices": [
+        5,
+        7,
+        8,
+        8,
+        9,
+        4,
+        4,
+        4
+      ]
+    },
+    {
+      "id": "artilleryResearch",
+      "prices": [
+        4,
+        4,
+        4,
+        4,
+        4
+      ]
+    },
+    {
+      "id": "missileResearch",
+      "prices": [
+        5,
+        5
+      ]
+    },
+    {
+      "id": "mineResearch",
+      "prices": [
+        5,
+        5
+      ]
+    },
+    {
+      "id": "dynamiteResearch",
+      "prices": [
+        4,
+        4,
+        4
+      ]
+    },
+    {
+      "id": "armorResearch",
+      "prices": [
+        5,
+        5,
+        5
+      ]
+    },
+    {
+      "id": "powerFieldResearch",
+      "prices": [
+        5,
+        5,
+        5,
+        5
+      ]
+    },
+    {
+      "id": "airRaidResearch",
+      "prices": [
+        6,
+        6,
+        6
+      ]
+    },
+    {
+      "id": "allyTankResearch",
+      "prices": [
+        6,
+        6,
+        6
+      ]
+    },
+    {
+      "id": "extraInterest",
+      "prices": [
+        9,
+        9
+      ]
+    }
+  ]
+}

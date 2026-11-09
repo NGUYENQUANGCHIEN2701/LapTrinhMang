@@ -199,6 +199,22 @@ public class GameRenderer implements Disposable {
         if (state.radarActive) radarOverlay.render(state, shapes, batch, font, assets, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
     }
 
+    public void renderPersistence(String message) {
+        if (message == null) return;
+        useHudProjection();
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(0, 0, 0, .9f);
+        shapes.rect(0, Gdx.graphics.getHeight() - 36, Gdx.graphics.getWidth(), 36);
+        shapes.end();
+        batch.begin();
+        com.badlogic.gdx.graphics.g2d.BitmapFont messageFont = assets.getShopFont();
+        messageFont.getData().setScale(.38f);
+        messageFont.setColor(Color.WHITE);
+        messageFont.draw(batch, message, 12, Gdx.graphics.getHeight() - 28, Gdx.graphics.getWidth() - 24,
+                com.badlogic.gdx.utils.Align.left, true);
+        batch.end();
+    }
+
     /**
      * Overlay khi đang tải màn kế (LOADING) hoặc lỗi tải (LOAD_ERROR).
      * Giữ thông điệp ASCII (font mặc định thiếu glyph tiếng Việt).

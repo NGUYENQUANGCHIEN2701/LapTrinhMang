@@ -15,6 +15,48 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LocalCampaignSessionTest {
+    private static final class PendingPersistence implements CampaignPersistence {
+        Callback resultCallback;
+        boolean busy;
+        int retries;
+        @Override public void sync(String runId, String operations, Callback callback) { callback.saved(0, 0, 0); }
+        @Override public void submit(com.tankzors.client.gameplay.result.MatchResult result, Callback callback) {
+            resultCallback = callback; busy = true;
+        }
+        @Override public boolean isBusy() { return busy; }
+        @Override public void retry() { retries++; }
+    }
+
+    @Test void browserWaitsForConfirmationAndUsesServerWallet() {
+        FakeAsyncMapSource source = new FakeAsyncMapSource();
+        PendingPersistence persistence = new PendingPersistence();
+        LocalCampaignSession session = new LocalCampaignSession("player", "campaign_1", source, null);
+        session.setPersistence(persistence); session.start();
+        source.pending.onLevelLoaded("campaign_1", MAP_JSON_VICTORY_REWARDS, "run-pending", "v1");
+        session.update((float) GameplayConfig.STEP_SECONDS);
+        assertFalse(session.isResultSaved()); assertFalse(session.canLeave()); assertFalse(session.canOpenShop());
+        assertEquals(0, session.getShopState().getCoins(), "Browser không tự cộng thưởng");
+        session.nextLevel(); assertEquals("campaign_1", source.requestedLevel);
+        assertTrue(session.snapshot().persistenceMessage.contains("Đang lưu"));
+        persistence.busy = false; persistence.resultCallback.saved(123, 4, 1);
+        assertTrue(session.isResultSaved()); assertTrue(session.canLeave());
+        assertEquals(123, session.getShopState().getCoins()); assertEquals(4, session.getShopState().getStars());
+        session.nextLevel(); assertEquals("campaign_2", source.requestedLevel);
+    }
+
+    @Test void failedSaveRemainsPendingAndRetryDoesNotCreateAnotherResult() {
+        FakeAsyncMapSource source = new FakeAsyncMapSource();
+        PendingPersistence persistence = new PendingPersistence();
+        LocalCampaignSession session = new LocalCampaignSession("player", "campaign_1", source, null);
+        session.setPersistence(persistence); session.start();
+        source.pending.onLevelLoaded("campaign_1", MAP_JSON_VICTORY_REWARDS, "run-retry-save", "v1");
+        session.update((float) GameplayConfig.STEP_SECONDS);
+        var result = session.matchResult();
+        persistence.resultCallback.failed("Mất kết nối");
+        assertFalse(session.canLeave()); assertTrue(session.snapshot().persistenceMessage.contains("Mất kết nối"));
+        session.restart(); assertEquals(1, persistence.retries); assertSame(result, session.matchResult());
+        assertEquals("campaign_1", source.requestedLevel);
+    }
 
     private static final String MAP_JSON = """
             {

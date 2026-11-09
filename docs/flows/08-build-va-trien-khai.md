@@ -1,5 +1,7 @@
 # 08. Build và khởi động hệ thống
 
+**Cập nhật:** task `compileGwt` chờ `syncAssets`; Docker stage server chép catalog kinh tế từ `game-client/assets/economy` vào resources trước đóng gói. Flyway hiện có V1–V8. Dockerfile vẫn không chạy unit test, nên phải chạy core/Spring test riêng. Xem kết quả xác minh thực tế trong [báo cáo sửa lỗi](../CODE-REVIEW.md).
+
 **Tóm tắt:** Một lệnh Docker Compose dựng toàn bộ hệ thống. Dockerfile có 3 giai đoạn: biên dịch game Java sang JavaScript bằng JDK 17, chép kết quả vào server rồi đóng gói JAR bằng Java 21, cuối cùng chạy trên image JRE nhẹ. Khi khởi động, Flyway tự cập nhật database.
 
 **File chính:** [server-spring/Dockerfile](../../server-spring/Dockerfile), [infra/docker-compose.yml](../../infra/docker-compose.yml), [application.yml](../../server-spring/src/main/resources/application.yml), [db/migration/](../../server-spring/src/main/resources/db/migration/)

@@ -73,3 +73,9 @@ server-spring/.../map/           DTO/loader map, không simulation
 - Renderer không sửa world state.
 - Campaign browser dùng REST, không dùng WebSocket.
 - Không sửa bundle generated trong `static/game/libgdx` bằng tay.
+
+## Tính toàn vẹn dữ liệu tài khoản
+
+`game_run` lưu lượt đã cấp và owner/level/version/hạn dùng. `PlayerStateLock` khóa row ví theo tài khoản trước khi kiểm tra/ghi trong các use case. `ResultService` ghi kết quả, cộng thưởng, cập nhật progress/leaderboard trong cùng transaction. `PlayerShopService` áp dụng journal theo catalog và revision, không nhận snapshot số dư tùy chọn.
+
+Browser dùng `CampaignPersistence` và một outbox chung cho shop/result, gửi tuần tự, retry giữ nguyên body và chờ xác nhận trước khi next. SessionStorage hỗ trợ khôi phục ghi khi reload cùng tab, không lưu world. Chi tiết ở [networking](networking.md).

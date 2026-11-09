@@ -33,6 +33,9 @@ public class RelayHandshakeInterceptor implements HandshakeInterceptor {
             HttpServletRequest req = servlet.getServletRequest();
             String playerId = identity.resolve(req);
             attributes.put("tankzors.playerId", playerId);
+            var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.getPrincipal() instanceof com.tankzors.security.AccountPrincipal account)
+                attributes.put("tankzors.accountId", account.getAccountId());
         } else {
             attributes.put("tankzors.playerId", "anon");
         }

@@ -22,6 +22,7 @@ public class ShopOverlay {
     public interface ShopListener {
         void onShopClosed();
         void onShopStateChanged();
+        default void retrySave() {}
         default void onShopVisibilityChanged(boolean visible) {}
         default void onItemBought(ShopItem item) {}
         default void onItemSold(ShopItem item) {}
@@ -89,6 +90,7 @@ public class ShopOverlay {
     }
     public boolean handleKeyDown(int key) {
         if (!visible) { if(key==Input.Keys.B) {show();return true;} return false; }
+        if (key == Input.Keys.R) { if (listener != null) listener.retrySave(); return true; }
         if (help || wallet) {
             if(key==Input.Keys.ESCAPE || key==Input.Keys.ENTER || key==Input.Keys.SPACE || key==Input.Keys.B) {
                 help=false; wallet=false; helpScroll=0;

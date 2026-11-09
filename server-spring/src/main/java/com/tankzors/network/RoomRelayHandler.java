@@ -38,9 +38,15 @@ public class RoomRelayHandler extends TextWebSocketHandler {
     private static final String ATTR_ROOM = "tankzors.roomId";
 
     private final RoomRegistry registry;
+    private final com.tankzors.security.UserRepository users;
 
     public RoomRelayHandler(RoomRegistry registry) {
+        this(registry, null);
+    }
+    @org.springframework.beans.factory.annotation.Autowired
+    public RoomRelayHandler(RoomRegistry registry, com.tankzors.security.UserRepository users) {
         this.registry = registry;
+        this.users = users;
         // identity resolve qua RelayHandshakeInterceptor (HTTP session); handler chỉ đọc attributes.
     }
 
@@ -57,6 +63,11 @@ public class RoomRelayHandler extends TextWebSocketHandler {
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
+        Object accountId = session.getAttributes().get("tankzors.accountId");
+        if (users != null && accountId instanceof Long id
+                && users.findById(id).filter(com.tankzors.security.UserEntity::isEnabled).isEmpty()) {
+            revoke(session); return;
+        }
         String payload = message.getPayload();
         if (payload.length() > 1024 * 64) {
             sendError(session, "PACKET_TOO_LARGE", "Gói vượt 64KB");
@@ -149,6 +160,7 @@ public class RoomRelayHandler extends TextWebSocketHandler {
 
     private void handleStart(WebSocketSession session, Room room, JsonNode root) {
         if (room == null) { sendError(session, "NOT_IN_ROOM", null); return; }
+        if (room.getStatus() != Room.Status.LOBBY) { sendError(session, "NOT_IN_LOBBY", null); return; }
         Room.Member m = room.member(session.getId());
         if (m == null || !m.host) {
             sendError(session, "NOT_HOST", "Chỉ host được START_MATCH");
@@ -166,7 +178,9 @@ public class RoomRelayHandler extends TextWebSocketHandler {
         room.setRunId(runId);
         room.setStatus(Room.Status.PLAYING);
         ObjectNode startEnvelope = envelope("v2", "MATCH_STARTED", room.getRoomId(), runId, 0,
-                Map.of("levelId", room.getLevelId(), "mapVersion", "v1", "runId", runId));
+                Map.of("levelId", room.getLevelId(), "mapVersion", "v1", "runId", runId,
+                        "hostPlayerId", room.getHostPlayerId(), "members", room.members().stream()
+                                .map(member -> Map.of("playerId", member.playerId, "host", member.host)).toList()));
         for (Room.Member mem : room.members()) {
             WebSocketSession s = memberSession(session, mem.connectionId);
             if (s != null && s.isOpen()) send(s, startEnvelope);
@@ -302,8 +316,17 @@ public class RoomRelayHandler extends TextWebSocketHandler {
     }
 
     private void send(WebSocketSession s, ObjectNode env) {
-        try { if (s != null && s.isOpen()) s.sendMessage(new TextMessage(M.writeValueAsString(env))); }
+        try { if (s != null) synchronized (s) { if (s.isOpen()) s.sendMessage(new TextMessage(M.writeValueAsString(env))); } }
         catch (IOException e) { log.warn("[Relay] send failed conn={}", s == null ? "?" : s.getId()); }
+    }
+    public void revokePlayer(String playerId) {
+        for (WebSocketSession session : SessionHolder.all())
+            if (playerId.equals(session.getAttributes().get(ATTR_PLAYER))) revoke(session);
+    }
+    private void revoke(WebSocketSession session) {
+        disconnectFromRoom(session, "ACCOUNT_DISABLED");
+        SessionHolder.onClosed(session.getId());
+        try { session.close(CloseStatus.POLICY_VIOLATION); } catch (IOException e) { log.debug("Close failed", e); }
     }
 
     private void sendError(WebSocketSession s, String code, String msg) {

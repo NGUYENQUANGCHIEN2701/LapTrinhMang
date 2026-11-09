@@ -7,6 +7,7 @@ import java.util.List;
 public final class GameStateSnapshot {
     public String gameStatus = "WAITING";
     public String transitionStatus;
+    public String persistenceMessage;
     public int score;
     public MapSnapshot map;
     public final List<BuildingSnapshot> buildings = new ArrayList<>();

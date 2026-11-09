@@ -22,7 +22,6 @@ public class WebSocketConfig implements WebSocketConfigurer {
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(roomRelayHandler, "/coop")
-                .addInterceptors(relayHandshakeInterceptor)
-                .setAllowedOrigins("*");
+                .addInterceptors(relayHandshakeInterceptor);
     }
 }

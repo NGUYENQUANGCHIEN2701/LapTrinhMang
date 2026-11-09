@@ -18,6 +18,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class GameApiControllerTest {
+    @Test @WithMockUser(username = "forged-wallet")
+    void legacyWalletSnapshotIsRejected() throws Exception {
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/game/shop/sync")
+                .contentType("application/json").content("{\"coins\":1000000,\"stars\":1000000,\"inventoryJson\":\"{}\"}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get("/api/game/account")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalCoins").value(0)).andExpect(jsonPath("$.totalStars").value(0));
+    }
 
     @Autowired
     private MockMvc mvc;

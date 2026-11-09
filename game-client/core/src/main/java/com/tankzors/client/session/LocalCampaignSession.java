@@ -87,6 +87,22 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
     private boolean inventoryMenuOpen;
     private int inventorySelectionIndex;
     private boolean shopOpen;
+    private CampaignPersistence persistence;
+    private boolean resultSaved = true;
+    private String persistenceError;
+    private float syncElapsed;
+    public void setPersistence(CampaignPersistence persistence) {
+        this.persistence = persistence;
+        shopState.enableOperationRecording();
+    }
+    @Override public boolean canLeave() {
+        syncShopState();
+        return persistence == null || (resultSaved && persistenceError == null && !persistence.isBusy());
+    }
+    @Override public void retrySave() {
+        if (persistence != null) { persistenceError = null; persistence.retry(); }
+    }
+    public boolean isResultSaved() { return resultSaved; }
     /** Builds hiện briefing trước khi màn chạy; simulation đứng yên tới khi Enter. */
     private boolean briefingOpen;
 
@@ -103,6 +119,12 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
     }
 
     public void syncShopState() {
+        if (persistence != null && shopState.hasPendingOperations()) {
+            persistence.sync(runId, shopState.drainOperations(), new CampaignPersistence.Callback() {
+                @Override public void saved(int coins, int stars, long revision) { persistenceError = null; shopState.setTransactionsBlocked(false); }
+                @Override public void failed(String reason) { persistenceError = reason; shopState.setTransactionsBlocked(true); }
+            });
+        }
         if (shopSyncHandler != null) {
             shopSyncHandler.onSyncShop(shopState.getCoins(), shopState.getStars(),
                     shopState.serializeResearch(), shopState.serializeInventory());
@@ -275,7 +297,9 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
 
     // ===== UPDATE =====
     @Override public void update(float rawDeltaTime) {
-        if (phase == Phase.PLAYING && !inventoryMenuOpen && !shopOpen && !briefingOpen) sim.advance(rawDeltaTime);
+        if (phase == Phase.PLAYING && !inventoryMenuOpen && !shopOpen && !briefingOpen && persistenceError == null) sim.advance(rawDeltaTime);
+        syncElapsed += rawDeltaTime;
+        if (syncElapsed >= 0.5f) { syncElapsed = 0; syncShopState(); }
         if (sim != null && sim.consumeShopStateDirty()) {
             // Consumables and installed Force Field state are account progress;
             // a restart must not recreate anything already spent or destroyed.
@@ -291,6 +315,9 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         int elapsedSec = (int) Math.max(0, sim.getElapsedSeconds());
         GameStateSnapshot snap = WorldSnapshotMapper.snapshot(w, playerId, w.getScore(), elapsedSec,
                 sim.getInterpolationAlpha());
+        snap.persistenceMessage = persistenceError != null ? persistenceError + " — Nhấn R để thử lại."
+                : !resultSaved ? "Đang lưu kết quả... Vui lòng chờ."
+                : persistence != null && persistence.isBusy() ? "Đang lưu tiến trình..." : null;
         // Khi đang transition, báo renderer giữ overlay cũ + hiện trạng tải.
         if (phase == Phase.LOADING_NEXT) {
             snap.transitionStatus = "LOADING";
@@ -469,12 +496,14 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
     // ===== RESTART / NEXT =====
     @Override
     public void restart() {
+        if (persistenceError != null) { retrySave(); return; }
+        if (!canLeave()) return;
         // Mỗi màn chỉ chơi một lần: thắng rồi thì màn bị khoá, không cho chơi lại.
         if (phase == Phase.PLAYING && sim.getWorld().getStatus() == GameWorld.Status.VICTORY) return;
         matchResult = null;
         matchResultFired = false;
         inventoryMenuOpen = false;
-        if (levelStartInventory != null) {
+        if (levelStartInventory != null && persistence == null) {
             shopState.restoreInventory(levelStartInventory);
             shopState.setActiveWeaponId(levelStartWeaponId);
         }
@@ -491,6 +520,7 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
 
     @Override
     public void nextLevel() {
+        if (!canLeave()) return;
         if (phase == Phase.LOADING_NEXT) return; // đang tải, bỏ qua
         if (sim.getWorld().getStatus() != GameWorld.Status.VICTORY) return;
         String next = nextCampaignLevel(levelId);
@@ -551,9 +581,9 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
     @Override
     public void onLevelLoadedWithShop(String loadedLevelId, String mapJson, String newRunId, String newMapVersion,
                                        int totalCoins, int totalStars, String researchJson, String inventoryJson) {
-        // Chỉ bootstrap inventory một lần. Cùng PlayerShopState sống xuyên suốt
-        // campaign để màn kế không nạp lại số đạn cũ từ một REST sync về chậm.
-        if (!shopStateLoaded) {
+        // Browser bootstrap follows a drained outbox, so its server state is current.
+        // Offline sources keep their in-memory campaign state across levels.
+        if (!shopStateLoaded || persistence != null) {
             shopState.loadState(totalCoins, totalStars, researchJson, inventoryJson);
             shopStateLoaded = true;
         }
@@ -583,6 +613,7 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         currentRewardStars = rw[0];
         currentRewardCoins = rw[1];
         matchResult = null;
+        resultSaved = true;
         matchResultFired = false;
         sim.setMatchEndHandler(this::onMatchEnd);
         if (audioManager != null) {
@@ -646,17 +677,25 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
         boolean victory = "VICTORY".equalsIgnoreCase(status);
         int stars = victory ? currentRewardStars : 0;
         int coins = victory ? currentRewardCoins : 0;
-        if (victory) {
-            int extraPercent = shopState.getExtraInterestPercent();
-            if (extraPercent > 0) {
-                coins += (coins * extraPercent / 100);
-            }
+        if (victory) coins += coins * shopState.getExtraInterestPercent() / 100;
+        if (victory && persistence == null) {
             shopState.addCoins(coins);
             shopState.addStars(stars);
             syncShopState();
         }
         matchResult = new MatchResult(runId, mode, lvl, mapVersion != null ? mapVersion : "",
                 status, score, hpRemain, aiKills, elapsedSeconds, stars, coins);
+        if (persistence != null) {
+            resultSaved = false;
+            syncShopState();
+            persistence.submit(matchResult, new CampaignPersistence.Callback() {
+                @Override public void saved(int coins, int stars, long revision) {
+                    shopState.setCoins(coins); shopState.setStars(stars);
+                    resultSaved = true; persistenceError = null; shopState.setTransactionsBlocked(false);
+                }
+                @Override public void failed(String reason) { persistenceError = reason; shopState.setTransactionsBlocked(true); }
+            });
+        }
         if (resultHandler != null) {
             try { resultHandler.onResult(matchResult); }
             catch (Exception ignored) { /* kết quả vẫn hiển thị */ }
@@ -666,7 +705,7 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
 
     @Override public MatchResult matchResult() { return matchResult; }
     @Override public boolean canOpenShop() {
-        if (phase != Phase.PLAYING || sim == null || briefingOpen) return false;
+        if (phase != Phase.PLAYING || sim == null || briefingOpen || !resultSaved || persistenceError != null) return false;
         // Cửa hàng giữa hai màn vẫn mở từ báo cáo chiến thắng.
         return sim.getWorld().getStatus() == GameWorld.Status.VICTORY
                 || sim.isLocalPlayerAtSpawnBase();
@@ -692,6 +731,7 @@ public class LocalCampaignSession implements GameSession, MapSource.LevelCallbac
     }
     @Override public int workshopMissingAlliedHp() { return sim == null ? 0 : sim.getMissingAlliedHp(); }
     @Override public boolean repairAlliesAtWorkshop() {
+        if (persistenceError != null) return false;
         boolean repaired = sim != null && sim.repairAlliesAtWorkshop();
         if (repaired) syncShopState();
         return repaired;

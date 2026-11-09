@@ -2,7 +2,9 @@
 
 Bộ tài liệu này trả lời câu hỏi: **khi người chơi làm X, code nào chạy, theo thứ tự nào?**
 
-Số dòng trong tài liệu đúng tại commit `543ce0f`. Nếu code đã đổi, tìm theo **tên hàm**, tên hàm ổn định hơn số dòng.
+Các luồng 02/04/05/06 đã cập nhật cho issued run, giao dịch server và outbox. Các trích code có số dòng ở luồng còn lại gắn commit lịch sử `543ce0f`; khi đọc source mới hãy tìm theo tên class/hàm.
+
+Để phát triển tiếp, đọc thêm [DEVELOPMENT](../DEVELOPMENT.md) và [CODE-REVIEW](../CODE-REVIEW.md). Các tài liệu này mô tả đường chạy; báo cáo sửa lỗi ghi riêng test, trạng thái xác minh và giới hạn còn lại.
 
 ## Bức tranh trong 1 phút
 
@@ -18,7 +20,7 @@ Hệ thống có 3 khối:
 └──────────────────────────────────────┘        └────────────────────────────┘      └──────────────┘
 ```
 
-Điều quan trọng nhất cần nhớ: **trận đấu chạy hoàn toàn trong trình duyệt** (kiến trúc client-authoritative). Server chỉ tham gia ở đầu trận (cấp bản đồ) và cuối trận (lưu kết quả). Trong lúc chơi, game chỉ gọi server khi đồng bộ cửa hàng.
+Điều quan trọng nhất cần nhớ: **trận đấu chạy hoàn toàn trong trình duyệt** (kiến trúc client-authoritative). Server cấp lượt/bản đồ, kiểm tra thay đổi tài khoản trong trận và lưu kết quả cuối trận. Không truyền toàn bộ world liên tục lên server.
 
 ## Một lượt chơi đi qua các luồng nào
 

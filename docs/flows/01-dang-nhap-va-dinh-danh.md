@@ -1,5 +1,7 @@
 # 01. Đăng ký, đăng nhập và định danh người chơi
 
+**Cập nhật:** phiên đăng nhập thật giữ `AccountPrincipal` kèm ID DB. `AccountStatusFilter` kiểm tra tài khoản còn tồn tại/được bật ở mỗi request bảo vệ; khóa/xóa làm phiên cũ bị từ chối, và admin đóng socket tương ứng. Đăng ký kiểm tra thêm độ dài email/tên hiển thị/password và xử lý trùng tên do race. Các trích code có số dòng bên dưới là phần mô tả lịch sử; tìm theo tên hàm khi đối chiếu source mới.
+
 **Tóm tắt:** Spring Security quản lý đăng nhập bằng session cookie. Sau khi đăng nhập, mọi request được quy về một `playerId` dạng `user:<tên>`, và toàn bộ dữ liệu game (tiến trình, kết quả, ví) đều gắn với khoá này.
 
 **File chính:** [SecurityConfig.java](../../server-spring/src/main/java/com/tankzors/security/SecurityConfig.java), [AuthController.java](../../server-spring/src/main/java/com/tankzors/security/AuthController.java), [CustomUserDetailsService.java](../../server-spring/src/main/java/com/tankzors/security/CustomUserDetailsService.java), [PlayerIdentityResolver.java](../../server-spring/src/main/java/com/tankzors/identity/PlayerIdentityResolver.java)

@@ -18,8 +18,7 @@ import com.tankzors.client.gameplay.result.MatchResult;
  * 100% client. Khi server không có endpoint / bootstrap lỗi, session ở WAITING
  * và màn hình loading hiện lỗi (plan mục 5).
  *
- * <p>{@code --mode} param: {@code campaign} (mặc định) hoặc {@code legacy}
- * (server-authoritative cũ, debug tới khi Bước E hoàn tất).</p>
+ * <p>Campaign is wired to REST; the co-op launcher is not connected yet.</p>
  */
 public class HtmlLauncher extends GwtApplication {
 
@@ -58,10 +57,8 @@ public class HtmlLauncher extends GwtApplication {
             // ResultHandler: kết quả VICTORY gửi REST (Bước D BrowserResultGateway).
             LocalCampaignSession session = new LocalCampaignSession(
                     browserPlayerId(), levelId, mapSource,
-                    (MatchResult r) -> { GwtAppBridge.get().submitResult(r); return true; });
-            session.setShopSyncHandler((coins, stars, researchJson, inventoryJson) -> {
-                GwtAppBridge.get().syncShop(coins, stars, researchJson, inventoryJson);
-            });
+                    null);
+            session.setPersistence(GwtAppBridge.get());
             client.setSession(session);
             // start() (fetch bootstrap ban đầu) được GameClient.create() gọi.
             // Restart/nextLevel sau này cũng qua cùng requestLevel path.
@@ -129,7 +126,10 @@ public class HtmlLauncher extends GwtApplication {
         @Override
         public void requestLevel(String levelId, LevelCallback callback) {
             String url = "/api/game/bootstrap?levelId=" + encode(levelId) + "&mode=campaign";
-            fetchBootstrap(url, callback);
+            GwtAppBridge.get().prepare(new GwtAppBridge.Ready() {
+                @Override public void ready() { fetchBootstrap(url, callback); }
+                @Override public void failed(String reason) { callback.onLoadError(reason); }
+            });
         }
 
         /** Fetch async; kích đúng 1 callback (onLevelLoaded hoặc onLoadError). */
@@ -137,11 +137,15 @@ public class HtmlLauncher extends GwtApplication {
             try {
                 var xhr = new XMLHttpRequest();
                 xhr.open("GET", url, true);
+                xhr.timeout = 15000;
+                var finished = false;
                 xhr.onreadystatechange = $entry(function() {
-                    if (xhr.readyState !== 4) return;
+                    if (xhr.readyState !== 4 || finished) return;
+                    finished = true;
                     if (xhr.status === 200) {
                         try {
                             var resp = JSON.parse(xhr.responseText);
+                            @com.tankzors.client.html.GwtAppBridge::bootstrapRevision(Ljava/lang/String;)(String(resp.revision));
                             var mapJson = JSON.stringify(resp.map);
                             var runId = resp.runId || ("local-" + resp.levelId);
                             var mapVersion = resp.mapVersion || "";
@@ -156,9 +160,17 @@ public class HtmlLauncher extends GwtApplication {
                             callback.@com.tankzors.client.session.MapSource$LevelCallback::onLoadError(Ljava/lang/String;)("parse: " + e);
                         }
                     } else {
+                        if (xhr.status === 403) {
+                            @com.tankzors.client.html.HtmlLauncher::navigateTop(Ljava/lang/String;)("/campaigns");
+                        }
                         $wnd.console && $wnd.console.error("[bootstrap] HTTP " + xhr.status);
                         callback.@com.tankzors.client.session.MapSource$LevelCallback::onLoadError(Ljava/lang/String;)("HTTP " + xhr.status);
                     }
+                });
+                xhr.onerror = xhr.ontimeout = $entry(function() {
+                    if (finished) return;
+                    finished = true;
+                    callback.@com.tankzors.client.session.MapSource$LevelCallback::onLoadError(Ljava/lang/String;)("Không kết nối được máy chủ. Nhấn R để thử lại.");
                 });
                 xhr.send();
             } catch (e) {

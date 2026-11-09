@@ -1,212 +1,126 @@
 package com.tankzors.result;
 
-import com.tankzors.progress.PlayerTotals;
+import com.tankzors.application.PlayerProgressService;
 import com.tankzors.progress.PlayerTotalsRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
-
+import java.util.UUID;
+import java.util.concurrent.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Test ResultService: reward compute, persistence, idempotency.
- *
- * <p>Coverage:</p>
- * <ul>
- *   <li>VICTORY campaign → row lưu reward; ví do shop/sync giữ, submit không cộng thêm.</li>
- *   <li>Same runId + same payload → alreadySaved, totals unchanged (idempotent).</li>
- *   <li>Same runId + different payload → 409 conflict.</li>
- *   <li>DEFEAT → no credit.</li>
- *   <li>Client over-reports → clamp về map rewards.</li>
- *   <li>VICTORY lần hai trên màn đã hoàn thành → bị từ chối.</li>
- * </ul>
- *
- * <p>Dùng profile "test" → H2 in-memory, Flyway V1..V4 apply. Map campaign_1
- * khai báo rewards {stars=3, coins=100} (server resources).</p>
- */
 @SpringBootTest
 @ActiveProfiles("test")
 class ResultServiceTest {
-
-    @Autowired
-    private ResultService resultService;
-
-    @Autowired
-    private PlayerTotalsRepository totalsRepo;
-
-    @Autowired
-    private com.tankzors.application.PlayerShopService shopService;
-
-    @Autowired
-    private MatchResultRepository matchResults;
-
-    @Autowired
-    private com.tankzors.leaderboard.LeaderboardRepository leaderboard;
-
-    @Test
-    void authenticatedResultStoresFullAccountNameAndDoesNotMergeMatchingInitials() {
-        for (String username : new String[]{"name-check-alice", "name-check-andrew"}) {
-            String runId = "run-" + username;
-            resultService.submit(campaignVictory(runId, "campaign_1", 3, 100), "user:" + username);
-            assertEquals(username, matchResults.findByRunId(runId).orElseThrow().getPlayerName());
-            assertTrue(leaderboard.findByPlayerNameAndMapId(username, "campaign_1").isPresent());
+    @Autowired ResultService results;
+    @Autowired GameRunService runs;
+    @Autowired GameRunRepository runRows;
+    @Autowired PlayerProgressService progress;
+    @Autowired PlayerTotalsRepository totals;
+    @Autowired MatchResultRepository rows;
+    @Autowired com.tankzors.leaderboard.LeaderboardRepository leaderboard;
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
+    @Autowired com.tankzors.application.PlayerShopService shop;
+    private String player() { return "user:result-" + UUID.randomUUID().toString().substring(0, 12); }
+    private ResultService.ResultPayload payload(String run, String level) {
+        var p = new ResultService.ResultPayload(); p.runId = run; p.mode = "CAMPAIGN"; p.levelId = level;
+        p.mapVersion = "v1"; p.status = "VICTORY"; p.score = 1000; p.hpRemain = 5; p.aiKills = 1;
+        p.elapsedSeconds = 20; p.starsEarned = 3; p.coinsEarned = 100; return p;
+    }
+    private ResultService.ResultPayload issued(String player) {
+        return payload(runs.issue(player, "campaign_1").getRunId(), "campaign_1");
+    }
+    @Test void victoryCreditsWalletAndProgressAtomically() {
+        String player = player(); var p = issued(player); var out = results.submit(p, player);
+        assertFalse(out.alreadySaved); assertEquals(100, out.totalCoins); assertEquals(3, out.totalStars);
+        assertEquals(java.util.List.of("campaign_2"), out.unlockedLevels);
+        assertNotNull(runRows.findById(p.runId).orElseThrow().getFinishedAt());
+        assertEquals(player.substring(5), rows.findByRunId(p.runId).orElseThrow().getPlayerName());
+    }
+    @Test void retryReturnsCurrentMetadataAndNeverCreditsTwice() {
+        String player = player(); var p = issued(player); var first = results.submit(p, player);
+        var retry = results.submit(p, player);
+        assertTrue(retry.alreadySaved); assertEquals(first.totalCoins, retry.totalCoins);
+        assertEquals(first.totalStars, retry.totalStars); assertEquals(first.unlockedLevels, retry.unlockedLevels);
+        assertEquals(first.bestScore, retry.bestScore); assertEquals(first.revision, retry.revision);
+        assertEquals(1, rows.findAll().stream().filter(row -> p.runId.equals(row.getRunId())).count());
+    }
+    @Test void differentPayloadConflicts() {
+        String player = player(); var p = issued(player); results.submit(p, player); p.score++;
+        assertThrows(ResultService.ConflictException.class, () -> results.submit(p, player));
+    }
+    @Test void inventedRunCannotUnlockOrCredit() {
+        String player = player(); var p = payload("invented-" + UUID.randomUUID(), "campaign_1");
+        assertThrows(IllegalArgumentException.class, () -> results.submit(p, player));
+        assertTrue(rows.findByRunId(p.runId).isEmpty());
+    }
+    @Test void anotherAccountCannotSubmitOrReplayAnOwnedRun() {
+        String a = player(), b = player(); var p = issued(a);
+        assertThrows(ResultService.ConflictException.class, () -> results.submit(p, b));
+        results.submit(p, a);
+        assertThrows(ResultService.ConflictException.class, () -> results.submit(p, b));
+    }
+    @Test void mismatchedLevelAndVersionAreRejected() {
+        String player = player(); var p = issued(player); p.mapVersion = "other";
+        assertThrows(IllegalArgumentException.class, () -> results.submit(p, player));
+        p.mapVersion = "v1"; p.levelId = "campaign_3";
+        assertThrows(IllegalArgumentException.class, () -> results.submit(p, player));
+    }
+    @Test void secondIssuedRunCannotWinCompletedLevel() {
+        String player = player(); var first = issued(player); var second = issued(player);
+        results.submit(first, player);
+        assertThrows(IllegalArgumentException.class, () -> results.submit(second, player));
+        assertTrue(rows.findByRunId(second.runId).isEmpty());
+        assertEquals(100, totals.findByPlayerId(player).orElseThrow().getTotalCoins());
+    }
+    @Test void defeatHasNoRewardEvenWhenClientAsksForOne() {
+        String player = player(); var p = issued(player); p.status = "DEFEAT";
+        var out = results.submit(p, player);
+        assertEquals(0, out.totalCoins); assertEquals(0, out.view.starsEarned);
+        assertEquals(java.util.List.of("campaign_1"), out.unlockedLevels);
+    }
+    @Test void rewardIsDerivedFromMapRatherThanClientClaim() {
+        String player = player(); var p = issued(player); p.starsEarned = 999; p.coinsEarned = 99999;
+        var out = results.submit(p, player); assertEquals(3, out.view.starsEarned); assertEquals(100, out.view.coinsEarned);
+    }
+    @Test void invalidLengthAndModeFailBeforeDatabaseInsert() {
+        String player = player(); var p = issued(player); p.runId = "x".repeat(121);
+        assertThrows(IllegalArgumentException.class, () -> results.submit(p, player));
+        var invalid = issued(player); invalid.mode = "COOP";
+        assertThrows(IllegalArgumentException.class, () -> results.submit(invalid, player));
+    }
+    @Test void concurrentSameRunReturnsSavedAndIdempotentWithoutUniqueFailure() throws Exception {
+        String player = player(); var p = issued(player); var start = new CountDownLatch(1);
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            Callable<ResultService.SubmitOutcome> task = () -> { start.await(); return results.submit(p, player); };
+            var a = pool.submit(task); var b = pool.submit(task); start.countDown();
+            var first = a.get(15, TimeUnit.SECONDS); var second = b.get(15, TimeUnit.SECONDS);
+            assertNotEquals(first.alreadySaved, second.alreadySaved);
+            assertEquals(100, first.totalCoins); assertEquals(100, second.totalCoins);
         }
     }
-
-    private String player;
-
-    @BeforeEach
-    void setUp() {
-        // Mỗi test dùng player riêng để cô lập totals.
-        player = "test-player-" + System.nanoTime();
+    @Test void failedValidationLeavesWalletAndProgressUntouched() {
+        String player = player(); var p = issued(player); p.score = -1;
+        assertThrows(IllegalArgumentException.class, () -> results.submit(p, player));
+        assertTrue(rows.findByRunId(p.runId).isEmpty());
+        assertEquals(0, totals.findByPlayerId(player).orElseThrow().getTotalCoins());
+        assertEquals(java.util.List.of("campaign_1"), progress.getUnlocked(player));
     }
-
-    // ===== 1. VICTORY → lưu reward, không tự cộng ví =====
-
-    @Test
-    void victoryStoresRewardRowWithoutCreditingWallet() {
-        ResultService.ResultPayload p = campaignVictory("run-v1", "campaign_1", 3, 100);
-
-        ResultService.SubmitOutcome out = resultService.submit(p, player);
-
-        assertFalse(out.alreadySaved, "First submit phải là save mới, không idempotent");
-        assertEquals(3, out.view.starsEarned, "Row phải lưu stars theo client");
-        assertEquals(100, out.view.coinsEarned);
-        assertEquals(0, out.totalStars, "Ví không đổi khi chưa sync");
-        assertEquals(0, out.totalCoins);
+    @Test void expiredIssuedRunCannotBeSubmitted() {
+        String player = player(); var p = issued(player);
+        jdbc.update("UPDATE game_run SET expires_at = ? WHERE run_id = ?", java.sql.Timestamp.from(java.time.Instant.EPOCH), p.runId);
+        assertThrows(IllegalArgumentException.class, () -> results.submit(p, player));
+        assertTrue(rows.findByRunId(p.runId).isEmpty());
     }
-
-    @Test
-    void walletSyncedBeforeResultIsCreditedOnlyOnce() {
-        // Client cộng thưởng 100 xu vào ví 0 rồi sync, sau đó mới gửi kết quả.
-        shopService.syncShopData(player, new com.tankzors.application.PlayerShopService.SyncRequest(100, 3, null, null));
-
-        ResultService.SubmitOutcome out = resultService.submit(campaignVictory("run-once", "campaign_1", 3, 100), player);
-
-        assertEquals(100, out.totalCoins, "Thưởng chỉ được cộng một lần");
-        assertEquals(100, totalsCoins(player));
-        assertEquals(3, totalsStars(player));
-    }
-
-    // ===== 2. Idempotency: same runId + payload → no double credit =====
-
-    @Test
-    void retrySameRunIdPayloadDoesNotDoubleCredit() {
-        ResultService.ResultPayload p = campaignVictory("run-retry", "campaign_1", 3, 100);
-        resultService.submit(p, player);
-        long before = totalsStars(player);
-
-        ResultService.SubmitOutcome second = resultService.submit(p, player);
-
-        assertTrue(second.alreadySaved, "Retry cùng payload → alreadySaved=true");
-        assertEquals(before, totalsStars(player), "Totals phải KHÔNG đổi khi retry idempotent");
-    }
-
-    // ===== 3. Conflict: same runId + different payload =====
-
-    @Test
-    void retrySameRunIdDifferentPayloadConflicts() {
-        ResultService.ResultPayload p1 = campaignVictory("run-conflict", "campaign_1", 3, 100);
-        resultService.submit(p1, player);
-
-        ResultService.ResultPayload p2 = campaignVictory("run-conflict", "campaign_1", 3, 150); // coins khác
-        assertThrows(ResultService.ConflictException.class,
-                () -> resultService.submit(p2, player),
-                "Cùng runId + payload khác → 409");
-    }
-
-    // ===== 4. DEFEAT → no credit =====
-
-    @Test
-    void defeatDoesNotCredit() {
-        ResultService.ResultPayload p = new ResultService.ResultPayload();
-        p.runId = "run-defeat";
-        p.mode = "CAMPAIGN";
-        p.levelId = "campaign_1";
-        p.mapVersion = "v1";
-        p.status = "DEFEAT";
-        p.score = 0;
-        p.hpRemain = 0;
-        p.aiKills = 0;
-        p.elapsedSeconds = 30;
-        p.starsEarned = 3;   // client có gửi, nhưng DEFEAT phải bỏ
-        p.coinsEarned = 100;
-
-        ResultService.SubmitOutcome out = resultService.submit(p, player);
-
-        assertEquals(0, out.view.starsEarned, "DEFEAT → 0 stars dù client báo");
-        assertEquals(0, out.view.coinsEarned);
-        assertEquals(0, totalsStars(player), "DEFEAT → totals không tăng");
-        assertEquals(0, totalsCoins(player));
-    }
-
-    // ===== 5. Clamp: client over-reports =====
-
-    @Test
-    void clientOverreportClampedToMapRewards() {
-        // campaign_1 map = {3 stars, 100 coins}. Client báo 999/9999.
-        ResultService.ResultPayload p = campaignVictory("run-clamp", "campaign_1", 999, 9999);
-
-        ResultService.SubmitOutcome out = resultService.submit(p, player);
-
-        assertEquals(3, out.view.starsEarned, "Server phải clamp stars về max của map");
-        assertEquals(100, out.view.coinsEarned, "Server phải clamp coins về max của map");
-    }
-
-    @Test
-    void clientUnderreportIsHonored() {
-        // Client báo ít hơn map: lấy giá trị client (không inflate).
-        ResultService.ResultPayload p = campaignVictory("run-under", "campaign_1", 1, 10);
-
-        ResultService.SubmitOutcome out = resultService.submit(p, player);
-
-        assertEquals(1, out.view.starsEarned, "Client báo < map → giữ nguyên client (không inflate)");
-        assertEquals(10, out.view.coinsEarned);
-    }
-
-    // ===== 6. Màn đã hoàn thành / chưa mở =====
-
-    @Test
-    void secondVictoryOnCompletedLevelIsRejected() {
-        resultService.submit(campaignVictory("run-acc-1", "campaign_1", 3, 100), player);
-
-        assertThrows(IllegalArgumentException.class,
-                () -> resultService.submit(campaignVictory("run-acc-2", "campaign_1", 3, 100), player));
-        assertTrue(matchResults.findByRunId("run-acc-2").isEmpty(), "Kết quả bị từ chối không được lưu");
-    }
-
-    @Test
-    void victoryOnLockedLevelIsRejected() {
-        assertThrows(IllegalArgumentException.class,
-                () -> resultService.submit(campaignVictory("run-skip", "campaign_3", 3, 100), player));
-    }
-
-    // ===== helpers =====
-
-    private static ResultService.ResultPayload campaignVictory(String runId, String levelId,
-                                                               int stars, int coins) {
-        ResultService.ResultPayload p = new ResultService.ResultPayload();
-        p.runId = runId;
-        p.mode = "CAMPAIGN";
-        p.levelId = levelId;
-        p.mapVersion = "v1";
-        p.status = "VICTORY";
-        p.score = 1000;
-        p.hpRemain = 80;
-        p.aiKills = 1;
-        p.elapsedSeconds = 20;
-        p.starsEarned = stars;
-        p.coinsEarned = coins;
-        return p;
-    }
-
-    private int totalsStars(String playerId) {
-        return totalsRepo.findByPlayerId(playerId).map(PlayerTotals::getTotalStars).orElse(0);
-    }
-
-    private int totalsCoins(String playerId) {
-        return totalsRepo.findByPlayerId(playerId).map(PlayerTotals::getTotalCoins).orElse(0);
+    @Test void interestUsesServerResearchAndIsCreditedExactlyOnce() {
+        String player = player(); var p = issued(player); shop.getShopData(player);
+        var wallet = totals.findByPlayerId(player).orElseThrow(); wallet.setTotalStars(20); totals.save(wallet);
+        shop.syncShopData(player, new com.tankzors.application.PlayerShopService.SyncRequest(p.runId,
+                UUID.randomUUID().toString(), 0L, java.util.List.of(new com.tankzors.application.PlayerShopService.Operation(
+                        "RESEARCH", null, "extraInterest", null, null, null))));
+        var out = results.submit(p, player);
+        assertEquals(105, out.totalCoins); assertEquals(14, out.totalStars);
+        assertEquals(105, results.submit(p, player).totalCoins);
     }
 }
