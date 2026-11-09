@@ -46,13 +46,14 @@ public class GameClient implements ApplicationListener {
     }
 
     private void defeatAction(int action) {
+        if (!session.canLeave()) return;
         if (action == 1) session.restart();
         else if (action == 2 && backToCampaignsHandler != null) backToCampaignsHandler.run();
         if (action != 0 && audio != null) audio.playUiClick();
     }
 
     private void continueVictory() {
-        if (!showingVictory()) return;
+        if (!showingVictory() || !session.canLeave()) return;
         if (shopOverlay != null && session.canOpenShop()) {
             continueAfterWorkshop = true;
             shopOverlay.show();
@@ -61,6 +62,7 @@ public class GameClient implements ApplicationListener {
     }
 
     private void victoryAction(int action) {
+        if (!session.canLeave()) return;
         if (action == 1) continueVictory();
         else if (action == 2 && backToCampaignsHandler != null) backToCampaignsHandler.run();
         if (action != 0 && audio != null) audio.playUiClick();
@@ -110,16 +112,13 @@ public class GameClient implements ApplicationListener {
 
         if (session != null && session.getShopState() != null) {
             shopOverlay = new ShopOverlay(assets, audio, session.getShopState(), new ShopOverlay.ShopListener() {
+                @Override public void retrySave() { session.retrySave(); }
                 @Override
                 public void onShopClosed() {
                     if (session instanceof LocalCampaignSession) {
                         ((LocalCampaignSession) session).syncShopState();
                     }
-                    if (continueAfterWorkshop) {
-                        continueAfterWorkshop = false;
-                        if (session.hasNextLevel()) session.nextLevel();
-                        else if (backToCampaignsHandler != null) backToCampaignsHandler.run();
-                    }
+                    // render() completes an intended transition after the final shop write is acknowledged.
                 }
                 @Override
                 public void onShopStateChanged() {
@@ -149,6 +148,7 @@ public class GameClient implements ApplicationListener {
 
         input = new ClientInputProcessor(new ClientInputProcessor.Callbacks() {
             @Override public boolean onResultKey(int key) {
+                if (key == Input.Keys.R && session != null) session.retrySave();
                 if (showingDefeat()) {
                     defeatAction(renderer.defeatKey(key));
                     return true;
@@ -256,7 +256,7 @@ public class GameClient implements ApplicationListener {
                 if (audio != null) audio.toggleMute();
             }
             @Override public void onBackToCampaigns() {
-                if (session != null && backToCampaignsHandler != null) {
+                if (session != null && session.canLeave() && backToCampaignsHandler != null) {
                     backToCampaignsHandler.run();
                 }
             }
@@ -292,6 +292,11 @@ public class GameClient implements ApplicationListener {
 
         if (session != null) {
             session.update(dt);
+            if (continueAfterWorkshop && shopOverlay != null && !shopOverlay.isVisible() && session.canLeave()) {
+                continueAfterWorkshop = false;
+                if (session.hasNextLevel()) session.nextLevel();
+                else if (backToCampaignsHandler != null) backToCampaignsHandler.run();
+            }
             setEnabledByStatus(session.status());
             if (renderer != null) {
                 com.tankzors.client.model.GameStateSnapshot frame = session.snapshot();
@@ -299,6 +304,7 @@ public class GameClient implements ApplicationListener {
                 frame.radarSettingsOpen = input.radarSettingsOpen();
                 renderer.render(frame);
                 renderer.renderShop(shopOverlay);
+                renderer.renderPersistence(frame.persistenceMessage);
             }
         } else if (renderer != null) {
             renderer.render(null);

@@ -17,9 +17,27 @@ public class PlayerShopState {
     private final Map<Integer, Integer> inventory = new HashMap<>();
     private final Map<String, Integer> research = new HashMap<>();
     private Map<Integer, Integer> shopOpeningInventory;
+    private boolean recordOperations;
+    private boolean transactionsBlocked;
+    public void setTransactionsBlocked(boolean blocked) { transactionsBlocked = blocked; }
+    private final java.util.List<String> operations = new java.util.ArrayList<>();
+    public void enableOperationRecording() { recordOperations = true; operations.clear(); }
+    public boolean hasPendingOperations() { return !operations.isEmpty(); }
+    private void record(String fields) { if (recordOperations) operations.add("{" + fields + "}"); }
+    private void itemOperation(String type, int id, int amount) {
+        record("\"type\":\"" + type + "\",\"itemId\":" + id + ",\"amount\":" + amount);
+    }
+    public void recordPickup(int col, int row) {
+        record("\"type\":\"PICKUP\",\"col\":" + col + ",\"row\":" + row);
+    }
+    public String drainOperations() {
+        StringBuilder json = new StringBuilder("[");
+        for (int i = 0; i < operations.size(); i++) { if (i > 0) json.append(','); json.append(operations.get(i)); }
+        operations.clear(); return json.append(']').toString();
+    }
 
     /** Builds only refunds ammunition purchased during this shop visit. */
-    public void beginShopVisit() { shopOpeningInventory = snapshotInventory(); }
+    public void beginShopVisit() { shopOpeningInventory = snapshotInventory(); record("\"type\":\"OPEN\""); }
     public void endShopVisit() { shopOpeningInventory = null; }
 
     private int activeWeaponId = 0; // Mặc định là Round (0)
@@ -88,6 +106,8 @@ public class PlayerShopState {
     }
 
     public void setItemCount(int itemId, int count) {
+        int used = getItemCount(itemId) - Math.max(0, count);
+        if (used > 0) itemOperation("CONSUME", itemId, used);
         inventory.put(itemId, Math.max(0, count));
     }
 
@@ -95,6 +115,7 @@ public class PlayerShopState {
         int count = getItemCount(itemId);
         if (count <= 0) return false;
         inventory.put(itemId, count - 1);
+        itemOperation(itemId == 20 ? "INSTALL" : "CONSUME", itemId, 1);
         return true;
     }
 
@@ -301,6 +322,7 @@ public class PlayerShopState {
     }
 
     public boolean canBuy(ShopItem item) {
+        if (transactionsBlocked) return false;
         if (!isItemUnlocked(item)) return false;
         int price = getEffectivePrice(item);
         if (coins < price) return false;
@@ -318,10 +340,12 @@ public class PlayerShopState {
         int limit = getEffectiveLimit(item);
         int newCount = Math.min(limit, currentCount + item.getPackSize());
         inventory.put(item.getId(), newCount);
+        itemOperation("BUY", item.getId(), 1);
         return true;
     }
 
     public boolean canSell(ShopItem item) {
+        if (transactionsBlocked) return false;
         if (item == null) return false;
         if (item == ShopItem.RADAR) return false;
         if (item == ShopItem.EX_CHASSIS) return false; // Không thể bán khung gầm vĩnh viễn
@@ -336,10 +360,12 @@ public class PlayerShopState {
         coins += price;
         int currentCount = getItemCount(item.getId());
         inventory.put(item.getId(), currentCount - item.getPackSize());
+        itemOperation("SELL", item.getId(), 1);
         return true;
     }
 
     public boolean canUpgradeResearch(ResearchTech tech) {
+        if (transactionsBlocked) return false;
         if (tech == null) return false;
         int currentLevel = getResearchLevel(tech.getId());
         if (currentLevel >= tech.getMaxLevel()) return false;
@@ -353,6 +379,7 @@ public class PlayerShopState {
         int price = tech.getPriceForLevel(currentLevel);
         stars -= price;
         research.put(tech.getId(), currentLevel + 1);
+        record("\"type\":\"RESEARCH\",\"techId\":\"" + tech.getId() + "\"");
         return true;
     }
 
@@ -363,13 +390,19 @@ public class PlayerShopState {
     }
 
     public boolean repairTank(int missingHp) {
+        if (transactionsBlocked) return false;
         int cost = getRepairTankCost(missingHp);
         if (cost <= 0) return true;
         if (coins >= cost) {
             coins -= cost;
+            recordRepair(false, missingHp);
             return true;
         }
         return false;
+    }
+
+    public void recordRepair(boolean allies, int missingHp) {
+        record("\"type\":\"" + (allies ? "REPAIR_ALLIES" : "REPAIR") + "\",\"amount\":" + missingHp);
     }
 
     public int getArmorHpBonus() {
@@ -409,8 +442,10 @@ public class PlayerShopState {
      * Nạp dữ liệu đồng bộ từ server.
      */
     public void loadState(int totalCoins, int totalStars, String researchJson, String inventoryJson) {
-        if (totalCoins > 0) this.coins = totalCoins;
-        if (totalStars > 0) this.stars = totalStars;
+        this.coins = Math.max(0, totalCoins);
+        this.stars = Math.max(0, totalStars);
+        research.clear();
+        inventory.clear();
         parseResearch(researchJson);
         parseInventory(inventoryJson);
     }

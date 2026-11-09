@@ -1179,6 +1179,7 @@ public class GameSimulation {
         // Builds giữ bộ sửa trên map khi xe còn đầy máu.
         if (pickup == TileType.REPAIR_PICKUP && player.getHP() >= player.getMaxHP()) return;
         md.collectPickupAt(x, y);
+        shopState.recordPickup(cellOf(x, md.getTileSize()), cellOf(y, md.getTileSize()));
         if (eventListener != null) eventListener.onPickup();
         switch (pickup) {
             case REPAIR_PICKUP:
@@ -1734,6 +1735,7 @@ public class GameSimulation {
         int cost = missing * (shopState.getResearchLevel("armorResearch") >= 3 ? 2 : 5);
         if (missing <= 0 || shopState.getCoins() < cost) return false;
         shopState.setCoins(shopState.getCoins() - cost);
+        shopState.recordRepair(true, missing);
         for (ITank tank : world.getAllTanks()) {
             if (tank instanceof AITank && ((AITank) tank).isAlly() && tank.isAlive()) ((AITank) tank).restoreHull();
         }
