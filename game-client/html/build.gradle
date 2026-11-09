@@ -43,7 +43,11 @@ dependencies {
 // Copy assets dùng chung vào webapp/assets trước khi build GWT.
 tasks.register('syncAssets', Sync) {
     from sharedAssetsDir
+    exclude '**/*.md'
     into file('src/main/webapp/assets')
+}
+tasks.named('compileGwt') {
+    dependsOn 'syncAssets'
 }
 // task dist do plugin wisepersist.gwt cung cấp (gwtCompile).
 // Output GWT wisepersist default: build/gwt/out/<module>.

@@ -36,6 +36,9 @@ gradle/wrapper/gradle-wrapper.jar
 # LibGDX HTML5 bundle (copyToServer / Docker build tạo lại)
 server-spring/src/main/resources/static/game/libgdx/
 
+# Browser asset mirror is regenerated from game-client/assets by syncAssets.
+game-client/html/src/main/webapp/assets/
+
 # Maven dependency reduced POM
 *.versionsBackup
 

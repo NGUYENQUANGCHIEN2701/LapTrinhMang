@@ -35,6 +35,7 @@ RUN --mount=type=cache,id=tankzors-maven,target=/root/.m2 \
     mvn -B -ntp -Dmaven.wagon.http.retryHandler.count=5 dependency:go-offline
 
 COPY server-spring/src ./src
+COPY game-client/assets/economy/ ./src/main/resources/economy/
 
 # Không đóng gói bundle client đã commit/stale. Luôn dùng output vừa build ở
 # stage client-builder để Java source và JavaScript trong image đồng bộ.
